@@ -16,7 +16,7 @@ beginfig(1);
   draw p withpen pencircle scaled 0.45 withcolor 0.75[c, black];
 endfig;
 end.`,
-  // One frame of a spinning wire-frame cube with a Lissajous trail; t is seconds.
+  // One frame of a spinning wire-frame cube in perspective; t is seconds.
   cube: (t = 0) => `
 beginfig(1);
   numeric t, a, b, s; t := ${t.toFixed(3)}; a := 37t; b := 23t; s := 52;
@@ -28,8 +28,6 @@ beginfig(1);
   enddef;
   pair v[]; numeric k; k := 0;
   for i = -1, 1: for j = -1, 1: for l = -1, 1: v[k] := proj(i, j, l); k := k + 1; endfor endfor endfor
-  draw (0,0) for u = 1 upto 160: -- (85*sind(3(u + 12t))*cosd(2(u + 12t)), 85*sind(2(u + 12t))) endfor
-    withpen pencircle scaled 0.4 withcolor (0.7, 0.7, 0.72);
   for e = 0 upto 7: for f = e + 1 upto 7:
     if (f - e = 1) and (e mod 2 = 0): draw v[e] -- v[f] withpen pencircle scaled 1.1 withcolor (0.1, 0.3, 0.7); fi
     if (f - e = 2) and (e mod 4 < 2): draw v[e] -- v[f] withpen pencircle scaled 1.1 withcolor (0.1, 0.3, 0.7); fi
