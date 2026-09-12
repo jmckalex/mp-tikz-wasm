@@ -1,6 +1,8 @@
 // live-sources.js — the generators behind live.html: each returns a complete
 // MetaPost or LaTeX document for the current parameters. A classic script so it
 // can be inlined into the single-file build; the builder reads it too.
+// hue in [0,1], saturation and lightness in [0,1] -> [r, g, b] in [0,1]
+const hsl = (h, sat, l) => { const f = (n) => { const k = (n + h * 12) % 12; const a = sat * Math.min(l, 1 - l); return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return [f(0), f(8), f(4)]; };
 globalThis.PAGE_SOURCES = {
   // A harmonograph: two damped pendulums per axis, drawn as one MetaPost path.
   harmonograph: ({ f1 = 3, f2 = 2, f3 = 3, f4 = 2, phase = 45, damping = 0.3, hue = 0.62 } = {}) => `
@@ -12,8 +14,7 @@ beginfig(1);
     .. (A*mexp(-d*t/8)*sind(fa*t + ph) + A*mexp(-d*t/6)*sind(fb*t),
         A*mexp(-d*t/8)*sind(fc*t)      + A*mexp(-d*t/6)*sind(fd*t + ph))
   endfor;
-  color c; c := (${hue.toFixed(3)}, ${(1 - hue).toFixed(3)}, 0.55);
-  draw p withpen pencircle scaled 0.45 withcolor 0.75[c, black];
+  draw p withpen pencircle scaled 0.45 withcolor (${hsl(hue, 0.75, 0.38).map((v) => v.toFixed(3)).join(', ')});
 endfig;
 end.`,
   // One frame of a spinning wire-frame cube in perspective; t is seconds.
