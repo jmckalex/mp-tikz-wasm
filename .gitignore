@@ -30,3 +30,4 @@ coverage/
 # generated (rebuild with npm run build / build-standalone)
 /dist/
 /site/standalone.html
+/release/

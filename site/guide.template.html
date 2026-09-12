@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MetaPost-WASM</title>
+<meta name="description" content="MetaPost, pdfTeX and dvisvgm compiled to WebAssembly: MetaPost figures with LaTeX labels and whole TikZ/PGF documents rendered to SVG in the browser and in Node.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #f4f6f8; --surface: #ffffff; --ink: #18212b; --muted: #5d6b7a; --line: #d5dbe2;
+    --accent: #1f4e9c; --accent-ink: #ffffff; --copper: #b5651d; --code: #111820; --code-ink: #e9eef3; --grid: #e6eaef; --ok: #2f7d4f;
+    --display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --mono: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0f141a; --surface: #171e26; --ink: #e6ebf0; --muted: #93a1b0; --line: #2a343f; --accent: #86ade9; --accent-ink: #0f141a; --copper: #e39a5b; --code: #0a0e13; --code-ink: #dfe6ee; --grid: #1e2730; --ok: #7fcf9a; } }
+  :root[data-theme="dark"] { --bg: #0f141a; --surface: #171e26; --ink: #e6ebf0; --muted: #93a1b0; --line: #2a343f; --accent: #86ade9; --accent-ink: #0f141a; --copper: #e39a5b; --code: #0a0e13; --code-ink: #dfe6ee; --grid: #1e2730; --ok: #7fcf9a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.55; padding-block: 0 64px; padding-inline: clamp(16px, 4vw, 40px); }
+  a { color: var(--accent); }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; margin: 0; }
+  h2 { font-size: 30px; line-height: 1.15; margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--line); }
+  h3 { font-size: 20px; margin-top: 30px; }
+  p, li { max-width: 72ch; }
+  p { margin: 12px 0 0; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-top: 8px; }
+  code { font-family: var(--mono); font-size: 0.9em; }
+  pre { margin: 12px 0 0; background: var(--code); color: var(--code-ink); font: 13px/1.5 var(--mono); padding: 14px 16px; border-radius: 6px; overflow-x: auto; max-width: 100%; }
+  pre code { font-size: inherit; }
+  .lede { font-size: 20px; line-height: 1.5; }
+  .masthead { padding-block: 44px 8px; display: grid; gap: 20px; }
+  .wordmark { width: min(100%, 460px); }
+  .wordmark svg { width: 100%; height: auto; display: block; }
+  .wordmark svg g[style] { fill: currentColor !important; } .wordmark svg path { fill: currentColor; }
+  .thesis { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+  @media (max-width: 760px) { .thesis { grid-template-columns: 1fr; } }
+  .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; border-left: 2px solid var(--copper); padding-left: 18px; }
+  .facts b { display: block; font: 500 22px var(--mono); font-variant-numeric: tabular-nums; }
+  .facts span { color: var(--muted); font-size: 14px; }
+  nav.toc { margin-top: 20px; font-size: 15px; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+  nav.toc a { text-decoration: none; border-bottom: 1px solid var(--line); }
+  table { border-collapse: collapse; width: 100%; max-width: 78ch; font-size: 15px; margin-top: 14px; }
+  th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+  td.n, td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 14px; }
+  .tablewrap { overflow-x: auto; }
+  /* figures */
+  .ex { margin: 26px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); overflow: hidden; }
+  .ex .fig { padding: 20px; display: flex; justify-content: center; align-items: center; background: #fff; background-image: linear-gradient(#eef1f5 1px, transparent 1px), linear-gradient(90deg, #eef1f5 1px, transparent 1px); background-size: 20px 20px; }
+  .ex .fig svg { height: auto; max-width: 100%; display: block; }
+  .ex figcaption { padding: 12px 16px; font-size: 15px; border-top: 1px solid var(--line); max-width: none; }
+  .ex figcaption b { font-family: var(--display); font-weight: 600; font-size: 17px; }
+  .ex .ms { display: inline-block; margin-left: 8px; font: 12px var(--mono); color: var(--muted); white-space: nowrap; }
+  .ex details { border-top: 1px solid var(--line); }
+  .ex summary { cursor: pointer; padding: 8px 16px; font: 500 13px var(--mono); color: var(--muted); }
+  .ex details pre { margin: 0; border-radius: 0; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; align-items: start; }
+  .grid2 .ex { margin-top: 0; }
+  .note { border-left: 3px solid var(--copper); padding: 6px 14px; margin-top: 14px; color: var(--muted); font-size: 15px; max-width: 72ch; }
+  ol.steps { padding-left: 0; list-style: none; counter-reset: s; margin: 14px 0 0; display: grid; gap: 10px; max-width: 76ch; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 40px 1fr; gap: 10px; }
+  ol.steps li::before { content: counter(s); font: 600 22px/1 var(--display); color: var(--copper); }
+  ul { padding-left: 20px; margin: 10px 0 0; }
+  li { margin-top: 4px; }
+  .missing { color: #b3372c; }
+  footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="masthead">
+  <div>
+    <div class="wordmark" aria-label="MetaPost">__WORDMARK__</div>
+    <div class="eyebrow">MetaPost-WASM · version __VERSION__ · MetaPost 2.11, pdfTeX 1.40, dvisvgm 3.4.3</div>
+  </div>
+  <div class="thesis">
+    <div>
+      <p class="lede">MetaPost and TikZ in the browser, with real LaTeX. John Hobby's MetaPost, pdfTeX and dvisvgm are compiled to WebAssembly and wrapped in one TypeScript library: MetaPost source becomes SVG with real glyph outlines, EPS and structured JSON, and whole LaTeX/TikZ documents become one SVG per page — shadings, patterns, opacity, pgfplots and all. No server, no web fonts, and output that is byte-identical to TeX Live's own <code>mpost</code> and <code>latex</code>&nbsp;+&nbsp;<code>dvisvgm</code>.</p>
+      <nav class="toc">
+        <a href="#get">Get it</a><a href="#tags">Drop-in tags</a><a href="#api">Library API</a><a href="#cli">Command line</a><a href="#metapost">MetaPost features</a><a href="#tikz">TikZ features</a><a href="#how">How it works</a><a href="#fidelity">Fidelity</a><a href="#tikzjax">vs tikzjax</a><a href="#limits">Limits</a><a href="#build">Building</a><a href="#licence">Licences</a>
+      </nav>
+    </div>
+    <div class="facts">
+      <div><b>__WASM_MB__ MB</b><span>of WebAssembly (__WASM_GZ_MB__ MB gzipped), three TeX-family programs</span></div>
+      <div><b>22 / 22</b><span>golden cases byte-identical to TeX Live 2025</span></div>
+      <div><b>~15 ms</b><span>for a MetaPost figure; ~100 ms for a TikZ figure</span></div>
+      <div><b>0 servers</b><span>everything runs in the page or in Node</span></div>
+    </div>
+  </div>
+</header>
+
+<h2 id="get">Get it</h2>
+<p>Two ways. The prebuilt archive is what most people want: it contains the compiled engines, the JavaScript and the font, format and package bundles, and needs neither TeX Live nor Emscripten.</p>
+<h3>1. Prebuilt release</h3>
+<ol class="steps">
+  <li><span>Download <code>metapost-wasm-__VERSION__.tar.gz</code> (or <code>.zip</code>) from the <a href="__REPO_URL__/releases">releases page</a> and unpack it.</span></li>
+  <li><span>Host the <code>dist/</code> folder on any static web server (the files are plain; nothing needs special headers). To try it locally: <code>node serve.mjs 8080</code> inside the unpacked folder, then open <code>http://localhost:8080/site/</code>.</span></li>
+  <li><span>Add one line to your page — see <a href="#tags">Drop-in tags</a> — or <code>import { MetaPost } from '/path/to/dist/index.js'</code>.</span></li>
+</ol>
+<h3>2. From source</h3>
+<pre><code>git clone __REPO_URL__.git
+cd metapost-wasm
+./scripts/extract-vendor.sh      # fetch and verify the pinned TeX Live 2025 source (111 MB)
+./scripts/verify-pin.sh          # assert the mplib API the design relies on
+npm install
+make contract                    # native build + the L0 contract harness (46 checks)
+./scripts/native-texlive.sh      # native web2c pass: generates pdfTeX's C (once, ~5 min)
+./scripts/native-dvisvgm.sh      # native configure of dvisvgm: config.h (once)
+npm run build                    # mplib.wasm, tex.wasm, dvisvgm.wasm, texmf tree, formats, bundles, TypeScript
+npm test                         # unit + end-to-end tests
+npm run demo                     # http://localhost:8080/site/</code></pre>
+<p>Prerequisites: a C compiler, Node ≥ 20, the Emscripten SDK (<code>.emsdk-version</code> pins 6.0.9) and a TeX Live 2025 installation, which is both the source of the bundled texmf files and the oracle the tests compare against. See <a href="#build">Building</a> for what each step produces.</p>
+
+<h2 id="tags">Drop-in tags</h2>
+<p>This is the tikzjax-style integration: one script, and every diagram tag on the page is replaced by its SVG.</p>
+<pre><code>&lt;script type="module" src="/path/to/dist/auto.js"&gt;&lt;/script&gt;
+
+&lt;script type="text/tikz" data-libraries="arrows.meta,calc"&gt;
+  \begin{tikzpicture}
+    \draw[-&gt;,thick] (0,0) -- (2,1) node[right] {$x^2$};
+  \end{tikzpicture}
+&lt;/script&gt;
+
+&lt;script type="text/metapost"&gt;
+  draw fullcircle scaled 50 withpen pencircle scaled 1.2;
+  label.top(btex $\int_0^1 x\,dx$ etex, (0,25));
+&lt;/script&gt;
+
+&lt;tikz-diagram data-libraries="shadings"&gt;\shade[ball color=red] (0,0) circle (1);&lt;/tikz-diagram&gt;
+&lt;metapost-diagram&gt;input boxes; boxit.a("hello"); drawboxed(a);&lt;/metapost-diagram&gt;</code></pre>
+<ul>
+  <li>A TikZ body without <code>\documentclass</code> is wrapped in a <code>standalone</code> document; a complete document is compiled as is. A MetaPost body without <code>beginfig</code> becomes one figure; <code>input</code> lines are hoisted above it.</li>
+  <li>Attributes (as <code>data-*</code> on script tags, plain on custom elements): <code>libraries</code>, <code>packages</code>, <code>preamble</code>, <code>border</code> for TikZ; <code>tex</code> (<code>auto</code> | <code>plain</code> | <code>latex</code> | <code>none</code>) and <code>prologues</code> for MetaPost; <code>fonts="woff2"</code> for embedded fonts instead of outlines; <code>cache="off"</code>; <code>show-console</code>; <code>alt</code>.</li>
+  <li>Loader attributes: <code>data-base</code> (where <code>bundles/</code> and the wasm files live, default next to the script), <code>data-worker="off"</code>, <code>data-observe="off"</code>, <code>data-snapshot="on"</code>.</li>
+  <li>Results are cached in IndexedDB by content hash; a revisited page shows every figure without running TeX. Elements added later are rendered by a <code>MutationObserver</code>. Each render dispatches a <code>metapost-wasm:rendered</code> event; <code>window.metapostWasm.render()</code> renders programmatically.</li>
+  <li>Errors show their diagnostics under the figure rather than failing silently. Inside custom elements the content is HTML, so write <code>&amp;lt;</code> for <code>&lt;</code>; script tags are raw.</li>
+</ul>
+<p>The engines run in a Web Worker, so the page never blocks; there is a 20 s watchdog per run.</p>
+
+<h2 id="api">Library API</h2>
+<pre><code>import { MetaPost } from './dist/index.js';   // browser (a Worker) or Node (in-process)
+
+const mp = await MetaPost.create();          // loads the engines and the bundle manifests
+
+// MetaPost -> SVG / EPS / JSON
+const r = await mp.run(`
+  beginfig(1);
+    draw fullcircle scaled 100;
+    label.top(btex $\\int_0^\\infty e^{-x^2}dx$ etex, (0,50));
+  endfig; end.`, { format: ['svg', 'eps', 'json'] });
+r.status            // 'ok' | 'warning' | 'error' | 'fatal'  (MetaPost's own history)
+r.figures[0].svg    // glyph outlines, self-contained
+r.figures[0].eps    // what mpost writes, byte for byte
+r.figures[0].json   // typed knots, pens, colours, dashes, text runs, clips
+r.diagnostics       // [{ severity, source, message, help[], file, line }]
+r.stats             // metapostMs, texMs, texRuns, snippetCacheHits ...
+
+// LaTeX / TikZ -> one SVG per page
+const t = await mp.latex(String.raw`
+  \documentclass[tikz,border=2pt]{standalone}
+  \begin{document}\begin{tikzpicture}
+    \shade[ball color=blue!60] (0,0) circle (1);
+  \end{tikzpicture}\end{document}`);
+t.pages[0]          // SVG
+t.diagnostics       // TeX errors with document line numbers, package warnings
+t.stats             // texMs, dvisvgmMs, format ('latex' or 'tikz')</code></pre>
+<div class="tablewrap"><table>
+<thead><tr><th>Option</th><th>Where</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td class="mono">bundles, bundleBaseUrl</td><td>create</td><td>which texmf bundles to load and from where (default: all, next to the script)</td></tr>
+<tr><td class="mono">numberSystem</td><td>create</td><td><code>scaled</code> (mpost's default), <code>double</code>, <code>decimal</code></td></tr>
+<tr><td class="mono">tex</td><td>create / run</td><td>label engine for <code>btex</code>: <code>auto</code> (LaTeX when the preamble says so), <code>plain</code>, <code>etex</code>, <code>latex</code>, <code>none</code></td></tr>
+<tr><td class="mono">deterministic</td><td>create</td><td>fixed random seed and frozen date, so two runs are byte-identical (default on)</td></tr>
+<tr><td class="mono">runScript, makeText, onFindFile</td><td>create</td><td>JavaScript hooks for <code>runscript</code>, for overriding label typesetting, and for last-chance file lookup (in-process mode)</td></tr>
+<tr><td class="mono">worker, timeoutMs, snapshot</td><td>create</td><td>Worker vs in-process; watchdog; default snapshot policy</td></tr>
+<tr><td class="mono">format, prologues, internals, files, jobName</td><td>run</td><td>outputs; <code>prologues</code> (3 for SVG outlines); <code>-s name=value</code> internals; extra files placed next to the job</td></tr>
+<tr><td class="mono">engine, fonts, pages, bbox, dvisvgmArgs, snapshot, files</td><td>latex</td><td><code>latex</code> | <code>plain</code> | <code>tex</code>; outlines or woff2; page selection; dvisvgm's bbox; extra arguments; the pre-warmed format</td></tr>
+</tbody></table></div>
+<p>Also exported: <code>MetaPostPool</code> for batch work across several workers, <code>sanitizeSvg</code> for <code>innerHTML</code> use (MetaPost's <code>special</code> can inject arbitrary text), <code>postProcessSvg</code> (numeric compaction, id namespacing), <code>scanTexBlocks</code>, <code>splitMpx</code>, <code>parseMetaPostLog</code>.</p>
+<h3>Node</h3>
+<p>The same API runs in-process in Node with the bundles read from disk; nothing is fetched. <code>MetaPost.create({ texmfDir })</code> can point at a texmf tree in the flattened layout instead of bundles.</p>
+
+<h2 id="cli">Command line</h2>
+<pre><code>npx mpost-wasm figure.mp                                  # figure.1, figure.2 …  like mpost
+npx mpost-wasm -s 'outputformat="svg"' -s prologues=3 figure.mp
+npx mpost-wasm -tex=latex -numbersystem=double -jobname=out figure.mp
+npx mpost-wasm --latex figure.tex                         # figure-1.svg, figure-2.svg …
+npx mpost-wasm --latex --plain --fonts=woff2 figure.tex</code></pre>
+<p><code>mpost-wasm</code> accepts the usual <code>mpost</code> flags (<code>-interaction</code>, <code>-jobname</code>, <code>-tex</code>, <code>-s</code>, <code>-halt-on-error</code>, <code>-recorder</code>; <code>-troff</code> with a warning), writes output files with <code>mpost</code>'s <code>outputtemplate</code> naming, prints the transcript, and exits 1 on error.</p>
+
+<h2 id="metapost">What it does — MetaPost</h2>
+<p>Everything below was rendered by the wasm engines when this page was built; open “source” under any figure for the exact input. The output of the MetaPost side is byte-identical to native <code>mpost</code> on the golden corpus, because it <em>is</em> MetaPost: the C output is left untouched.</p>
+<div class="grid2">__FIG:mp-paths__ __FIG:mp-pens__</div>
+<div class="grid2">__FIG:mp-fills__ __FIG:mp-clip__</div>
+__FIG:mp-label__
+<div class="grid2">__FIG:mp-btex__ __FIG:mp-latex__</div>
+__FIG:mp-boxes__
+<div class="grid2">__FIG:mp-graph__ __FIG:mp-koch__</div>
+<p>Also supported: all number systems mplib builds without GMP (<code>scaled</code>, <code>double</code>, <code>decimal</code>); <code>withprescript</code>/<code>withpostscript</code> and <code>special</code>; TFM output; <code>write … to</code> files (returned as artifacts); <code>runscript</code> bridged to a JavaScript function when you opt in; the structured JSON figure model for canvas rendering, hit testing or export; and the classic <code>.mpx</code> route (<code>extensions: false</code>) for byte-parity with <code>mpost</code>'s own file handling.</p>
+
+<h2 id="tikz">What it does — TikZ and LaTeX</h2>
+<p>A TikZ document is not a label but a whole page, so it takes a different road: pdfTeX writes a DVI whose specials carry PGF's drawing commands, and dvisvgm — the reference converter, with its PGF special handlers, FreeType and potrace, also compiled to WebAssembly — turns each page into SVG. The library selects PGF's <code>dvisvgm</code> driver automatically, so nothing needs Ghostscript.</p>
+__FIG:tz-shading__
+__FIG:tz-patterns__
+<div class="grid2">__FIG:tz-graph__ __FIG:tz-cd__</div>
+__FIG:tz-pgfplots__
+<div class="grid2">__FIG:tz-text__ __FIG:tz-tree__</div>
+__FIG:tz-plain__
+<p>The bundles contain LaTeX 2025 with expl3, PGF/TikZ with every library, pgfplots, tikz-cd, amsmath, amssymb, amscls, mathtools, tools, graphics, xcolor, geometry, booktabs, standalone, the Latin Modern fonts in T1/TS1 encodings, Computer Modern, the AMS fonts and Euler. Adding a package is one line in <code>scripts/build-texmf.sh</code>; the loader fetches files per file, on demand, so bundle size costs nothing until a document uses a file.</p>
+
+<h2 id="how">How it works</h2>
+<h3>Three engines</h3>
+<div class="tablewrap"><table>
+<thead><tr><th>Module</th><th>Size</th><th>What it is</th></tr></thead>
+<tbody>
+<tr><td class="mono">mplib.wasm</td><td class="n">__MPLIB_MB__ MB</td><td>MetaPost 2.11: interpreter, PostScript and SVG backends, Type 1 font machinery, TFM reader, scaled/double/decimal arithmetic, <code>mpto</code> and <code>dvitomp</code></td></tr>
+<tr><td class="mono">tex.wasm</td><td class="n">__TEX_MB__ MB</td><td>pdfTeX 1.40.27 in DVI mode (= <code>tex</code>, <code>etex</code>, <code>latex</code>) with kpathsea, zlib, libpng</td></tr>
+<tr><td class="mono">dvisvgm.wasm</td><td class="n">__DVISVGM_MB__ MB</td><td>dvisvgm 3.4.3 with FreeType, potrace, clipper, woff2/brotli; PostScript specials (Ghostscript) compiled out</td></tr>
+</tbody></table></div>
+<h3>Labels without a subprocess</h3>
+<p>Native MetaPost shells out to TeX from the middle of its scanner, which WebAssembly cannot do. The TeX step is lifted out of the run instead:</p>
+<ol class="steps">
+  <li><span><b>Scan.</b> The source and every <code>input</code>-ed file are scanned for <code>btex</code>/<code>verbatimtex</code> blocks with a TypeScript port of <code>mpto</code>'s lexer, tested byte-for-byte against the C original.</span></li>
+  <li><span><b>Typeset once.</b> Every block not already cached goes into one batched pdfTeX run, one page per block.</span></li>
+  <li><span><b>Convert.</b> MetaPost's own <code>dvitomp</code> turns the DVI into <code>.mpx</code> picture expressions, split per block and cached by a hash of engine, format, preceding <code>verbatimtex</code> chain and body.</span></li>
+  <li><span><b>Run.</b> MetaPost runs with <code>extensions=1</code>; its <code>make_text</code> callback answers each <code>btex</code> synchronously from the cache.</span></li>
+  <li><span><b>Fixpoint.</b> A label the scan could not see (<code>scantokens</code>) misses, comes back as <code>nullpicture</code>, and the run repeats once it has been typeset.</span></li>
+</ol>
+<p>Forty labels cost one TeX run; editing one label costs one TeX run with one page; an unchanged document costs none.</p>
+<h3>Formats, bundles and the snapshot</h3>
+<p><code>plain.fmt</code>, <code>etex.fmt</code> and <code>latex.fmt</code> are built by the wasm engine itself at bundle-build time, so they match it byte for byte. <code>tikz.fmt</code> is the optional pre-warmed snapshot: <code>latex.fmt</code> with PGF, its definitional libraries, pgfplots and tikz-cd already loaded, the equivalent of tikzjax's memory image. It saves 50–160 ms per TikZ document and produces byte-identical pages (the test suite checks), but as a 5.8 MB file that does not compress it costs more to download than the 2.5 MB it replaces, so it is the default in Node and opt-in in browsers.</p>
+<div class="tablewrap"><table>
+<thead><tr><th>What a page downloads</th><th>raw</th><th>gzipped</th></tr></thead>
+<tbody>
+<tr><td>the three engines and the JavaScript, once</td><td class="n">5.2 MB</td><td class="n">2.2 MB</td></tr>
+<tr><td>a MetaPost figure, geometry only</td><td class="n">0.07 MB</td><td class="n">0.01 MB</td></tr>
+<tr><td>a MetaPost figure with <code>label()</code> text</td><td class="n">0.16 MB</td><td class="n">0.05 MB</td></tr>
+<tr><td>a MetaPost figure with plain-TeX <code>btex</code></td><td class="n">0.37 MB</td><td class="n">0.25 MB</td></tr>
+<tr><td>a MetaPost figure with LaTeX <code>btex</code></td><td class="n">2.4 MB</td><td class="n">2.2 MB</td></tr>
+<tr><td>a TikZ figure (<code>latex.fmt</code>)</td><td class="n">3.8 MB</td><td class="n">2.5 MB</td></tr>
+<tr><td>a TikZ figure with the snapshot</td><td class="n">5.9 MB</td><td class="n">5.5 MB</td></tr>
+</tbody></table></div>
+<p>Everything is fetched once and cached by the browser; rendered figures are cached in IndexedDB as well. The whole bundle tree is 42 MB on the server, and no page downloads all of it.</p>
+
+<h2 id="fidelity">Fidelity and tests</h2>
+<ul>
+  <li><b>Golden corpus, MetaPost:</b> 15 documents — paths, pens, fills, transforms, clipping, labels, plain-TeX and LaTeX labels, boxes, graph, macros, colours, multiple figures, error recovery — byte-identical in EPS and SVG to <code>mpost</code> from TeX Live 2025 run with the same frozen date.</li>
+  <li><b>Golden corpus, TikZ:</b> 7 documents — plots, graphs, shadings/patterns/clip, pgfplots, Latin Modern text, plain TeX, a two-page article — byte-identical to <code>latex</code> + <code>dvisvgm</code>, with and without the snapshot.</li>
+  <li><b>Conformance:</b> the <code>mtrap</code> half of MetaPost's official trap test produces the same figures as native MetaPost 2.11; <code>tex.wasm</code> reproduces the oracle's DVI byte for byte; the <code>.mpx</code> round trip through our <code>mpto</code> and <code>dvitomp</code> matches the committed sample.</li>
+  <li><b>Unit and end-to-end:</b> 200+ tests, including the scanner diffed against the C <code>mpto</code> on a 24-case corpus and 60 fuzz inputs, and a native contract harness of 46 checks that would catch a TeX Live bump changing mplib's API.</li>
+  <li><b>Upstream bugs found and patched</b> (nine small, explained patches in <code>patches/</code>): a process-global flag that crashed the second MetaPost instance in a process; two defects in the <code>extensions=1</code> scanner (an <code>etex</code> at the end of a line was never matched, and TeX Live's own <code>texnum.mp</code> writes <code>btex$-$etex</code>); <code>stroke-miterlimit</code> for <code>filldraw</code> read from uninitialised memory; a printf format with a bare <code>%</code> in <code>mpto</code>'s prologue; font subset tags that differed between 32- and 64-bit builds.</li>
+</ul>
+
+<h2 id="tikzjax">Compared with tikzjax</h2>
+<div class="tablewrap"><table>
+<thead><tr><th></th><th>MetaPost-WASM</th><th>tikzjax</th></tr></thead>
+<tbody>
+<tr><td>Engine</td><td>pdfTeX in DVI mode with a real <code>latex.fmt</code> built by the engine</td><td>Knuth TeX with a plain-TeX memory snapshot; <code>\documentclass</code> and <code>\usepackage</code> shimmed or ignored</td></tr>
+<tr><td>Documents</td><td>any LaTeX document: <code>standalone</code>, <code>article</code>, multi-page, any bundled package</td><td>a TikZ picture body and curated preloaded packages</td></tr>
+<tr><td>DVI to SVG</td><td>dvisvgm itself with PGF's dvisvgm driver: gradients, patterns, opacity, clipping, decorations, markers, pgfplots</td><td>a JavaScript re-implementation of the special language; no shadings or patterns</td></tr>
+<tr><td>Text</td><td>glyph outlines in the SVG (self-contained), or woff2 on request</td><td><code>&lt;text&gt;</code> runs plus a CSS font sheet</td></tr>
+<tr><td>Fonts</td><td>Computer Modern, AMS, Euler, Latin Modern in T1/TS1</td><td>Computer Modern</td></tr>
+<tr><td>MetaPost</td><td>yes — the same script also renders <code>&lt;script type="text/metapost"&gt;</code></td><td>no</td></tr>
+<tr><td>Loading</td><td>per-file lazy fetch through real kpathsea; optional pre-warmed format</td><td>one snapshot plus a file archive</td></tr>
+<tr><td>Verification</td><td>byte-identical to TeX Live on the corpora</td><td>none published</td></tr>
+<tr><td>Errors</td><td>structured diagnostics with line numbers, full logs</td><td>the TeX log</td></tr>
+<tr><td>Isolation</td><td>Web Worker with a watchdog; deterministic output</td><td>page thread</td></tr>
+</tbody></table></div>
+
+<h2 id="limits">Limits</h2>
+<ul>
+  <li>No Ghostscript, so raw PostScript specials (pstricks, or PGF forced onto its dvips driver) are ignored; no external image inclusion.</li>
+  <li>No PNG output and no <code>binary</code>/<code>interval</code> number systems (they need cairo and GMP/MPFR, which are not built).</li>
+  <li>Worker mode cannot forward the <code>runScript</code>, <code>makeText</code> and <code>onFindFile</code> callbacks; providing one selects in-process mode.</li>
+  <li>MetaPost's <code>mplib</code> library does not write figure files during a run, so a document cannot <code>readfrom</code> its own output; and it exits on a few hard limits (such as an input-stack overflow, which native <code>mpost</code> hits too) rather than raising an error — reported as a fatal diagnostic.</li>
+  <li>Packages not in the bundles are one recipe line away but not yet included: hyperref, beamer, listings, circuitikz, chemfig.</li>
+</ul>
+
+<h2 id="build">Building</h2>
+<p>The build is reproducible from the pinned TeX Live 2025 source tarball (<code>vendor/SOURCES.lock</code> records its SHA-256). It never modifies the vendored tree: patches are applied to a copy, <code>ctangle</code> is built from the vendored CWEB, and every generated file lands under <code>build/</code> or <code>dist/</code>.</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Step</th><th>Produces</th></tr></thead>
+<tbody>
+<tr><td class="mono">make tangle / make native / make contract</td><td>the tangled C, <code>build/native/libmplib.a</code>, and the native contract harness</td></tr>
+<tr><td class="mono">make wasm</td><td><code>dist/mplib.mjs</code> + <code>mplib.wasm</code> (<code>-O3 -flto</code>); <code>make wasm-debug</code> for an ASSERTIONS/SAFE_HEAP variant</td></tr>
+<tr><td class="mono">scripts/native-texlive.sh</td><td>the web2c-generated C for pdfTeX and the native config headers (needs autotools' output, once)</td></tr>
+<tr><td class="mono">scripts/build-tex-wasm.sh</td><td><code>dist/tex.mjs</code> + <code>tex.wasm</code> from that C plus kpathsea, with Emscripten's zlib and libpng ports</td></tr>
+<tr><td class="mono">scripts/native-dvisvgm.sh, scripts/build-dvisvgm-wasm.sh</td><td><code>dist/dvisvgm.mjs</code> + <code>dvisvgm.wasm</code> (FreeType and zlib ports, <code>-Oz</code>)</td></tr>
+<tr><td class="mono">scripts/build-texmf.sh</td><td><code>build/texmf</code>: the flattened texmf tree copied from the local TeX Live, plus <code>tikz.ini</code></td></tr>
+<tr><td class="mono">node scripts/make-formats.mjs</td><td><code>plain.fmt</code>, <code>etex.fmt</code>, <code>latex.fmt</code>, <code>tikz.fmt</code>, built by <code>tex.wasm</code></td></tr>
+<tr><td class="mono">node scripts/build-bundles.mjs</td><td><code>dist/bundles/*</code>: manifests and files per bundle</td></tr>
+<tr><td class="mono">npm run build:ts</td><td><code>dist/*.js</code>: the library, the worker, the CLI, <code>auto.js</code></td></tr>
+<tr><td class="mono">npm run package</td><td><code>release/metapost-wasm-__VERSION__.tar.gz</code> and <code>.zip</code>: the prebuilt distribution for a GitHub release</td></tr>
+<tr><td class="mono">npm run build:guide, build:standalone</td><td>this page, and the single-file demo with everything inlined</td></tr>
+</tbody></table></div>
+<p>The design documents in <code>docs/</code> record every decision; <code>docs/14-implementation-notes.md</code> records what was learned building it, including the upstream defects.</p>
+
+<h2 id="licence">Licences</h2>
+<p>MetaPost itself is public domain. <code>mplib.wasm</code> also contains <code>avl.c</code> (LGPL-3.0-or-later) and decNumber (ICU), so it is distributed under the LGPL-3.0-or-later with the sources, the patches and a reproducible build in the repository. pdfTeX and kpathsea are GPL, so <code>tex.wasm</code> is GPL; dvisvgm is GPL-3.0-or-later, so <code>dvisvgm.wasm</code> is too (it embeds FreeType, potrace, clipper, woff2, brotli and the URW base-14 fonts). The fonts and macro packages in the bundles keep their own free licences. This project's own code is LGPL-3.0-or-later. See <code>LICENSE.md</code>.</p>
+
+<footer>MetaPost by John Hobby, maintained as <code>mplib</code> by Taco Hoekwater and Luigi Scarso; pdfTeX by Hàn Thế Thành and the pdfTeX team; dvisvgm by Martin Gieseking; all from TeX Live 2025. This page was generated by <code>scripts/build-guide.mjs</code>; every figure on it was rendered by the WebAssembly engines.</footer>
+</div>
+</body>
+</html>

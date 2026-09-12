@@ -23,7 +23,9 @@
     "verify-pin": "./scripts/verify-pin.sh",
     "build:dvisvgm": "./scripts/build-dvisvgm-wasm.sh",
     "build:standalone": "node scripts/build-standalone.mjs",
-    "test:golden:tikz": "node scripts/golden-tikz.mjs"
+    "test:golden:tikz": "node scripts/golden-tikz.mjs",
+    "package": "./scripts/package-release.sh",
+    "build:guide": "node scripts/build-guide.mjs"
   },
   "devDependencies": {
     "@types/node": "^22",
