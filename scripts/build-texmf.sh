@@ -13,29 +13,35 @@ OUT="${1:-$REPO/build/texmf}"
 TEXMF="$(kpsewhich -var-value TEXMFDIST)"
 [ -d "$TEXMF" ] || { echo "error: no TeX Live found" >&2; exit 1; }
 echo "==> assembling $OUT from $TEXMF"
+# keep formats already built by tex.wasm (scripts/make-formats.mjs) across rebuilds
+KEEP="$(mktemp -d)"; cp "$OUT"/web2c/*.fmt "$KEEP/" 2>/dev/null || true
 rm -rf "$OUT"
 mkdir -p "$OUT"/{web2c,tex/plain/base,tex/plain/config,tex/generic,tex/latex,fonts/tfm,fonts/vf,fonts/type1,fonts/map,fonts/enc,metapost/base}
 
 cp "$REPO/bundles/texmf.cnf" "$OUT/web2c/texmf.cnf"
+cp "$KEEP"/*.fmt "$OUT/web2c/" 2>/dev/null || true; rm -rf "$KEEP"
 
 # --- TeX macro packages -------------------------------------------------------
 cp "$TEXMF"/tex/plain/base/*.tex "$OUT/tex/plain/base/"
 cp "$TEXMF"/tex/plain/config/{tex,etex}.ini "$OUT/tex/plain/config/"
+# plain-TeX front ends of pgf/pgfplots (\input tikz)
+for d in pgf pgfplots; do [ -d "$TEXMF/tex/plain/$d" ] && cp -R "$TEXMF/tex/plain/$d" "$OUT/tex/plain/$d"; done
 mkdir -p "$OUT/tex/generic/etex" && cp "$TEXMF/tex/luatex/hyph-utf8/etex.src" "$OUT/tex/generic/etex/etex.src"
 cp -R "$TEXMF/tex/plain/etex" "$OUT/tex/plain/etex"
 # a minimal language.def / language.dat: US English only (keeps latex.fmt small)
 mkdir -p "$OUT/tex/generic/config"
 printf '%%%% language.def for tex.wasm: US English only\n\\addlanguage{USenglish}{hyphen}{}{0}{0}\n\\uselanguage{USenglish}\n' > "$OUT/tex/generic/config/language.def"
 printf '%%%% language.dat for tex.wasm: US English only\nenglish hyphen.tex\n=usenglish\n=USenglish\n' > "$OUT/tex/generic/config/language.dat"
-for d in hyphen tex-ini-files pdftex unicode-data iftex kvsetkeys kvdefinekeys ltxcmds pdftexcmds infwarerr etexcmds atbegshi atveryend; do
+for d in hyphen tex-ini-files pdftex unicode-data iftex kvsetkeys kvdefinekeys ltxcmds pdftexcmds infwarerr etexcmds atbegshi atveryend xkeyval gettitlestring bigintcalc bitset intcalc uniquecounter kvsetkeys; do
   [ -d "$TEXMF/tex/generic/$d" ] && cp -R "$TEXMF/tex/generic/$d" "$OUT/tex/generic/$d"
 done
 for d in base tex-ini-files l3kernel l3backend l3packages amsmath amsfonts amscls tools graphics graphics-cfg graphics-def latexconfig \
-         xcolor pgf tikz-cd psnfss kvoptions etoolbox xkeyval geometry booktabs mathtools; do
+         xcolor pgf tikz-cd pgfplots psnfss kvoptions etoolbox xkeyval geometry booktabs mathtools \
+         ec standalone varwidth preview currfile filehook fontenc; do
   [ -d "$TEXMF/tex/latex/$d" ] && cp -R "$TEXMF/tex/latex/$d" "$OUT/tex/latex/$d"
 done
-# pgf's generic part lives under tex/generic/pgf
-[ -d "$TEXMF/tex/generic/pgf" ] && cp -R "$TEXMF/tex/generic/pgf" "$OUT/tex/generic/pgf"
+# pgf's and pgfplots' generic parts live under tex/generic
+for d in pgf pgfplots; do [ -d "$TEXMF/tex/generic/$d" ] && cp -R "$TEXMF/tex/generic/$d" "$OUT/tex/generic/$d"; done
 # drop documentation-ish files that are never input
 find "$OUT/tex" \( -name '*.dtx' -o -name '*.ins' -o -name '*.pdf' -o -name 'README*' -o -name 'CHANGES*' \) -delete
 
@@ -46,10 +52,20 @@ done
 for d in cm cmextra symbols euler latxfont; do
   find "$TEXMF/fonts/type1/public/amsfonts/$d" -name '*.pfb' -exec cp {} "$OUT/fonts/type1/" \;
 done
-# MetaPost looks for mpost.map first, then psfonts.map (psout.w). Build both
-# from the dvips map fragments of the fonts we ship.
-cat "$TEXMF"/fonts/map/dvips/amsfonts/{cm,cmextra,symbols,euler,latxfont}.map > "$OUT/fonts/map/mpost.map"
+# Latin Modern: T1/TS1-encoded text fonts for \usepackage[T1]{fontenc} and
+# \usepackage{lmodern} (TikZ documents, LaTeX text). Type 1 outlines are
+# fetched lazily per font, so the 9 MB only costs what a document uses.
+find "$TEXMF/fonts/tfm/public/lm" -name '*.tfm' -exec cp {} "$OUT/fonts/tfm/" \;
+find "$TEXMF/fonts/type1/public/lm" -name '*.pfb' -exec cp {} "$OUT/fonts/type1/" \;
+find "$TEXMF/fonts/enc/dvips/lm" -name '*.enc' -exec cp {} "$OUT/fonts/enc/" \;
+cp -R "$TEXMF/tex/latex/lm" "$OUT/tex/latex/lm"
+# MetaPost looks for mpost.map first, then psfonts.map (psout.w); pdfTeX in PDF
+# mode and dvisvgm read pdftex.map / ps2pk.map. All are built from the dvips map
+# fragments of the fonts we ship.
+cat "$TEXMF"/fonts/map/dvips/amsfonts/{cm,cmextra,symbols,euler,latxfont}.map "$TEXMF/fonts/map/dvips/lm/lm.map" > "$OUT/fonts/map/mpost.map"
 cp "$OUT/fonts/map/mpost.map" "$OUT/fonts/map/psfonts.map"
+cp "$OUT/fonts/map/mpost.map" "$OUT/fonts/map/pdftex.map"
+cp "$OUT/fonts/map/mpost.map" "$OUT/fonts/map/ps2pk.map"
 cp "$TEXMF/fonts/map/fontname/texfonts.map" "$OUT/fonts/map/texfonts.map"
 
 # --- MetaPost ---------------------------------------------------------------

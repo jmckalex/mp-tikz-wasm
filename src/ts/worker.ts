@@ -5,9 +5,9 @@
 import { MetaPostCore } from './core.js';
 import { BundleSet, browserIO } from './vfs/bundle.js';
 import { resolveBundleSpecs, DEFAULT_BUNDLES } from './bundles-config.js';
-import type { MetaPostOptions, RunOptions } from './types.js';
+import type { MetaPostOptions, RunOptions, LatexRunOptions } from './types.js';
 
-export interface WorkerRequest { id: number; op: 'init' | 'run' | 'addFiles' | 'clearCache' | 'preload' | 'dispose'; [k: string]: unknown }
+export interface WorkerRequest { id: number; op: 'init' | 'run' | 'latex' | 'addFiles' | 'clearCache' | 'preload' | 'dispose'; [k: string]: unknown }
 export interface WorkerResponse { id: number; ok: boolean; result?: unknown; error?: string }
 export interface WorkerEvent { event: 'progress' | 'log'; data: unknown }
 
@@ -32,12 +32,13 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         await bundles.prefetchEager();
         if (!bundles.canFetchSync) await bundles.prefetchAll();
         const mplibFactory = (await import(/* @vite-ignore */ new URL('./mplib.mjs', baseUrl).href)).default;
-        let texFactory;
+        let texFactory, dvisvgmFactory;
         if ((options.tex ?? 'auto') !== 'none') {
           try { texFactory = (await import(/* @vite-ignore */ new URL('./tex.mjs', baseUrl).href)).default; } catch { texFactory = undefined; }
+          try { dvisvgmFactory = (await import(/* @vite-ignore */ new URL('./dvisvgm.mjs', baseUrl).href)).default; } catch { dvisvgmFactory = undefined; }
         }
         core = new MetaPostCore({
-          mplibFactory, texFactory, bundles, options,
+          mplibFactory, texFactory, dvisvgmFactory, bundles, options,
           onProgress: (e) => post({ event: 'progress', data: e }),
           onLog: (line) => post({ event: 'log', data: line }),
         });
@@ -47,6 +48,11 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
       }
       case 'run': {
         const r = await core!.run(req.source as string, req.options as RunOptions);
+        post({ id: req.id, ok: true, result: r });
+        break;
+      }
+      case 'latex': {
+        const r = await core!.latex(req.source as string, req.options as LatexRunOptions);
         post({ id: req.id, ok: true, result: r });
         break;
       }

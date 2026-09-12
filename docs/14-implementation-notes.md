@@ -137,3 +137,49 @@ so no memory-snapshot optimisation is needed — open question Q2 is answered);
 cold 185 ms, warm 5 ms; 40 labels cold 62 ms with one TeX run; one label
 edited 91 ms with one TeX run of one page. `plain.fmt` builds in 45 ms,
 `latex.fmt` in 4.5 s.
+
+## 7. The TikZ/PGF pipeline (added after the first build)
+
+`mp.latex(source)` typesets a complete document with `tex.wasm` and converts
+every DVI page with `dvisvgm.wasm` — the real dvisvgm 3.4.3 from the same
+TeX Live source, compiled with `scripts/build-dvisvgm-wasm.sh` the same way as
+`tex.wasm`: a native configure supplies `config.h`, everything else is compiled
+with `em++` (`-std=c++17 -fwasm-exceptions`, legacy wasm EH so the Emscripten
+FreeType port builds), FreeType and zlib come from Emscripten's ports, kpathsea
+objects are shared with `tex.wasm`, potrace/clipper/md5/xxHash/woff2/brotli are
+the bundled copies. Ghostscript is compiled out (`DISABLE_GS`), so PostScript
+specials are ignored. The build is `-Oz` (2.7 MB).
+
+Things learned:
+
+* **Object names must come from the whole path.** `src/Font.cpp` and
+  `libs/woff2/src/font.cc` collide on a case-insensitive filesystem.
+* **Upstream's `DISABLE_WOFF` does not compile** (a duplicate constructor in
+  `FontWriter.cpp`); WOFF support is left enabled instead, which also gives
+  `fonts: 'woff2'` for free.
+* **PGF's default DVI driver is `dvips`**, whose `ps:` specials dvisvgm can only
+  interpret through Ghostscript — without it the SVG has text and nothing else,
+  and native dvisvgm without libgs behaves identically, so the golden test was
+  green while the pictures were empty. The library prepends
+  `\def\pgfsysdriver{pgfsys-dvisvgm.def}` on the first line (no line-number
+  shift) so PGF emits SVG specials; the oracle runs get the same line.
+* **PGF needs e-TeX.** Knuth's `tex` (and our `plain.fmt`) fail inside
+  `pgfutil-common.tex` on `\ifcsname`; `engine: 'plain'` therefore means
+  `etex.fmt` (TeX Live's `etex`), and `engine: 'tex'` is the Knuth-compatible
+  format for anyone who wants it.
+* **dvisvgm emits glyph definitions in unordered-container order**, which
+  differs between libc++, libstdc++ and wasm32. `scripts/golden-tikz.mjs`
+  sorts the `<path id='gN-M'>` lines inside `<defs>` before comparing;
+  everything else is byte-identical.
+* kpathsea inside dvisvgm needs the same `argv[0]` trick (`/bin/dvisvgm`),
+  `TEXMFCNF`, and `--no-mktexmf`; its map lookup finds `pdftex.map` /
+  `ps2pk.map`, which `build-texmf.sh` now generates next to `mpost.map`.
+
+Bundles gained `lm-fonts` (Latin Modern Type 1 with T1/TS1 encodings, 14 MB
+raw, fetched per font), and `latex-extra` gained pgfplots, standalone,
+varwidth, preview and the plain-TeX pgf front end. `latex.fmt` is unchanged.
+
+Golden corpus: `test/golden/tikz/*.tex` — axes/plot with calc, nodes and
+edges, shadings/patterns/clip/opacity, pgfplots, Latin Modern T1 text with
+amsmath, plain TeX with `\input tikz`, and a two-page article; 7/7
+byte-identical to `latex` (or `etex`) + `dvisvgm` from TeX Live 2025.

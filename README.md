@@ -1,12 +1,13 @@
 # MetaPost-WASM
 
-**MetaPost in the browser and in Node.** John Hobby's MetaPost (the `mplib`
-library maintained by Taco Hoekwater and Luigi Scarso in TeX Live 2025,
-MetaPost 2.11) and pdfTeX 1.40 (DVI mode) are compiled to WebAssembly and
-wrapped in a TypeScript API. MetaPost source goes in; SVG with real glyph
-outlines, EPS/PostScript, and a structured JSON figure model come out —
-including `btex … etex` / `verbatimtex … etex` labels typeset by plain TeX
-or LaTeX, entirely client-side.
+**MetaPost and TikZ in the browser and in Node.** John Hobby's MetaPost (the
+`mplib` library maintained by Taco Hoekwater and Luigi Scarso in TeX Live 2025,
+MetaPost 2.11), pdfTeX 1.40 (DVI mode) and dvisvgm 3.4.3 are compiled to
+WebAssembly and wrapped in a TypeScript API. MetaPost source goes in; SVG with
+real glyph outlines, EPS/PostScript, and a structured JSON figure model come
+out — including `btex … etex` / `verbatimtex … etex` labels typeset by plain
+TeX or LaTeX. Whole LaTeX documents go in too — `\documentclass[tikz]{standalone}`,
+pgfplots, Latin Modern — and come out as one SVG per page, entirely client-side.
 
 ```ts
 import { MetaPost } from 'metapost-wasm';
@@ -23,10 +24,22 @@ const result = await mp.run(`
 document.body.innerHTML = result.figures[0].svg;
 ```
 
-The output is **byte-identical to native `mpost`** from TeX Live 2025 on the
-golden corpus (EPS and SVG, plain TeX and LaTeX labels included), because it
-*is* MetaPost — the C output is left untouched; every deviation from upstream
-lives in a numbered, explained patch in [`patches/`](patches/).
+```ts
+const tikz = await mp.latex(String.raw`
+  \documentclass[tikz,border=2pt]{standalone}
+  \usetikzlibrary{shadings}
+  \begin{document}\begin{tikzpicture}
+    \shade[ball color=blue!60] (0,0) circle (1);
+    \node at (0,-1.4) {$e^{i\pi}+1=0$};
+  \end{tikzpicture}\end{document}`);
+document.body.innerHTML = tikz.pages[0];
+```
+
+The output is **byte-identical to native TeX Live 2025** on the golden corpora
+— `mpost` for MetaPost (EPS and SVG, plain TeX and LaTeX labels included) and
+`latex` + `dvisvgm` for TikZ — because it *is* MetaPost, pdfTeX and dvisvgm;
+the C output is left untouched, and every deviation from upstream lives in a
+numbered, explained patch in [`patches/`](patches/).
 
 ## Try it
 
@@ -46,8 +59,9 @@ static files and cached by the browser.
 | --- | --- | --- |
 | `dist/mplib.wasm` | 1.2 MB | MetaPost 2.11: interpreter, PostScript + SVG backends, Type 1 font machinery, TFM reader, `scaled`/`double`/`decimal` arithmetic, `mpto` + `dvitomp` |
 | `dist/tex.wasm` | 1.1 MB | pdfTeX 1.40.27 in DVI mode (= `tex`, `etex`, `latex`) with kpathsea, zlib, libpng |
+| `dist/dvisvgm.wasm` | 2.7 MB | dvisvgm 3.4.3 with FreeType, potrace, clipper, woff2/brotli and PGF's special handlers (no Ghostscript) |
 | `dist/index.js` + friends | ~60 KB | the TypeScript API, the Worker, the TeX bridge, the CLI |
-| `dist/bundles/*` | 25 MB total, fetched per file on demand | `core` (plain.mp, mpost.mp, boxes, graph, format, sarith, metaobj…), `cm-tfm`, `cm-type1`, `tex-plain` (+ `plain.fmt`, `etex.fmt`), `latex-core` (+ `latex.fmt`), `latex-extra` (amsmath, amsfonts, tools, graphics, pgf, xcolor, …) |
+| `dist/bundles/*` | 38 MB total, fetched per file on demand | `core` (plain.mp, mpost.mp, boxes, graph, format, sarith, metaobj…), `cm-tfm`, `cm-type1`, `lm-fonts` (Latin Modern, T1/TS1), `tex-plain` (+ `plain.fmt`, `etex.fmt`), `latex-core` (+ `latex.fmt`), `latex-extra` (pgf/TikZ with all libraries, pgfplots, amsmath, amsfonts, tools, graphics, xcolor, standalone, geometry, booktabs, mathtools, …) |
 
 The formats (`plain.fmt` 114 KB, `etex.fmt` 128 KB, `latex.fmt` 2.2 MB) are
 built **by the wasm engine itself** (`scripts/make-formats.mjs`), so they match
@@ -76,6 +90,26 @@ cannot do that, so the TeX step is lifted out of the run
 A document with forty labels runs TeX once; editing one label runs TeX once
 with one page; recompiling an unchanged document runs TeX zero times.
 
+## TikZ and whole LaTeX documents
+
+`mp.latex(source, options)` takes the other road: the document is typeset by
+`tex.wasm` (`latex.fmt`, or `etex.fmt` for plain TeX with `engine: 'plain'`),
+and every DVI page is converted by `dvisvgm.wasm` — the reference converter,
+with its PGF special handlers, FreeType glyph outlines and potrace. The
+library prepends `\def\pgfsysdriver{pgfsys-dvisvgm.def}` so PGF draws with
+SVG specials rather than the dvips PostScript ones (which need Ghostscript);
+`pgfDriver: 'auto'` turns that off. Shadings become gradients, patterns become
+patterns, clipping, opacity and pgfplots all survive. Options: `engine`,
+`files`, `pages`, `fonts: 'paths' | 'woff2'`, `bbox`, `dvisvgmArgs`.
+Results: `pages[]` (SVG strings), `log`, `texLog`, `dvisvgmLog`, `diagnostics`
+(TeX errors with document line numbers, package warnings), `stats`.
+
+Compared with tikzjax: real LaTeX rather than a pre-dumped plain-TeX snapshot,
+so `\documentclass`, `\usepackage` and every TikZ library work unchanged;
+formats built by the engine itself; per-file lazy loading through real
+kpathsea; glyph outlines instead of web fonts; and dvisvgm itself rather than
+a re-implementation of its special language.
+
 Measured on an M-series Mac, Node 23 (`scripts/smoke-api.mjs`):
 
 | Scenario | Time |
@@ -88,6 +122,8 @@ Measured on an M-series Mac, Node 23 (`scripts/smoke-api.mjs`):
 | the same, warm cache | 5 ms |
 | 40 labels, cold cache | 62 ms, one TeX run |
 | 40 labels with one edited | 91 ms, one TeX run, one page |
+| TikZ standalone figure (`latex()`) | ~320 ms (TeX 230 ms, dvisvgm 85 ms) |
+| pgfplots axis with two curves | ~500 ms (TeX 400 ms, dvisvgm 90 ms) |
 
 ## API
 
@@ -116,6 +152,7 @@ See [`src/ts/types.ts`](src/ts/types.ts) (the implemented contract) and
 npx mpost-wasm figure.mp                        # figure.1, figure.2 … like mpost
 npx mpost-wasm -s 'outputformat="svg"' -s prologues=3 figure.mp
 npx mpost-wasm -tex=latex -numbersystem=double figure.mp
+npx mpost-wasm --latex figure.tex                      # figure-1.svg, figure-2.svg … via tex.wasm + dvisvgm.wasm
 ```
 
 Accepts the common `mpost` flags (`-interaction`, `-jobname`, `-tex`, `-s`,
@@ -133,9 +170,11 @@ the source of the texmf files in the bundles.
 ./scripts/verify-pin.sh         # assert the mplib API the design relies on
 make contract                   # native build + the L0 contract harness (46 checks)
 scripts/native-texlive.sh       # native web2c pass: generates pdftex's C (once)
-npm run build                   # mplib.wasm, tex.wasm, texmf tree, formats, bundles, TypeScript
-npm test                        # 179 unit tests (scanner vs the C oracle, mpx, keys, diagnostics)
+scripts/native-dvisvgm.sh       # native configure of dvisvgm: config.h (once)
+npm run build                   # mplib.wasm, tex.wasm, dvisvgm.wasm, texmf tree, formats, bundles, TypeScript
+npm test                        # unit tests (scanner vs the C oracle, mpx, keys, diagnostics) + end-to-end
 npm run test:golden             # golden corpus vs native mpost (byte-identical)
+npm run test:golden:tikz        # TikZ corpus vs native latex + dvisvgm (byte-identical)
 ```
 
 `make tangle` runs `ctangle` (built from the vendored CWEB) on the patched
@@ -173,7 +212,8 @@ Every patch is a unified diff in `patches/`, applied by
 | M5 TeX bridge, plain TeX | done — batched, cached, fixpoint |
 | M6 LaTeX | done — `latex.fmt` built by the wasm engine; amsmath sample byte-identical |
 | M7 API, worker, CLI, JSON backend | done (worker mode does not yet support the `runScript`/`makeText` callbacks; they force in-process mode) |
-| M8 conformance | golden corpus 15/15 byte-identical; `mtrap.mp` output files identical to native MetaPost 2.11 (see [docs/14](docs/14-implementation-notes.md) §4); the interactive `trap.mp` half needs `errorstopmode` terminal input and is not applicable to the library |
+| M8 conformance | golden corpus 15/15 byte-identical; TikZ corpus 7/7 byte-identical to `latex` + `dvisvgm`; `mtrap.mp` output files identical to native MetaPost 2.11 (see [docs/14](docs/14-implementation-notes.md) §4); the interactive `trap.mp` half needs `errorstopmode` terminal input and is not applicable to the library |
+| TikZ/PGF (beyond the plan) | done — `dvisvgm.wasm`, `latex()`, `--latex` CLI mode, Latin Modern and pgfplots bundles |
 | M9 hardening | PNG, `binary`/`interval` number systems, IndexedDB cache and JSPI are not done |
 
 Out of scope, as planned: troff mode, XeTeX/LuaTeX as the `btex` engine, PDF
@@ -185,7 +225,9 @@ MetaPost itself is public domain; the shipped `mplib.wasm` also contains
 `avl.c` (LGPL-3+) and decNumber (ICU licence), so the wasm binary is
 distributed under **LGPL-3.0-or-later** with the sources, the patches and a
 reproducible build (`make wasm`) in this repository. pdfTeX and kpathsea are
-GPL; `tex.wasm` is distributed under the GPL. The TeX macro packages and
+GPL; `tex.wasm` is distributed under the GPL, as is `dvisvgm.wasm` (dvisvgm is
+GPL-3+; it embeds FreeType (FTL), potrace (GPL), clipper (Boost), woff2 and
+brotli (MIT) and the URW base-14 CFF fonts (AGPL/LPPL as distributed by dvisvgm)). The TeX macro packages and
 fonts in the bundles keep their own licences (LPPL, Knuth's, AMS).
 
 ## Repository map

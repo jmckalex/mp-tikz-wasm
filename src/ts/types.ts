@@ -56,7 +56,7 @@ export interface MetaPostOptions {
   log?: (line: string) => void;
   wasmUrls?: { mplib?: string; tex?: string };
   /** Pre-loaded Emscripten module factories (e.g. for a single-file build); in-process mode only. */
-  modules?: { mplib?: (opts?: Record<string, unknown>) => Promise<any>; tex?: (opts?: Record<string, unknown>) => Promise<any> };
+  modules?: { mplib?: (opts?: Record<string, unknown>) => Promise<any>; tex?: (opts?: Record<string, unknown>) => Promise<any>; dvisvgm?: (opts?: Record<string, unknown>) => Promise<any> };
   /** Custom bundle I/O (e.g. files embedded in the page); in-process mode only. */
   bundleIO?: { fetch(url: string): Promise<Uint8Array>; fetchSync?: (url: string) => Uint8Array; fetchJson(url: string): Promise<unknown> };
   /** Run in-process instead of in a Web Worker (default: worker in browsers, in-process in Node). */
@@ -184,6 +184,43 @@ export interface TextObject extends ObjectBase {
 export interface ClipObject { type: 'startClip' | 'stopClip'; path?: Knot[] }
 export interface BoundsObject { type: 'startBounds' | 'stopBounds'; path?: Knot[] }
 export interface SpecialObject extends ObjectBase { type: 'special'; script: string }
+
+// ---- LaTeX / TikZ documents (tex.wasm → dvisvgm.wasm) ----------------------
+
+export interface LatexRunOptions {
+  /** Which format runs the document. Default 'latex'. 'plain' is plain TeX with e-TeX extensions
+   *  (TeX Live's etex; PGF needs them); 'tex' is Knuth-compatible plain.fmt. */
+  engine?: 'latex' | 'plain' | 'etex' | 'tex';
+  /** PGF system driver. 'dvisvgm' (default) prepends \def\pgfsysdriver{pgfsys-dvisvgm.def} so TikZ
+   *  draws with SVG specials; 'auto' leaves PGF's own choice (dvips, whose PostScript specials need
+   *  Ghostscript and are ignored here). */
+  pgfDriver?: 'dvisvgm' | 'auto';
+  /** Files to place next to the document (images, .sty, .tex inputs). */
+  files?: Record<string, string | Uint8Array>;
+  jobName?: string;                          // default 'doc'
+  /** Which DVI pages to convert: 'all' or a 1-based page number. Default 'all'. */
+  pages?: 'all' | number;
+  /** How text is emitted: 'paths' (glyph outlines, self-contained; default) or 'woff2' (embedded web fonts). */
+  fonts?: 'paths' | 'woff2';
+  /** Bounding box for each page: dvisvgm's --bbox value ('min' default, 'preview', 'papersize', 'dvi', or explicit). */
+  bbox?: string;
+  /** Extra dvisvgm command-line arguments, appended verbatim. */
+  dvisvgmArgs?: string[];
+  svg?: SvgPostOptions;
+  signal?: AbortSignal;
+}
+
+export interface LatexResult {
+  status: Status;
+  /** One SVG per DVI page. */
+  pages: string[];
+  log: string;             // TeX terminal transcript
+  texLog: string;          // the .log file
+  dvisvgmLog: string;
+  diagnostics: Diagnostic[];
+  stats: { totalMs: number; texMs: number; dvisvgmMs: number };
+  artifacts: Record<string, Uint8Array>;
+}
 
 /** The bundle manifest format (docs/06 §3). Paths are relative to the texmf root. */
 export interface BundleManifest {

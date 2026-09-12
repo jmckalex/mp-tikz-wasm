@@ -78,3 +78,39 @@ describe.skipIf(!built)('metapost-wasm end to end', () => {
     expect(new TextDecoder().decode(r.artifacts['out.txt'])).toBe('hello\n');
   });
 });
+
+describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))('LaTeX / TikZ pipeline', () => {
+  let mp: any;
+  beforeAll(async () => {
+    const { MetaPost } = await import(path.join(REPO, 'dist/index.js'));
+    mp = await MetaPost.create({ log: () => {} });
+  }, 60_000);
+  afterAll(() => mp?.dispose());
+
+  it('typesets a standalone TikZ picture to SVG paths', async () => {
+    const r = await mp.latex(`\\documentclass[tikz,border=2pt]{standalone}
+\\begin{document}\\begin{tikzpicture}\\draw[->,thick] (0,0) -- (2,1) node[right] {$x^2$}; \\fill[red] (1,0) circle (2pt);\\end{tikzpicture}\\end{document}`);
+    expect(r.status).toBe('ok');
+    expect(r.pages).toHaveLength(1);
+    expect(r.pages[0]).toContain('<svg');
+    expect(r.pages[0]).toContain("<path id='g");   // glyph outlines, no <text>
+    expect(r.pages[0]).not.toContain('<text');
+    expect(r.stats.texMs).toBeGreaterThan(0);
+    expect(r.stats.dvisvgmMs).toBeGreaterThan(0);
+  }, 60_000);
+
+  it('produces one SVG per page and maps errors to lines', async () => {
+    const r = await mp.latex(`\\documentclass{article}\\pagestyle{empty}\\begin{document}one\\newpage two \\undefinedmacro\\end{document}`);
+    expect(r.pages).toHaveLength(2);
+    expect(r.status).toBe('error');
+    const e = r.diagnostics.find((d: any) => d.severity === 'error');
+    expect(e.message).toContain('Undefined control sequence');
+    expect(e.line).toBe(1);
+  }, 60_000);
+
+  it('runs plain TeX with \\input tikz', async () => {
+    const r = await mp.latex('\\input tikz \\tikzpicture \\draw (0,0) circle (1); \\endtikzpicture \\bye', { engine: 'plain' });
+    expect(r.status).toBe('ok');
+    expect(r.pages).toHaveLength(1);
+  }, 60_000);
+});

@@ -6,10 +6,12 @@
 //
 //   node scripts/build-standalone.mjs   ->  site/standalone.html
 import fs from 'node:fs';
+import zlib from 'node:zlib';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { MetaPost } from '../dist/index.js';
 import { EXAMPLES } from '../site/examples.js';
+import { TIKZ_EXAMPLES } from '../site/examples-tikz.js';
 
 const REPO = path.resolve(new URL('..', import.meta.url).pathname);
 const DIST = path.join(REPO, 'dist');
@@ -32,6 +34,14 @@ for (let i = 0; i < EXAMPLES.length; i++) {
   console.log(`  ${ex.id.padEnd(8)} ${r.status.padEnd(6)} ${r.stats.totalMs.toFixed(0).padStart(4)} ms  ${(r.figures[0]?.svg?.length ?? 0)} B`);
 }
 const wordmark = (await mp.run('prologues:=3; beginfig(1); draw "MetaPost" infont "cmbx10" scaled 6; endfig; end.', { format: 'svg', svg: { idPrefix: 'wm-' } })).figures[0].svg;
+// TikZ gallery: whole documents through tex.wasm + dvisvgm.wasm
+const tikzGallery = [];
+for (let i = 0; i < TIKZ_EXAMPLES.length; i++) {
+  const ex = TIKZ_EXAMPLES[i];
+  const r = await mp.latex(ex.src, { engine: ex.plain ? 'plain' : 'latex', svg: { idPrefix: `t${i}-`, precision: false } });
+  tikzGallery.push({ id: ex.id, title: ex.title, tier: ex.tier, blurb: ex.blurb, src: ex.src, svg: r.pages[0] ?? '', status: r.status, stats: r.stats, plain: !!ex.plain });
+  console.log(`  ${ex.id.padEnd(12)} ${r.status.padEnd(7)} TeX ${r.stats.texMs.toFixed(0).padStart(4)} ms, dvisvgm ${r.stats.dvisvgmMs.toFixed(0).padStart(3)} ms  ${(r.pages[0]?.length ?? 0)} B`);
+}
 // warm a few more fonts and files so the live editor has room to play
 const extra = [
   'prologues:=3; beginfig(1); label("x" infont "cmr5", origin); label("x" infont "cmr7", origin); label("x" infont "cmr12", origin); label("x" infont "cmr17", origin); label("x" infont "cmbx12", origin); label("x" infont "cmss10", origin); label("x" infont "cmsl10", origin); label("x" infont "cmtt12", origin); label("x" infont "cmmi12", origin); label("x" infont "cmsy5", origin); label("x" infont "cmbx7", origin); label("x" infont "cmitt10", origin); label("x" infont "cmcsc10", origin); endfig; end.',
@@ -42,7 +52,10 @@ const extra = [
 for (const src of extra) await mp.run(src);
 mp.dispose();
 
-// ---- 2. collect assets
+// ---- 2. collect assets (every blob is gzip-compressed, then base64: the page
+// inflates them at boot with DecompressionStream; base64 alone would put the
+// three wasm modules over the size budget)
+const gz = (data) => zlib.gzipSync(data, { level: 9 }).toString('base64');
 const manifestFiles = {};
 const files = {};
 const fromBundle = (rel) => {
@@ -53,7 +66,7 @@ for (const rel of [...used].sort()) {
   const p = fromBundle(rel); if (!p) continue;
   const data = fs.readFileSync(p);
   manifestFiles[rel] = { size: data.length };
-  files[rel] = data.toString('base64');
+  files[rel] = gz(data);
 }
 // every base macro file and every CM tfm are small; include them all
 for (const dir of ['core/files/metapost/base', 'cm-tfm/files/fonts/tfm']) {
@@ -62,7 +75,7 @@ for (const dir of ['core/files/metapost/base', 'cm-tfm/files/fonts/tfm']) {
     const rel = dir.split('/files/')[1] + '/' + f;
     if (files[rel]) continue;
     const data = fs.readFileSync(path.join(d, f));
-    manifestFiles[rel] = { size: data.length }; files[rel] = data.toString('base64');
+    manifestFiles[rel] = { size: data.length }; files[rel] = gz(data);
   }
 }
 const manifest = { name: 'inline', version: '2025.1', files: manifestFiles, eager: ['web2c/texmf.cnf'] };
@@ -80,19 +93,23 @@ const glue = (name, global) => {
 const mplibGlue = glue('mplib.mjs', '__createMplib');
 const texGlue = glue('tex.mjs', '__createTex');
 const lib = execFileSync(path.join(REPO, 'node_modules/.bin/esbuild'), ['src/ts/index.ts', '--bundle', '--format=esm', '--target=es2022', '--platform=browser', '--external:node:fs', '--log-level=error'], { cwd: REPO, encoding: 'utf8', maxBuffer: 64 << 20 });
-const wasm = { mplib: fs.readFileSync(path.join(DIST, 'mplib.wasm')).toString('base64'), tex: fs.readFileSync(path.join(DIST, 'tex.wasm')).toString('base64') };
+const dvisvgmGlue = glue('dvisvgm.mjs', '__createDvisvgm');
+const wasm = { mplib: gz(fs.readFileSync(path.join(DIST, 'mplib.wasm'))), tex: gz(fs.readFileSync(path.join(DIST, 'tex.wasm'))), dvisvgm: gz(fs.readFileSync(path.join(DIST, 'dvisvgm.wasm'))) };
 
 // ---- 4. assemble
 const template = fs.readFileSync(path.join(REPO, 'site/standalone.template.html'), 'utf8');
 const numbers = {
   mplib: fs.statSync(path.join(DIST, 'mplib.wasm')).size, tex: fs.statSync(path.join(DIST, 'tex.wasm')).size,
   latexfmt: fs.statSync(path.join(BUNDLES, 'latex-core/files/web2c/latex.fmt')).size, plainfmt: fs.statSync(path.join(BUNDLES, 'tex-plain/files/web2c/plain.fmt')).size,
+  dvisvgm: fs.statSync(path.join(DIST, 'dvisvgm.wasm')).size,
 };
 const safe = (s) => s.replace(/<\/script/gi, '<\\/script');
 // function replacements: the payloads contain `$` sequences that String.replace would interpret
 let html = template
   .replace('__WORDMARK__', () => wordmark)
   .replace('__GALLERY_JSON__', () => safe(JSON.stringify(gallery)))
+  .replace('__TIKZ_GALLERY_JSON__', () => safe(JSON.stringify(tikzGallery)))
+  .replace('__GLUE_DVISVGM__', () => safe(dvisvgmGlue))
   .replace('__NUMBERS_JSON__', () => JSON.stringify(numbers))
   .replace('__ASSETS_JSON__', () => safe(JSON.stringify({ manifest, files, wasm })))
   .replace('__GLUE_MPLIB__', () => safe(mplibGlue))

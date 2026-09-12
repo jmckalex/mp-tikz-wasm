@@ -58,16 +58,17 @@
 </head>
 <body>
 <header>
-  <h1><span>MetaPost</span> in the browser</h1>
-  <div class="sub">John Hobby's MetaPost 2.11 and pdfTeX 1.40, both compiled to WebAssembly, with real LaTeX labels — no server.</div>
+  <h1><span>MetaPost</span> &amp; <span>TikZ</span> in the browser</h1>
+  <div class="sub">MetaPost 2.11, pdfTeX 1.40 and dvisvgm 3.4, all compiled to WebAssembly: MetaPost figures with LaTeX labels, and whole TikZ/PGF documents — no server.</div>
   <div class="status" id="status"><span class="spinner"></span>loading engine…</div>
 </header>
 <main>
-  <nav id="gallery"><h2>Examples</h2></nav>
+  <nav id="gallery"><h2>MetaPost</h2><div id="gallery-mp"></div><h2>TikZ / LaTeX</h2><div id="gallery-tikz"></div></nav>
   <section class="editor">
     <div class="toolbar">
       <button class="primary" id="run">Run <span class="pill">⌘⏎</span></button>
       <label><input type="checkbox" id="live" checked> live</label>
+      <label>mode <select id="mode"><option value="mp">MetaPost</option><option value="latex">LaTeX / TikZ</option><option value="plain">plain TeX</option></select></label>
       <label>TeX <select id="tex"><option value="auto">auto</option><option value="plain">plain</option><option value="latex">latex</option><option value="none">none</option></select></label>
       <label>numbers <select id="numbers"><option value="scaled">scaled</option><option value="double">double</option><option value="decimal">decimal</option></select></label>
       <label><input type="checkbox" id="worker" checked> worker</label>
@@ -93,7 +94,7 @@
   </section>
 </main>
 <footer>
-  <b>What you are looking at.</b> The MetaPost interpreter (mplib, ~1.2 MB wasm) runs in a Web Worker. Text in <code>btex … etex</code> is extracted before the run, typeset in one batched pdfTeX job (DVI mode, ~1.1 MB wasm) with a format built by the wasm engine itself, converted with MetaPost's own <code>dvitomp</code>, cached by content hash, and served back through mplib's <code>make_text</code> callback. Fonts are Type 1 outlines converted to SVG paths by MetaPost's SVG backend (<code>prologues:=3</code>); TeX packages, fonts and formats load lazily from static files. Output is byte-identical to native <code>mpost</code> from TeX Live 2025 on the golden corpus.
+  <b>What you are looking at.</b> In TikZ mode the whole document goes through pdfTeX (DVI mode) and then dvisvgm (~3 MB wasm, with PGF's special handlers), so shadings, patterns, clipping, opacity and pgfplots all come out as native SVG. In MetaPost mode the interpreter (mplib, ~1.2 MB wasm) runs in a Web Worker. Text in <code>btex … etex</code> is extracted before the run, typeset in one batched pdfTeX job (DVI mode, ~1.1 MB wasm) with a format built by the wasm engine itself, converted with MetaPost's own <code>dvitomp</code>, cached by content hash, and served back through mplib's <code>make_text</code> callback. Fonts are Type 1 outlines converted to SVG paths by MetaPost's SVG backend (<code>prologues:=3</code>); TeX packages, fonts and formats load lazily from static files. Output is byte-identical to native <code>mpost</code> from TeX Live 2025 on the golden corpus.
   <span id="sizes"></span>
 </footer>
 <script type="module" src="./app.js"></script>

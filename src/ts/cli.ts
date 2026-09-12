@@ -9,8 +9,11 @@ import { MetaPost } from './index.js';
 import type { OutputFormat, NumberSystem, TexEngine } from './types.js';
 
 const HELP = `Usage: mpost-wasm [OPTION]... [MPNAME[.mp]] [COMMANDS]
+       mpost-wasm --latex [OPTION]... DOC.tex
   Run MetaPost (WebAssembly build) on MPNAME, writing output files to the
-  current directory like mpost does.
+  current directory like mpost does; or, with --latex, typeset a complete
+  LaTeX/TikZ (or plain TeX, with --plain) document with tex.wasm and convert
+  every page to DOC-<page>.svg with dvisvgm.wasm.
 
   -interaction=MODE     batchmode|nonstopmode|scrollmode (default nonstopmode)
   -numbersystem=SYSTEM  scaled|double|decimal (binary/interval are not built)
@@ -25,6 +28,8 @@ const HELP = `Usage: mpost-wasm [OPTION]... [MPNAME[.mp]] [COMMANDS]
   --texmf=DIR           use a texmf directory (flattened layout) instead of bundles
   --bundles=DIR         directory containing the bundles (default: next to this package)
   --stdout              print the first figure to stdout instead of writing files
+  --latex               DOC.tex -> DOC-1.svg, DOC-2.svg ... (LaTeX); --plain for plain TeX
+  --fonts=paths|woff2   how text is emitted in --latex mode (default paths)
   -help, -version
 `;
 
@@ -35,6 +40,7 @@ function parseArgs(argv: string[]) {
     jobname: '' , tex: 'auto' as TexEngine, internals: {} as Record<string, string | number>,
     halt: false, recorder: false, troff: false, format: '' as '' | OutputFormat, texmf: '', bundles: '',
     stdout: false, file: '', commands: '', help: false, version: false, dvitomp: false,
+    latex: false, plain: false, fonts: 'paths' as 'paths' | 'woff2',
   };
   const rest: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -62,6 +68,9 @@ function parseArgs(argv: string[]) {
       case 'help': o.help = true; break;
       case 'version': o.version = true; break;
       case 'dvitomp': o.dvitomp = true; break;
+      case 'latex': o.latex = true; break;
+      case 'plain': o.plain = true; o.latex = true; break;
+      case 'fonts': o.fonts = (v ?? next()) as 'paths' | 'woff2'; break;
       case 'ini': case 'mem': case 'progname': case 'kpathsea-debug': case 'restricted': case 'debug': case 'translate-file': case '8bit':
         console.error(`mpost-wasm: warning: option -${k} is accepted and ignored`); if (v === undefined && ['mem', 'progname', 'kpathsea-debug', 'translate-file'].includes(k)) next(); break;
       default: console.error(`mpost-wasm: unknown option ${a}`); process.exit(1);
@@ -85,6 +94,22 @@ async function main() {
   });
   if (o.version) { console.log(`MetaPost ${mp.version.metapost} (metapost-wasm) with ${mp.version.tex}`); mp.dispose(); return; }
   if (o.troff) console.error('mpost-wasm: warning: troff mode is not supported; continuing in TeX mode');
+  if (o.latex) {
+    if (!o.file) { console.error('mpost-wasm: --latex needs a .tex file'); process.exit(1); }
+    const f = fs.existsSync(o.file) ? o.file : fs.existsSync(o.file + '.tex') ? o.file + '.tex' : null;
+    if (!f) { console.error(`mpost-wasm: cannot open ${o.file}`); process.exit(1); }
+    const job = o.jobname || path.basename(f).replace(/\.tex$/, '');
+    const sib: Record<string, string | Uint8Array> = {};
+    for (const e of fs.readdirSync(path.dirname(f))) if (e !== path.basename(f) && /\.(tex|sty|cls|def|clo|fd|eps|dat|csv|txt|bib)$/.test(e)) sib[e] = fs.readFileSync(path.join(path.dirname(f), e));
+    const r = await mp.latex(fs.readFileSync(f, 'utf8'), { engine: o.plain ? 'plain' : 'latex', jobName: job, files: sib, fonts: o.fonts });
+    process.stdout.write(r.log.endsWith('\n') ? r.log : r.log + '\n');
+    if (o.stdout) { if (r.pages[0]) process.stdout.write(r.pages[0]); }
+    else r.pages.forEach((svg, i) => fs.writeFileSync(`${job}-${i + 1}.svg`, svg));
+    fs.writeFileSync(`${job}.log`, r.texLog);
+    for (const d of r.diagnostics) if (d.severity === 'error') console.error(`${d.file ?? job + '.tex'}${d.line ? ':' + d.line : ''}: ${d.message}`);
+    mp.dispose();
+    process.exit(r.status === 'error' || r.status === 'fatal' ? 1 : 0);
+  }
   let source: string;
   let jobname = o.jobname;
   let files: Record<string, string | Uint8Array> = {};

@@ -1,0 +1,9 @@
+\documentclass{article}
+\usepackage{tikz}
+\usepackage[margin=1in]{geometry}
+\pagestyle{empty}
+\begin{document}
+First page: \begin{tikzpicture}[baseline] \fill[green!40] (0,0) rectangle (1,0.5); \end{tikzpicture} inline.
+\newpage
+Second page. \begin{tikzpicture} \draw (0,0) grid (2,1); \end{tikzpicture}
+\end{document}

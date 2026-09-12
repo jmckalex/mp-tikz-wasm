@@ -4,14 +4,15 @@
  * creates one tex.wasm instance per TeX invocation.
  */
 import { MpJob, MpFtype, MPX_FTYPE_TFM, MPX_FTYPE_VF, mpxAddPath, mplibVersion, mplibBuildId, type MplibModule, type MplibFactory } from './mplib.js';
-import type { TexFactory, TexModule } from './texengine.js';
+import { runTex, type TexFactory, type TexModule } from './texengine.js';
+import { runDvisvgm, type DvisvgmFactory } from './dvisvgm.js';
 import { BundleSet, TEXMF_ROOT } from './vfs/bundle.js';
 import { listFiles, mkdirp, writeFileDeep, isUnloadedLazy, ensureLoaded, type EmscriptenFS } from './vfs/lazyfs.js';
 import { scanTexBlocks, scanInputs, type TexBlock } from './tex/scanner.js';
 import { TexBridge, MemorySnippetCache, resolveEngine, canonicalBody, type Snippet, type ResolvedEngine, type SnippetCache } from './tex/bridge.js';
 import { parseMetaPostLog } from './diagnostics.js';
 import { postProcessSvg } from './render/svg.js';
-import type { MetaPostOptions, RunOptions, RunResult, FigureResult, Diagnostic, RunStats, Figure, OutputFormat, ProgressEvent } from './types.js';
+import type { MetaPostOptions, RunOptions, RunResult, FigureResult, Diagnostic, RunStats, Figure, OutputFormat, ProgressEvent, LatexRunOptions, LatexResult } from './types.js';
 
 /** Where MetaPost looks for each file type (docs/06 §2). */
 export const SEARCH_PATHS: Record<number, string[]> = {
@@ -43,6 +44,7 @@ const DEFAULT_EXT: Record<number, string> = {
 export interface CoreEnv {
   mplibFactory: MplibFactory;
   texFactory?: TexFactory;
+  dvisvgmFactory?: DvisvgmFactory;
   /** bundles merged into /texmf (browser, or Node without texmfDir) */
   bundles?: BundleSet;
   /** Node: real directory mounted at /texmf with NODEFS */
@@ -275,6 +277,89 @@ export class MetaPostCore {
 
   private lastTexLog = '';
 
+  /**
+   * Typeset a complete LaTeX (or plain TeX) document with tex.wasm and convert
+   * every page to SVG with dvisvgm.wasm — the TikZ/PGF pipeline. Text becomes
+   * glyph outlines unless fonts: 'woff2' is requested.
+   */
+  async latex(source: string, lo: LatexRunOptions = {}): Promise<LatexResult> {
+    const t0 = now();
+    if (!this.env.texFactory) throw new Error('metapost-wasm: tex.wasm is not available in this build');
+    if (!this.env.dvisvgmFactory) throw new Error('metapost-wasm: dvisvgm.wasm is not available in this build');
+    const job = lo.jobName ?? 'doc';
+    const engine = lo.engine ?? 'latex';
+    // 'plain' is plain TeX with e-TeX (TeX Live's etex), which PGF requires;
+    // 'tex' is Knuth-compatible plain.fmt without it.
+    const fmt = engine === 'plain' ? 'etex' : engine;
+    const progname = engine === 'plain' ? 'etex' : engine;
+    if (lo.files) this.addFiles(lo.files);
+    // PGF's default DVI driver (dvips) draws with PostScript specials, which
+    // dvisvgm can only interpret through Ghostscript. PGF ships a dvisvgm
+    // driver that emits SVG directly, so select it unless told otherwise.
+    let doc = source;
+    if ((lo.pgfDriver ?? 'dvisvgm') === 'dvisvgm') {
+      const line = '\\def\\pgfsysdriver{pgfsys-dvisvgm.def}';
+      doc = source.startsWith('%&') ? source.replace(/^([^\n]*\n)/, `$1${line}`) : line + source;  // same first line: no line-number shift
+    }
+    this.env.onProgress?.({ phase: 'typesetting', detail: engine });
+    // 1. TeX → DVI
+    let dvi: Uint8Array | null = null;
+    let texLog = '';
+    const artifacts: Record<string, Uint8Array> = {};
+    const tex = await runTex(this.env.texFactory, {
+      args: [`-fmt=${fmt}`, `-progname=${progname}`, '-interaction=nonstopmode', '-parse-first-line', `-jobname=${job}`, `${job}.tex`],
+      setup: (M) => { mkdirp(M.FS, '/work'); this.installTexmf(M.FS, M.NODEFS); this.copyUserFiles(M); writeFileDeep(M.FS, `/work/${job}.tex`, doc); M.FS.chdir('/work'); },
+      collect: (M) => {
+        try { dvi = M.FS.readFile(`/work/${job}.dvi`, { encoding: 'binary' }) as Uint8Array; } catch { dvi = null; }
+        try { texLog = M.FS.readFile(`/work/${job}.log`, { encoding: 'utf8' }) as string; } catch { texLog = ''; }
+        for (const p of listFiles(M.FS, '/work')) {
+          const name = p.slice('/work/'.length);
+          if (name === `${job}.tex` || name === `${job}.dvi` || name === `${job}.log` || this.userFiles.has(p)) continue;
+          try { artifacts[name] = M.FS.readFile(p, { encoding: 'binary' }) as Uint8Array; } catch { /* ignore */ }
+        }
+      },
+      onLine: this.env.onLog,
+    });
+    const diagnostics = parseTexLogDocument(texLog || tex.log, `${job}.tex`);
+    // LaTeX runs are full of benign package warnings, so unlike MetaPost's
+    // history the status only turns on errors: ok | error | fatal (no DVI).
+    let status: LatexResult['status'] = (tex.exitCode === 0 && !diagnostics.some((d) => d.severity === 'error')) ? 'ok' : 'error';
+    const pages: string[] = [];
+    let dvisvgmLog = '';
+    let dvisvgmMs = 0;
+    // 2. DVI → SVG
+    if (dvi) {
+      const dviBytes: Uint8Array = dvi;
+      this.env.onProgress?.({ phase: 'rendering', detail: 'dvisvgm' });
+      const args = ['--no-mktexmf', '--exact-bbox', '-v3', `--page=${lo.pages === undefined || lo.pages === 'all' ? '1-' : String(lo.pages)}`, '-o', `${job}-%p.svg`];
+      if (lo.fonts === 'woff2') args.push('--font-format=woff2'); else args.push('--no-fonts');
+      if (lo.bbox) args.push(`--bbox=${lo.bbox}`);
+      args.push(...(lo.dvisvgmArgs ?? []), `${job}.dvi`);
+      const r = await runDvisvgm(this.env.dvisvgmFactory, {
+        args,
+        setup: (M) => { mkdirp(M.FS, '/work'); this.installTexmf(M.FS, M.NODEFS); this.copyUserFiles(M); writeFileDeep(M.FS, `/work/${job}.dvi`, dviBytes); M.FS.chdir('/work'); },
+        collect: (M) => {
+          const names = listFiles(M.FS, '/work').filter((p) => new RegExp(`^/work/${job.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)\\.svg$`).test(p))
+            .sort((a, b) => Number(/-(\d+)\.svg$/.exec(a)![1]) - Number(/-(\d+)\.svg$/.exec(b)![1]));
+          for (let i = 0; i < names.length; i++) {
+            const svg = M.FS.readFile(names[i], { encoding: 'utf8' }) as string;
+            pages.push(lo.svg ? postProcessSvg(svg, lo.svg, i) : svg);
+          }
+        },
+        onLine: this.env.onLog,
+      });
+      dvisvgmLog = r.log; dvisvgmMs = r.ms;
+      if (r.exitCode !== 0 && pages.length === 0) {
+        status = 'error';
+        diagnostics.push({ severity: 'error', source: 'host', message: `dvisvgm failed (exit ${r.exitCode}): ${r.log.split('\n').filter((l) => /error/i.test(l)).join('; ') || r.log.slice(-300)}` });
+      }
+    } else {
+      status = diagnostics.some((d) => d.severity === 'error') ? 'error' : 'fatal';
+      if (!diagnostics.length) diagnostics.push({ severity: 'error', source: 'tex', message: `TeX produced no DVI (exit ${tex.exitCode})` });
+    }
+    return { status, pages, log: tex.log, texLog, dvisvgmLog, diagnostics, stats: { totalMs: now() - t0, texMs: tex.ms, dvisvgmMs }, artifacts };
+  }
+
   private async typeset(misses: Snippet[]): Promise<void> {
     this.env.onProgress?.({ phase: 'typesetting', total: misses.length });
     const r = await this.bridge!.typeset(this.engine as ResolvedEngine, misses);
@@ -358,6 +443,30 @@ export class MetaPostCore {
 }
 
 function now(): number { return typeof performance !== 'undefined' ? performance.now() : Date.now(); }
+
+/** Errors (`! ...` + `l.N`) and package warnings from a TeX transcript, attributed to the document. */
+export function parseTexLogDocument(log: string, file: string): Diagnostic[] {
+  const out: Diagnostic[] = [];
+  const lines = log.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^! (.*)$/.exec(lines[i]);
+    if (m) {
+      let line: number | undefined; const help: string[] = []; let j = i + 1;
+      for (; j < lines.length && j < i + 30; j++) { const lm = /^l\.(\d+)/.exec(lines[j]); if (lm) { line = Number(lm[1]); break; } if (/^! /.test(lines[j])) break; }
+      if (line !== undefined) for (let k = j + 2; k < lines.length && k < i + 30; k++) { if (lines[k].trim() === '' || /^! |^l\.\d+/.test(lines[k])) break; help.push(lines[k]); }
+      out.push({ severity: 'error', source: 'tex', message: m[1], help: help.length ? help : undefined, file, line });
+      continue;
+    }
+    const w = /^(?:LaTeX|Package (\S+)|Class (\S+)) Warning: (.*)$/.exec(lines[i]);
+    if (w) {
+      let msg = w[3]; let j = i + 1;
+      while (j < lines.length && lines[j].startsWith('(') && /^\([^)]*\) /.test(lines[j])) { msg += ' ' + lines[j].replace(/^\([^)]*\)\s*/, ''); j++; }
+      const lm = /on input line (\d+)/.exec(msg);
+      out.push({ severity: 'warning', source: 'tex', message: (w[1] ? w[1] + ': ' : w[2] ? w[2] + ': ' : '') + msg, file, line: lm ? Number(lm[1]) : undefined });
+    }
+  }
+  return out;
+}
 
 /** `input name` statements with their 1-based line numbers (lexical; comments and strings skipped). */
 function inputStatements(src: string): { name: string; line: number }[] {

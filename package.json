@@ -2,11 +2,11 @@
   "name": "metapost-wasm",
   "version": "0.1.0",
   "private": true,
-  "description": "MetaPost (mplib 2.11) and pdfTeX compiled to WebAssembly: MetaPost to SVG/EPS/JSON in the browser and Node, with btex/LaTeX labels",
+  "description": "MetaPost (mplib 2.11), pdfTeX and dvisvgm compiled to WebAssembly: MetaPost to SVG/EPS/JSON, and LaTeX/TikZ documents to SVG, in the browser and Node",
   "type": "module",
   "license": "LGPL-3.0-or-later",
   "scripts": {
-    "build": "npm run build:mplib && npm run build:tex && npm run build:texmf && npm run build:formats && npm run build:bundles && npm run build:ts",
+    "build": "npm run build:mplib && npm run build:tex && npm run build:dvisvgm && npm run build:texmf && npm run build:formats && npm run build:bundles && npm run build:ts",
     "build:mplib": "make wasm",
     "build:tex": "./scripts/build-tex-wasm.sh",
     "build:texmf": "./scripts/build-texmf.sh",
@@ -17,10 +17,13 @@
     "test:contract": "make contract",
     "test:golden": "node scripts/golden.mjs",
     "test:golden:check": "node scripts/golden.mjs --check",
-    "test:all": "npm run test && npm run test:contract && npm run test:golden:check",
+    "test:all": "npm run test && npm run test:contract && npm run test:golden:check && node scripts/golden-tikz.mjs --check",
     "typecheck": "tsc --noEmit",
     "demo": "node scripts/serve.mjs 8080",
-    "verify-pin": "./scripts/verify-pin.sh"
+    "verify-pin": "./scripts/verify-pin.sh",
+    "build:dvisvgm": "./scripts/build-dvisvgm-wasm.sh",
+    "build:standalone": "node scripts/build-standalone.mjs",
+    "test:golden:tikz": "node scripts/golden-tikz.mjs"
   },
   "devDependencies": {
     "@types/node": "^22",
@@ -40,7 +43,8 @@
     "./worker": "./dist/worker.js",
     "./mplib.wasm": "./dist/mplib.wasm",
     "./tex.wasm": "./dist/tex.wasm",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./dvisvgm.wasm": "./dist/dvisvgm.wasm"
   },
   "files": [
     "dist",

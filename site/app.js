@@ -1,8 +1,10 @@
 import { MetaPost } from '../dist/index.js';
 import { EXAMPLES } from './examples.js';
+import { TIKZ_EXAMPLES } from './examples-tikz.js';
 
 const $ = (s) => document.querySelector(s);
 const status = $('#status'), source = $('#source'), gallery = $('#gallery'), blurb = $('#blurb');
+const mode = $('#mode');
 const panes = { preview: $('#preview'), svg: $('#svg pre'), eps: $('#eps pre'), json: $('#json pre'), log: $('#log pre'), stats: $('#stats'), diagnostics: $('#diagnostics') };
 
 let mp = null;
@@ -51,7 +53,16 @@ async function run() {
     const src = source.value;
     const t0 = performance.now();
     setStatus('<span class="spinner"></span>running…');
-    const r = await m.run(src, { format: ['svg', 'eps', 'json'], tex: $('#tex').value });
+    let r;
+    if (mode.value === 'mp') {
+      r = await m.run(src, { format: ['svg', 'eps', 'json'], tex: $('#tex').value });
+    } else {
+      // LaTeX/TikZ: adapt the result to the same shape the panes expect
+      const l = await m.latex(src, { engine: mode.value === 'plain' ? 'plain' : 'latex' });
+      r = { status: l.status, history: l.status === 'ok' ? 0 : l.status === 'warning' ? 1 : 3, log: l.log + '\n\n--- dvisvgm ---\n' + l.dvisvgmLog, texLog: l.texLog,
+        diagnostics: l.diagnostics, figures: l.pages.map((svg, i) => ({ charcode: i + 1, svg, eps: '(EPS is a MetaPost format; in TikZ mode the output is SVG only)', json: null, bbox: [0, 0, 0, 0] })),
+        stats: { metapostMs: 0, metapostRuns: 0, texMs: l.stats.texMs, texRuns: 1, snippetCacheHits: 0, snippetCacheMisses: 0, dvisvgmMs: l.stats.dvisvgmMs } };
+    }
     const ms = performance.now() - t0;
     const fig = r.figures[0];
     panes.preview.innerHTML = r.figures.length
@@ -77,6 +88,7 @@ async function run() {
       <div class="stat"><b>${ms.toFixed(0)} ms</b><span>round trip (main thread)</span></div>
       <div class="stat"><b>${s.metapostMs.toFixed(0)} ms</b><span>MetaPost, ${s.metapostRuns} run${s.metapostRuns === 1 ? '' : 's'}</span></div>
       <div class="stat"><b>${s.texMs.toFixed(0)} ms</b><span>TeX, ${s.texRuns} run${s.texRuns === 1 ? '' : 's'}</span></div>
+      ${s.dvisvgmMs !== undefined ? `<div class="stat"><b>${s.dvisvgmMs.toFixed(0)} ms</b><span>dvisvgm</span></div>` : ''}
       <div class="stat"><b>${s.snippetCacheHits}/${s.snippetCacheHits + s.snippetCacheMisses}</b><span>snippet cache hits</span></div>
       <div class="stat"><b>${r.figures.length}</b><span>figure${r.figures.length === 1 ? '' : 's'}</span></div>
       <div class="stat"><b>${fig ? (fig.svg.length / 1024).toFixed(1) + ' KB' : '–'}</b><span>SVG size</span></div>
@@ -84,7 +96,7 @@ async function run() {
     </div>
     <p style="color:var(--muted);font-size:13px">bbox ${fig ? fig.bbox.map((v) => v.toFixed(2)).join(', ') : '–'} pt. Timings are for this machine; the first LaTeX run also fetches the format file (2.1 MB) and the fonts it needs, which the browser then caches.</p>`;
     const problems = r.diagnostics.filter((d) => d.severity === 'error').length;
-    setStatus(`<b>${r.status}</b> in <b>${ms.toFixed(0)} ms</b> — MetaPost ${s.metapostMs.toFixed(0)} ms${s.texRuns ? `, TeX ${s.texMs.toFixed(0)} ms (${s.texRuns} run)` : ''}${problems ? `, <span style="color:var(--accent-2)">${problems} error${problems === 1 ? '' : 's'}</span>` : ''}`);
+    setStatus(`<b>${r.status}</b> in <b>${ms.toFixed(0)} ms</b> — ${mode.value === 'mp' ? `MetaPost ${s.metapostMs.toFixed(0)} ms` : `TeX ${s.texMs.toFixed(0)} ms, dvisvgm ${s.dvisvgmMs.toFixed(0)} ms`}${mode.value === 'mp' && s.texRuns ? `, TeX ${s.texMs.toFixed(0)} ms (${s.texRuns} run)` : ''}${problems ? `, <span style="color:var(--accent-2)">${problems} error${problems === 1 ? '' : 's'}</span>` : ''}`);
     if (problems && !$('#log').offsetParent) document.querySelector('.tabs button[data-pane="log"]').classList.add('attention');
   } catch (e) {
     setStatus(`<b style="color:var(--accent-2)">error</b>: ${escapeHtml(e.message ?? String(e))}`);
@@ -95,22 +107,25 @@ async function run() {
   }
 }
 
-// gallery
-for (const ex of EXAMPLES) {
+// galleries
+const ALL = [...EXAMPLES.map((e) => ({ ...e, mode: 'mp' })), ...TIKZ_EXAMPLES.map((e) => ({ ...e, mode: e.plain ? 'plain' : 'latex' }))];
+for (const ex of ALL) {
   const b = document.createElement('button');
   b.innerHTML = `${ex.title}<small>${ex.tier}</small>`;
   b.onclick = () => select(ex);
   b.dataset.id = ex.id;
-  gallery.appendChild(b);
+  (ex.mode === 'mp' ? $('#gallery-mp') : $('#gallery-tikz')).appendChild(b);
 }
 function select(ex) {
   current = ex;
   for (const b of gallery.querySelectorAll('button')) b.classList.toggle('active', b.dataset.id === ex.id);
   source.value = ex.src;
   blurb.textContent = ex.blurb;
+  mode.value = ex.mode;
   location.hash = ex.id;
   run();
 }
+mode.onchange = run;
 // tabs
 for (const b of document.querySelectorAll('.tabs button')) {
   b.onclick = () => {
@@ -131,5 +146,5 @@ fetch('../dist/bundles/index.json').then((r) => r.json()).then((idx) => {
   $('#sizes').innerHTML = ' Bundles: ' + idx.bundles.map((b) => `${b.name} ${(b.bytes / 1024 / 1024).toFixed(1)} MB`).join(', ') + ' (fetched per file, on demand).';
 }).catch(() => {});
 
-const initial = EXAMPLES.find((e) => e.id === location.hash.slice(1)) ?? EXAMPLES[0];
+const initial = ALL.find((e) => e.id === location.hash.slice(1)) ?? ALL[0];
 select(initial);

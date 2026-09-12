@@ -124,7 +124,7 @@
   </div>
   <div class="thesis">
     <div>
-      <p class="lede">John Hobby's MetaPost 2.11 and pdfTeX 1.40 compiled to WebAssembly. MetaPost source in; SVG with real glyph outlines, EPS and structured JSON out — including <code>btex … etex</code> labels typeset by plain TeX or LaTeX. No server, no web fonts, no rendering shortcuts: the output is byte-identical to native <code>mpost</code> from TeX Live 2025.</p>
+      <p class="lede">John Hobby's MetaPost 2.11, pdfTeX 1.40 and dvisvgm 3.4 compiled to WebAssembly. MetaPost source in; SVG with real glyph outlines, EPS and structured JSON out — including <code>btex … etex</code> labels typeset by plain TeX or LaTeX. And whole TikZ/PGF documents: LaTeX to DVI to SVG, shadings and pgfplots included. No server, no web fonts, no rendering shortcuts: the output is byte-identical to native <code>mpost</code> and <code>latex</code> + <code>dvisvgm</code> from TeX Live 2025.</p>
       <div id="status" class="status" style="margin-top:14px"><span class="dot busy"></span><span>decoding the engine (everything on this page is inlined)…</span></div>
     </div>
     <div class="facts" id="facts"></div>
@@ -138,7 +138,9 @@
     <div class="pane-src">
       <div class="toolbar">
         <button class="run" id="run">Run</button>
-        <label class="hint" for="tex">TeX</label>
+        <label class="hint" for="mode">mode</label>
+        <select id="mode"><option value="mp">MetaPost</option><option value="latex">LaTeX / TikZ</option><option value="plain">plain TeX</option></select>
+        <label class="hint" for="tex">labels</label>
         <select id="tex"><option value="auto">auto</option><option value="plain">plain</option><option value="latex">latex</option><option value="none">none</option></select>
         <span class="hint">⌘⏎ / Ctrl+Enter</span>
       </div>
@@ -165,6 +167,10 @@
   <h2>What it can do</h2>
   <p style="margin-top:8px">Every figure below was produced by this build of the engine (rendered in Node when the page was assembled). Load any of them into the editor above and change it.</p>
   <div class="grid" id="grid"></div>
+  <div class="eyebrow" style="margin-top:40px">TikZ / PGF</div>
+  <h2>Whole LaTeX documents, page by page</h2>
+  <p style="margin-top:8px">These are complete documents — <code>\documentclass[tikz]{standalone}</code>, pgfplots, Latin Modern — typeset by pdfTeX in DVI mode and converted by dvisvgm, both running here. Shadings, patterns, clipping and opacity survive as native SVG. Open one and edit it.</p>
+  <div class="grid" id="grid-tikz"></div>
 </section>
 
 <section id="how">
@@ -178,6 +184,7 @@
     <li><span><b>Run.</b> MetaPost runs with <code>extensions=1</code>; its <code>make_text</code> callback answers each <code>btex</code> synchronously from the cache. Type 1 fonts become SVG paths (<code>prologues:=3</code>).</span></li>
     <li><span><b>Fixpoint.</b> A label the scan could not see (<code>scantokens</code>) misses, comes back as <code>nullpicture</code>, and the run repeats once it has been typeset — LaTeX's own trick for cross-references.</span></li>
   </ol>
+  <p style="margin-top:18px"><b>TikZ takes the other road.</b> A TikZ document is not a label but a whole page, so it skips MetaPost entirely: pdfTeX writes a DVI whose <code>\special</code>s carry PGF's drawing commands, and <code>dvisvgm</code> — the reference converter, with its PGF/dvisvgm special handlers, FreeType and potrace — turns each page into SVG with glyph outlines. Same engine, same fonts, same bundles; a different last step.</p>
 </section>
 
 <section id="numbers">
@@ -228,6 +235,7 @@
 </div>
 
 <script type="application/json" id="gallery-data">__GALLERY_JSON__</script>
+<script type="application/json" id="tikz-gallery-data">__TIKZ_GALLERY_JSON__</script>
 <script type="application/json" id="numbers-data">__NUMBERS_JSON__</script>
 <script type="application/json" id="assets">__ASSETS_JSON__</script>
 <script type="module">
@@ -237,29 +245,35 @@ __GLUE_MPLIB__
 __GLUE_TEX__
 </script>
 <script type="module">
+__GLUE_DVISVGM__
+</script>
+<script type="module">
 __LIB__
 
 // ---------------------------------------------------------------- the page
 const $ = (s) => document.querySelector(s);
-const GALLERY = JSON.parse($('#gallery-data').textContent);
+const GALLERY = JSON.parse($('#gallery-data').textContent).map((g) => ({ ...g, mode: 'mp' }));
+const TIKZ = JSON.parse($('#tikz-gallery-data').textContent).map((g) => ({ ...g, mode: g.plain ? 'plain' : 'latex' }));
+const ALL = [...GALLERY, ...TIKZ];
 const NUMBERS = JSON.parse($('#numbers-data').textContent);
 const fmtKB = (n) => n >= 1024 * 1024 ? (n / 1024 / 1024).toFixed(2) + ' MB' : (n / 1024).toFixed(0) + ' KB';
 const esc = (s) => String(s).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
 
 // gallery (pre-rendered; visible before the engine loads)
-const grid = $('#grid');
-for (const g of GALLERY) {
+for (const g of ALL) {
   const card = document.createElement('article');
   card.className = 'card';
-  card.innerHTML = `<div class="fig">${g.svg}</div><div class="body"><span class="tier">${esc(g.tier)}</span><h3>${esc(g.title)}</h3><p>${esc(g.blurb)}</p><div class="row"><button type="button" data-id="${g.id}">Open in editor</button><span class="ms">${g.stats.metapostMs.toFixed(0)} ms MetaPost${g.stats.texRuns ? `, ${g.stats.texMs.toFixed(0)} ms TeX` : ''}</span></div></div>`;
+  const timing = g.mode === 'mp' ? `${g.stats.metapostMs.toFixed(0)} ms MetaPost${g.stats.texRuns ? `, ${g.stats.texMs.toFixed(0)} ms TeX` : ''}` : `${g.stats.texMs.toFixed(0)} ms TeX, ${g.stats.dvisvgmMs.toFixed(0)} ms dvisvgm`;
+  card.innerHTML = `<div class="fig">${g.svg}</div><div class="body"><span class="tier">${esc(g.tier)}</span><h3>${esc(g.title)}</h3><p>${esc(g.blurb)}</p><div class="row"><button type="button" data-id="${g.id}">Open in editor</button><span class="ms">${timing}</span></div></div>`;
   card.querySelector('button').onclick = () => { load(g); $('#live').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-  grid.appendChild(card);
+  (g.mode === 'mp' ? $('#grid') : $('#grid-tikz')).appendChild(card);
 }
 $('#sizes').innerHTML = [
   ['<code>mplib.wasm</code> — MetaPost 2.11', NUMBERS.mplib], ['<code>tex.wasm</code> — pdfTeX 1.40, DVI mode', NUMBERS.tex],
+  ['<code>dvisvgm.wasm</code> — dvisvgm 3.4.3 with FreeType', NUMBERS.dvisvgm],
   ['<code>latex.fmt</code>, built by tex.wasm', NUMBERS.latexfmt], ['<code>plain.fmt</code>, built by tex.wasm', NUMBERS.plainfmt],
 ].map(([k, v]) => `<tr><td>${k}</td><td class="n">${fmtKB(v)}</td></tr>`).join('');
-$('#facts').innerHTML = `<div><b>${fmtKB(NUMBERS.mplib + NUMBERS.tex)}</b><span>of WebAssembly for two TeX-family engines</span></div><div><b>15 / 15</b><span>golden cases byte-identical to native mpost</span></div><div><b>1 TeX run</b><span>per document, however many labels</span></div><div><b>0 servers</b><span>this file contains everything it needs</span></div>`;
+$('#facts').innerHTML = `<div><b>${fmtKB(NUMBERS.mplib + NUMBERS.tex + NUMBERS.dvisvgm)}</b><span>of WebAssembly for three TeX-family programs</span></div><div><b>22 / 22</b><span>golden cases byte-identical to TeX Live (mpost, latex + dvisvgm)</span></div><div><b>1 TeX run</b><span>per document, however many labels</span></div><div><b>0 servers</b><span>this file contains everything it needs</span></div>`;
 
 // tabs
 for (const b of document.querySelectorAll('.tabs button')) b.onclick = () => {
@@ -272,11 +286,16 @@ const status = $('#status');
 function setStatus(html, cls = '') { status.className = 'status ' + cls; status.innerHTML = `<span class="dot ${cls ? '' : 'busy'}"></span><span>${html}</span>`; }
 const ASSETS = JSON.parse($('#assets').textContent);
 function b64(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+// every embedded blob is gzip + base64; inflate all of them once at boot
+async function inflate(s) {
+  const stream = new Blob([b64(s)]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
 const decoded = new Map();
 function file(url) {
   const rel = url.replace(/^inline:\/\/inline\/files\//, '');
-  let d = decoded.get(rel);
-  if (!d) { const s = ASSETS.files[rel]; if (s === undefined) throw new Error(`not embedded: ${rel}`); d = b64(s); decoded.set(rel, d); }
+  const d = decoded.get(rel);
+  if (!d) throw new Error(`not embedded: ${rel}`);
   return d;
 }
 const io = { fetch: async (u) => file(u), fetchSync: (u) => file(u), fetchJson: async () => ASSETS.manifest };
@@ -284,10 +303,15 @@ let mp = null, ready = null;
 async function boot() {
   const t0 = performance.now();
   if (typeof WebAssembly === 'undefined') throw new Error('WebAssembly is not available here');
-  const mplibWasm = b64(ASSETS.wasm.mplib), texWasm = b64(ASSETS.wasm.tex);
+  if (typeof DecompressionStream === 'undefined') throw new Error('DecompressionStream is not available in this browser');
+  const names = Object.keys(ASSETS.files);
+  const blobs = await Promise.all(names.map((n) => inflate(ASSETS.files[n])));
+  names.forEach((n, i) => decoded.set(n, blobs[i]));
+  const [mplibWasm, texWasm, dvisvgmWasm] = await Promise.all([inflate(ASSETS.wasm.mplib), inflate(ASSETS.wasm.tex), inflate(ASSETS.wasm.dvisvgm)]);
   const modules = {
     mplib: (o = {}) => globalThis.__createMplib({ ...o, wasmBinary: mplibWasm }),
     tex: (o = {}) => globalThis.__createTex({ ...o, wasmBinary: texWasm }),
+    dvisvgm: (o = {}) => globalThis.__createDvisvgm({ ...o, wasmBinary: dvisvgmWasm }),
   };
   mp = await MetaPost.create({ worker: false, modules, bundleIO: io, bundleBaseUrl: 'inline://', bundles: ['inline'], log: () => {} });
   setStatus(`engine ready in <b>${(performance.now() - t0).toFixed(0)} ms</b> — MetaPost ${mp.version.metapost}, ${mp.version.tex}`, 'ready');
@@ -310,7 +334,14 @@ async function run() {
     await ready;
     const t0 = performance.now();
     setStatus('running…');
-    const r = await mp.run($('#src').value, { format: 'svg', tex: $('#tex').value, svg: { idPrefix: 'live-' } });
+    const modeSel = $('#mode').value;
+    let r;
+    if (modeSel === 'mp') r = await mp.run($('#src').value, { format: 'svg', tex: $('#tex').value, svg: { idPrefix: 'live-' } });
+    else {
+      const l = await mp.latex($('#src').value, { engine: modeSel === 'plain' ? 'plain' : 'latex', svg: { idPrefix: 'live-', precision: false } });
+      r = { status: l.status, figures: l.pages.map((svg) => ({ svg })), log: l.log + '\n\n--- dvisvgm ---\n' + l.dvisvgmLog, texLog: l.texLog, diagnostics: l.diagnostics,
+        stats: { metapostMs: 0, metapostRuns: 0, texMs: l.stats.texMs, texRuns: 1, snippetCacheHits: 0, snippetCacheMisses: 0, dvisvgmMs: l.stats.dvisvgmMs } };
+    }
     const ms = performance.now() - t0;
     $('#preview').innerHTML = r.figures.length ? r.figures.map((f) => f.svg).join('<div style="width:100%;height:12px"></div>') : `<span style="color:var(--muted)">no figures (status ${r.status})</span>`;
     for (const svg of $('#preview').querySelectorAll('svg')) { const w = parseFloat(svg.getAttribute('width')) || 100; svg.removeAttribute('height'); svg.style.width = `min(100%, ${Math.max(w * 2, 260)}px)`; }
@@ -318,21 +349,22 @@ async function run() {
     $('#log pre').textContent = r.log + (r.texLog ? '\n\n--- TeX log ---\n' + r.texLog : '');
     $('#diagnostics').innerHTML = r.diagnostics.map((d) => `<div class="diag ${d.severity}"><b>${esc(d.source)} ${d.severity}</b>: ${esc(d.message)}${d.line ? `<div class="where">${esc(d.file ?? 'job.mp')}:${d.line}</div>` : ''}${d.snippet ? `<div class="where">${esc(d.snippet)}</div>` : ''}${d.help?.length ? `<div class="help">${esc(d.help.join('\n'))}</div>` : ''}</div>`).join('');
     const s = r.stats;
-    $('#stats').innerHTML = `<div class="runstats"><div><b>${ms.toFixed(0)} ms</b><span>round trip</span></div><div><b>${s.metapostMs.toFixed(0)} ms</b><span>MetaPost, ${s.metapostRuns} run${s.metapostRuns === 1 ? '' : 's'}</span></div><div><b>${s.texMs.toFixed(0)} ms</b><span>TeX, ${s.texRuns} run${s.texRuns === 1 ? '' : 's'}</span></div><div><b>${s.snippetCacheHits}/${s.snippetCacheHits + s.snippetCacheMisses}</b><span>snippet cache hits</span></div><div><b>${r.figures.length}</b><span>figure${r.figures.length === 1 ? '' : 's'}</span></div></div>`;
+    $('#stats').innerHTML = `<div class="runstats"><div><b>${ms.toFixed(0)} ms</b><span>round trip</span></div>${modeSel === 'mp' ? `<div><b>${s.metapostMs.toFixed(0)} ms</b><span>MetaPost, ${s.metapostRuns} run${s.metapostRuns === 1 ? '' : 's'}</span></div>` : ''}<div><b>${s.texMs.toFixed(0)} ms</b><span>TeX, ${s.texRuns} run${s.texRuns === 1 ? '' : 's'}</span></div>${modeSel === 'mp' ? `<div><b>${s.snippetCacheHits}/${s.snippetCacheHits + s.snippetCacheMisses}</b><span>snippet cache hits</span></div>` : `<div><b>${s.dvisvgmMs.toFixed(0)} ms</b><span>dvisvgm</span></div>`}<div><b>${r.figures.length}</b><span>${modeSel === 'mp' ? 'figure' : 'page'}${r.figures.length === 1 ? '' : 's'}</span></div></div>`;
     const errors = r.diagnostics.filter((d) => d.severity === 'error').length;
-    setStatus(`<b>${r.status}</b> in <b>${ms.toFixed(0)} ms</b> — MetaPost ${s.metapostMs.toFixed(0)} ms${s.texRuns ? `, TeX ${s.texMs.toFixed(0)} ms` : ''}${errors ? ` — <span style="color:var(--bad)">${errors} error${errors === 1 ? '' : 's'}, see the Log tab</span>` : ''}`, 'ready');
+    setStatus(`<b>${r.status}</b> in <b>${ms.toFixed(0)} ms</b> — ${modeSel === 'mp' ? `MetaPost ${s.metapostMs.toFixed(0)} ms${s.texRuns ? `, TeX ${s.texMs.toFixed(0)} ms` : ''}` : `TeX ${s.texMs.toFixed(0)} ms, dvisvgm ${s.dvisvgmMs.toFixed(0)} ms`}${errors ? ` — <span style="color:var(--bad)">${errors} error${errors === 1 ? '' : 's'}, see the Log tab</span>` : ''}`, 'ready');
   } catch (e) {
     setStatus(`error: <b>${esc(e.message ?? e)}</b>`, 'error');
   } finally { running = false; if (queued) { queued = false; run(); } }
 }
-function load(g) { $('#src').value = g.src; location.hash = g.id; run(); }
+function load(g) { $('#src').value = g.src; $('#mode').value = g.mode; location.hash = g.id; run(); }
 $('#run').onclick = run;
 $('#tex').onchange = run;
+$('#mode').onchange = run;
 document.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); run(); } });
 let timer = null;
 $('#src').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 400); });
-const initial = GALLERY.find((g) => g.id === location.hash.slice(1)) ?? GALLERY[3] ?? GALLERY[0];
-$('#src').value = initial.src;
+const initial = ALL.find((g) => g.id === location.hash.slice(1)) ?? GALLERY[3] ?? GALLERY[0];
+$('#src').value = initial.src; $('#mode').value = initial.mode;
 $('#preview').innerHTML = initial.svg;   // show the pre-rendered figure until the engine is up
 for (const svg of $('#preview').querySelectorAll('svg')) { const w = parseFloat(svg.getAttribute('width')) || 100; svg.removeAttribute('height'); svg.style.width = `min(100%, ${Math.max(w * 2, 260)}px)`; }
 ready.then(() => run()).catch(() => {});

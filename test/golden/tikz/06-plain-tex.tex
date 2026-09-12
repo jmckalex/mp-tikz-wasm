@@ -1,0 +1,8 @@
+\input tikz
+\baselineskip=12pt \parindent=0pt
+\tikzpicture
+  \draw[thick,fill=blue!10] (0,0) circle (1);
+  \foreach \a in {0,45,...,315} \draw (0,0) -- (\a:1) node[circle,fill=red,inner sep=1.5pt] {};
+  \node at (0,-1.4) {plain \TeX\ with TikZ};
+\endtikzpicture
+\bye

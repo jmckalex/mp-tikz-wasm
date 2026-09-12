@@ -2,7 +2,7 @@
  * metapost-wasm — public API (docs/08). `MetaPost.create()` starts a Web
  * Worker in browsers and runs in-process in Node (or when `worker: false`).
  */
-import type { MetaPostOptions, RunOptions, RunResult, ProgressEvent, BundleName } from './types.js';
+import type { MetaPostOptions, RunOptions, RunResult, ProgressEvent, BundleName, LatexRunOptions, LatexResult } from './types.js';
 import { MetaPostCore } from './core.js';
 import { BundleSet, browserIO } from './vfs/bundle.js';
 import { resolveBundleSpecs, DEFAULT_BUNDLES } from './bundles-config.js';
@@ -19,6 +19,7 @@ type Listener = (e: any) => void;
 interface Backend {
   init(): Promise<{ version: { metapost: string; tex: string; build: string } }>;
   run(source: string, options: RunOptions): Promise<RunResult>;
+  latex(source: string, options: LatexRunOptions): Promise<LatexResult>;
   addFiles(files: Record<string, string | Uint8Array>): Promise<void>;
   clearCache(): Promise<void>;
   preload(bundles: BundleName[]): Promise<void>;
@@ -46,8 +47,12 @@ class InProcessBackend implements Backend {
     if (!texFactory && (o.tex ?? 'auto') !== 'none') {
       try { texFactory = (await import(/* @vite-ignore */ new URL('./tex.mjs', here).href)).default; } catch { texFactory = undefined; }
     }
+    let dvisvgmFactory = o.modules?.dvisvgm;
+    if (!dvisvgmFactory && texFactory) {
+      try { dvisvgmFactory = (await import(/* @vite-ignore */ new URL('./dvisvgm.mjs', here).href)).default; } catch { dvisvgmFactory = undefined; }
+    }
     this.core = new MetaPostCore({
-      mplibFactory, texFactory, bundles: this.bundles, texmfDir, options: o,
+      mplibFactory, texFactory, dvisvgmFactory, bundles: this.bundles, texmfDir, options: o,
       onProgress: (e) => this.emit('progress', e),
       onLog: (l) => { o.log?.(l); this.emit('log', l); },
     });
@@ -55,6 +60,7 @@ class InProcessBackend implements Backend {
     return { version: this.core.version };
   }
   run(source: string, options: RunOptions) { return this.core.run(source, options); }
+  latex(source: string, options: LatexRunOptions) { return this.core.latex(source, options); }
   async addFiles(files: Record<string, string | Uint8Array>) { this.core.addFiles(files); }
   async clearCache() { this.core.clearCache(); }
   async preload(bundles: BundleName[]) {
@@ -97,6 +103,10 @@ class WorkerBackend implements Backend {
     const { signal, ...rest } = options;
     return this.call<RunResult>('run', { source, options: rest });
   }
+  latex(source: string, options: LatexRunOptions) {
+    const { signal, ...rest } = options;
+    return this.call<LatexResult>('latex', { source, options: rest });
+  }
   addFiles(files: Record<string, string | Uint8Array>) { return this.call<void>('addFiles', { files }); }
   clearCache() { return this.call<void>('clearCache'); }
   preload(bundles: BundleName[]) { return this.call<void>('preload', { bundles }); }
@@ -134,6 +144,21 @@ export class MetaPost {
         const t = setTimeout(() => { this.backend.dispose(); reject(new Error(`metapost-wasm: run exceeded ${timeout} ms; worker terminated`)); }, timeout);
         p.then((r) => { clearTimeout(t); resolve(r); }, (e) => { clearTimeout(t); reject(e); });
         options.signal?.addEventListener('abort', () => { clearTimeout(t); this.backend.dispose(); reject(new Error('aborted')); });
+      });
+    };
+    const next = this.queue.then(task, task);
+    this.queue = next.catch(() => undefined);
+    return next;
+  }
+  /** Typeset a whole LaTeX/TikZ (or plain TeX) document to one SVG per page. */
+  latex(source: string, options: LatexRunOptions = {}): Promise<LatexResult> {
+    const timeout = this.options.timeoutMs ?? 20_000;
+    const task = () => {
+      const p = this.backend.latex(source, options);
+      if (!(this.backend instanceof WorkerBackend) || !timeout) return p;
+      return new Promise<LatexResult>((resolve, reject) => {
+        const t = setTimeout(() => { this.backend.dispose(); reject(new Error(`metapost-wasm: latex exceeded ${timeout} ms; worker terminated`)); }, timeout);
+        p.then((r) => { clearTimeout(t); resolve(r); }, (e) => { clearTimeout(t); reject(e); });
       });
     };
     const next = this.queue.then(task, task);
