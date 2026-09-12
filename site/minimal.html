@@ -52,7 +52,8 @@
 <script src="./page-common.js"></script>
 <script type="module">
 import { MetaPost } from '../dist/index.js';
-globalThis.enginePromise = MetaPost.create({ snapshot: 'auto' });
+globalThis.ENGINE_MODE = 'workers';
+globalThis.enginePromise = MetaPost.create({"snapshot":"auto"});
 </script>
 <script type="module">
 const $ = (s) => document.querySelector(s);

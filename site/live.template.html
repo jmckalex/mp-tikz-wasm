@@ -80,7 +80,7 @@
   </div>
 </div>
 
-<footer>Two engine instances run in Web Workers: one MetaPost-only for the animation and the harmonograph, one with pdfTeX and dvisvgm for the LaTeX documents, so a slow TeX run never stalls a MetaPost frame. Sources: <code>live-sources.js</code>.</footer>
+<footer>Three engine instances run in Web Workers: MetaPost-only ones for the cube and for the harmonograph, and one with pdfTeX and dvisvgm for the LaTeX documents, so neither a TeX run nor a slider drag ever stalls an animation frame. Sources: <code>live-sources.js</code>.</footer>
 
 __SOURCES_SCRIPT__
 __COMMON_SCRIPT__
@@ -91,10 +91,10 @@ const S = globalThis.PAGE_SOURCES;
 const card = (id) => { const c = $('#' + id); return { c, fig: $('.fig', c), ms: $('.ms', c), pre: $('pre', c), values() { const o = {}; for (const i of c.querySelectorAll('input[type=range]')) o[i.dataset.k] = parseFloat(i.value); return o; } }; };
 for (const i of document.querySelectorAll('input[type=range]')) i.addEventListener('input', () => { i.nextElementSibling.textContent = i.value; });
 const showSvg = (k, svg, ms) => { k.fig.innerHTML = svg || '<span class="placeholder">no output</span>'; k.ms.textContent = ms; };
-let mpEngine, texEngine;
+let mpEngine, cubeEngine, texEngine;
 try {
-  [mpEngine, texEngine] = await Promise.all([globalThis.enginePromise, globalThis.texEnginePromise]);
-  $('#status').textContent = 'Engines ready.';
+  [mpEngine, cubeEngine, texEngine] = await Promise.all([globalThis.enginePromise, globalThis.cubeEnginePromise, globalThis.texEnginePromise]);
+  $('#status').textContent = globalThis.ENGINE_MODE === 'workers' ? 'Engines ready, each in its own Web Worker.' : 'Engines ready, running in-process: this host allows no workers, so the animation pauses while TeX runs.';
 } catch (e) { $('#status').textContent = `The engines could not start here: ${e.message}`; throw e; }
 
 // -- harmonograph: one MetaPost run per slider event, coalesced while busy
@@ -113,7 +113,7 @@ async function frame() {
   if (!playing) return;
   const now = performance.now(); t += (now - last) / 1000 * cube.values().speed; last = now;
   const src = S.cube(t);
-  const r = await mpEngine.run(src, { format: 'svg', svg: { idPrefix: 'c-' } });
+  const r = await cubeEngine.run(src, { format: 'svg', svg: { idPrefix: 'c-' } });
   cube.fig.innerHTML = r.figures[0]?.svg ?? '';
   if (++frames % 10 === 0) { fps = 10000 / (performance.now() - fpsAt); fpsAt = performance.now(); cube.ms.textContent = `${r.stats.metapostMs.toFixed(1)} ms MetaPost · ${fps.toFixed(0)} fps`; cube.pre.textContent = src; }
   requestAnimationFrame(frame);
