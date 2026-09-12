@@ -34,6 +34,7 @@ describe('LuaTeX engine selection', () => {
     expect(needsLuaTeX('\\usetikzlibrary{graphdrawing}\\usegdlibrary{trees}')).toBe(true);
     expect(needsLuaTeX('\\node{\\directlua{tex.print(1)}};')).toBe(true);
     expect(needsLuaTeX('\\begin{luacode}x\\end{luacode}')).toBe(true);
+    expect(needsLuaTeX('\\usepgfplotslibrary{contourlua} \\addplot3[contour lua] {x*y};')).toBe(true);
     expect(needsLuaTeX('\\draw (0,0) -- (1,1);')).toBe(false);
   });
   it('wrapTikz adds \\usegdlibrary and the graphdrawing library from gdlibraries', () => {

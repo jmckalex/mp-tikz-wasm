@@ -525,5 +525,5 @@ function inputStatements(src: string): { name: string; line: number }[] {
 
 /** Does a LaTeX source need LuaTeX? (TikZ graphdrawing, \directlua, luacode.) Used by engine 'auto'. */
 export function needsLuaTeX(source: string): boolean {
-  return /\\usegdlibrary|graphdrawing|\\directlua|\\latelua|luacode|\\usepackage(\[[^\]]*\])?\{luatexbase\}/.test(source);
+  return /\\usegdlibrary|graphdrawing|\\directlua|\\latelua|luacode|contourlua|contour lua|\\usepackage(\[[^\]]*\])?\{luatexbase\}/.test(source);
 }
