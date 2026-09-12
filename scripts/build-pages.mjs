@@ -31,6 +31,7 @@ const PAGES = {
   },
   live: {
     sources: 'live-sources.js', engines: 'two',
+    extras: false,   // no editor on this page: leave out the spare metric files, keeping the single file small
     warm: (S) => [{ mp: S.harmonograph() }, { mp: S.harmonograph({ f1: 5.3, f2: 1.2, f3: 7, f4: 4.4, phase: 200, damping: 0.9, hue: 0.1 }) }, { mp: S.cube(0) }, { mp: S.cube(7.31) },
       { tex: S.clock(23, 59, 59) }, { tex: S.clock(1, 5, 0) }, { tex: S.plot() }, { tex: S.plot({ A: 0.1, k: 0, w: 6 }) }, { tex: S.plot({ A: 0.55, k: 1, w: 0.5 }) }],
   },
@@ -43,7 +44,7 @@ let libText;
 const lib = () => libText ??= execFileSync(path.join(REPO, 'node_modules/.bin/esbuild'), ['src/ts/index.ts', '--bundle', '--format=esm', '--target=es2022', '--platform=browser', '--external:node:fs', '--log-level=error'], { cwd: REPO, encoding: 'utf8', maxBuffer: 64 << 20 });
 const fromBundle = (rel) => { for (const b of fs.readdirSync(BUNDLES)) { const p = path.join(BUNDLES, b, 'files', rel); if (fs.existsSync(p)) return p; } return null; };
 
-async function recordAssets(warm) {
+async function recordAssets(warm, extras = true) {
   const used = new Set();
   const record = (u) => { const m = /\/bundles\/[^/]+\/files\/(.+)$/.exec(u); if (m) used.add(m[1]); };
   const io = { async fetch(u) { record(u); return new Uint8Array(fs.readFileSync(u.replace(/^file:\/\//, ''))); }, fetchSync(u) { record(u); return new Uint8Array(fs.readFileSync(u.replace(/^file:\/\//, ''))); }, async fetchJson(u) { return JSON.parse(fs.readFileSync(u.replace(/^file:\/\//, ''), 'utf8')); } };
@@ -56,7 +57,7 @@ async function recordAssets(warm) {
   used.delete('web2c/tikz.fmt');
   const manifestFiles = {}, files = {};
   for (const rel of [...used].sort()) { const p = fromBundle(rel); if (!p) continue; const data = fs.readFileSync(p); manifestFiles[rel] = { size: data.length }; files[rel] = gz(data); }
-  for (const dir of ['core/files/metapost/base', 'cm-tfm/files/fonts/tfm']) {   // small, and they let the editor stray a little
+  for (const dir of extras ? ['core/files/metapost/base', 'cm-tfm/files/fonts/tfm'] : []) {   // small, and they let the editor stray a little
     const d = path.join(BUNDLES, dir);
     for (const f of fs.readdirSync(d)) { const rel = dir.split('/files/')[1] + '/' + f; if (files[rel]) continue; const data = fs.readFileSync(path.join(d, f)); manifestFiles[rel] = { size: data.length }; files[rel] = gz(data); }
   }
@@ -105,7 +106,7 @@ for (const [name, page] of Object.entries(PAGES)) {
   console.log(`== ${name}`);
   const template = fs.readFileSync(path.join(SITE, `${name}.template.html`), 'utf8');
   const S = loadSources(page.sources);
-  const assets = await recordAssets(page.warm(S));
+  const assets = await recordAssets(page.warm(S), page.extras !== false);
   for (const mode of ['remote', 'inline']) {
     const html = template
       .replace('__CM_CSS__', () => cmCss)
@@ -115,7 +116,9 @@ for (const [name, page] of Object.entries(PAGES)) {
       .replace(/__GUIDE_URL__/g, mode === 'remote' ? './guide.html' : (process.env.GUIDE_URL ?? './guide.html'))
       .replace(/__REPO_URL__/g, REPO_URL);
     const out = mode === 'remote' ? path.join(SITE, `${name}.html`) : path.join(OUT, `${name}.single.html`);
-    fs.writeFileSync(out, html);
+    // the single-file copies are published as artifacts, whose viewer supplies the document skeleton itself
+    const body = mode === 'inline' ? html.replace(/^<!doctype html>\s*<html lang="en">\s*<head>\s*<meta charset="utf-8">\s*<meta name="viewport"[^>]*>\s*/, '').replace('</head>\n<body>\n', '').replace(/<\/body>\s*<\/html>\s*$/, '') : html;
+    fs.writeFileSync(out, body);
     console.log(`  ${path.relative(REPO, out)}: ${(html.length / 1048576).toFixed(2)} MB`);
   }
 }
