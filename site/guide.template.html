@@ -91,7 +91,7 @@
     </div>
     <div class="facts">
       <div><b>__WASM_MB__ MB</b><span>of WebAssembly (__WASM_GZ_MB__ MB gzipped), three TeX-family programs</span></div>
-      <div><b>22 / 22</b><span>golden cases byte-identical to TeX Live 2025</span></div>
+      <div><b>1181 / 1181</b><span>pages of the PGF/TikZ manual identical to TeX Live 2025</span></div>
       <div><b>~15 ms</b><span>for a MetaPost figure; ~100 ms for a TikZ figure</span></div>
       <div><b>0 servers</b><span>everything runs in the page or in Node</span></div>
     </div>
@@ -215,7 +215,7 @@ __FIG:tz-patterns__
 __FIG:tz-pgfplots__
 <div class="grid2">__FIG:tz-text__ __FIG:tz-tree__</div>
 __FIG:tz-plain__
-<p>The bundles contain LaTeX 2025 with expl3, PGF/TikZ with every library, pgfplots, tikz-cd, amsmath, amssymb, amscls, mathtools, tools, graphics, xcolor, geometry, booktabs, standalone, the Latin Modern fonts in T1/TS1 encodings, Computer Modern, the AMS fonts and Euler. Adding a package is one line in <code>scripts/build-texmf.sh</code>; the loader fetches files per file, on demand, so bundle size costs nothing until a document uses a file.</p>
+<p>The bundles contain LaTeX 2025 with expl3, PGF/TikZ with every library, pgfplots, tikz-cd, amsmath, amssymb, amscls, mathtools, tools, graphics, xcolor, geometry, booktabs, standalone, hyperref, url, listings, fp, imakeidx, todonotes, the Latin Modern fonts in T1/TS1 encodings, Computer Modern, the AMS fonts, Euler, and the 35 standard PostScript fonts (Times, Helvetica, Courier, Palatino and the rest, as URW Type 1). Adding a package is one line in <code>scripts/build-texmf.sh</code>; the loader fetches files per file, on demand, so bundle size costs nothing until a document uses a file.</p>
 
 <h2 id="how">How it works</h2>
 <h3>Three engines</h3>
@@ -249,10 +249,11 @@ __FIG:tz-plain__
 <tr><td>a TikZ figure (<code>latex.fmt</code>)</td><td class="n">3.8 MB</td><td class="n">2.5 MB</td></tr>
 <tr><td>a TikZ figure with the snapshot</td><td class="n">5.9 MB</td><td class="n">5.5 MB</td></tr>
 </tbody></table></div>
-<p>Everything is fetched once and cached by the browser; rendered figures are cached in IndexedDB as well. The whole bundle tree is 42 MB on the server, and no page downloads all of it.</p>
+<p>Everything is fetched once and cached by the browser; rendered figures are cached in IndexedDB as well. The whole bundle tree is 47 MB on the server, and no page downloads all of it.</p>
 
 <h2 id="fidelity">Fidelity and tests</h2>
 <ul>
+  <li><b>The PGF/TikZ manual:</b> the complete 1181-page manual from TeX Live 2025, which exercises every library it documents, typesets through the API to a DVI byte-identical to native <code>latex</code>, and all 1181 SVG pages match native dvisvgm's. (The one normalisation resolves dvisvgm's own run-to-run choice of which size of a font becomes the base glyph, which makes two native runs of the same DVI differ as well.) <code>node scripts/stress-pgfmanual.mjs</code> reproduces it in about fifteen minutes.</li>
   <li><b>Golden corpus, MetaPost:</b> 15 documents — paths, pens, fills, transforms, clipping, labels, plain-TeX and LaTeX labels, boxes, graph, macros, colours, multiple figures, error recovery — byte-identical in EPS and SVG to <code>mpost</code> from TeX Live 2025 run with the same frozen date.</li>
   <li><b>Golden corpus, TikZ:</b> 7 documents — plots, graphs, shadings/patterns/clip, pgfplots, Latin Modern text, plain TeX, a two-page article — byte-identical to <code>latex</code> + <code>dvisvgm</code>, with and without the snapshot.</li>
   <li><b>Conformance:</b> the <code>mtrap</code> half of MetaPost's official trap test produces the same figures as native MetaPost 2.11; <code>tex.wasm</code> reproduces the oracle's DVI byte for byte; the <code>.mpx</code> round trip through our <code>mpto</code> and <code>dvitomp</code> matches the committed sample.</li>
@@ -268,7 +269,7 @@ __FIG:tz-plain__
 <tr><td>Documents</td><td>any LaTeX document: <code>standalone</code>, <code>article</code>, multi-page, any bundled package</td><td>a TikZ picture body and curated preloaded packages</td></tr>
 <tr><td>DVI to SVG</td><td>dvisvgm itself with PGF's dvisvgm driver: gradients, patterns, opacity, clipping, decorations, markers, pgfplots</td><td>a JavaScript re-implementation of the special language; no shadings or patterns</td></tr>
 <tr><td>Text</td><td>glyph outlines in the SVG (self-contained), or woff2 on request</td><td><code>&lt;text&gt;</code> runs plus a CSS font sheet</td></tr>
-<tr><td>Fonts</td><td>Computer Modern, AMS, Euler, Latin Modern in T1/TS1</td><td>Computer Modern</td></tr>
+<tr><td>Fonts</td><td>Computer Modern, AMS, Euler, Latin Modern in T1/TS1, the 35 standard PostScript fonts</td><td>Computer Modern</td></tr>
 <tr><td>MetaPost</td><td>yes — the same script also renders <code>&lt;script type="text/metapost"&gt;</code></td><td>no</td></tr>
 <tr><td>Loading</td><td>per-file lazy fetch through real kpathsea; optional pre-warmed format</td><td>one snapshot plus a file archive</td></tr>
 <tr><td>Verification</td><td>byte-identical to TeX Live on the corpora</td><td>none published</td></tr>
@@ -282,7 +283,7 @@ __FIG:tz-plain__
   <li>No PNG output and no <code>binary</code>/<code>interval</code> number systems (they need cairo and GMP/MPFR, which are not built).</li>
   <li>Worker mode cannot forward the <code>runScript</code>, <code>makeText</code> and <code>onFindFile</code> callbacks; providing one selects in-process mode.</li>
   <li>MetaPost's <code>mplib</code> library does not write figure files during a run, so a document cannot <code>readfrom</code> its own output; and it exits on a few hard limits (such as an input-stack overflow, which native <code>mpost</code> hits too) rather than raising an error — reported as a fatal diagnostic.</li>
-  <li>Packages not in the bundles are one recipe line away but not yet included: hyperref, beamer, listings, circuitikz, chemfig.</li>
+  <li>Packages not in the bundles are one recipe line away but not yet included: beamer, babel, siunitx, circuitikz, chemfig.</li>
 </ul>
 
 <h2 id="build">Building</h2>

@@ -229,3 +229,40 @@ statements above `beginfig`; and mplib handles that limit with a hard
 `exit(1)` rather than an error, which Emscripten surfaces as an `ExitStatus`
 exception. The core now catches it and reports a fatal diagnostic carrying the
 last lines the engine printed, instead of failing the whole call.
+
+## 9. The PGF manual as a stress test
+
+The complete PGF/TikZ manual (`doc/generic/pgf/pgfmanual.tex`, 1181 pages in
+TeX Live 2025, `\usetikzlibrary` of essentially every library) typesets through
+`mp.latex()` to a DVI byte-identical to native `latex`, in 148 s of TeX and
+130 s of dvisvgm (native: 127 s and 227 s), and every SVG page matches native
+dvisvgm. `scripts/stress-pgfmanual.mjs` reproduces it. What the reproduction
+needed, none of it an engine limitation:
+
+- `pgfmanual.cfg` uses `\ignoreligaturesinfont`, a LuaTeX primitive; under
+  pdfTeX it must be guarded with `\ifluatex`. The manual's own comment says to
+  build it with lualatex. `\RequirePackage{lmodern}` replaces the EC/cm-super
+  fonts, which are not bundled.
+- Native `latex` has restricted shell escape, and imakeidx runs makeindex
+  through it, so the native build carries a 45-page index. The wasm engine
+  cannot spawn anything; the `.ind` file is handed over instead. The manual
+  `\include`s 124 chapters, so 124 chapter `.aux` files are part of the state
+  a single-pass run must be given, not just the main one.
+- PGF's gnuplot plotting (`\pgf@plotgnuplot` in `pgfmoduleplot.code.tex`)
+  writes `\pgf@plot@code`, which is only defined when the cached `.gnuplot`
+  file already exists; without the `plots/` directory the manual ships this
+  is an "Undefined control sequence" in native pdfTeX as well.
+- psnfss fonts (Times, Courier, Symbol, Dingbats in the manual) resolve
+  through virtual fonts: `ptmb8t.tfm` for TeX, then `ptmb8t.vf` → `ptmb8r.tfm`
+  → `utmb8a.pfb` for dvisvgm. A map lookup by the T1 name finds nothing. The
+  35 standard fonts are now bundled (`ps-fonts`, 3 MB) together with
+  hyperref, url, listings, fp, imakeidx and todonotes.
+- dvisvgm is not deterministic run to run: a font used at several sizes is
+  defined once and referenced with `<use transform="scale()">`, and which size
+  becomes the base changes between runs of the same binary on the same DVI
+  (two native runs differ textually on 420 of 1181 pages). The comparison in
+  the stress script resolves every glyph to its absolute outline first; with
+  that, native-vs-native is 1181/1181 and native-vs-wasm is 1181/1181.
+- One of five API runs of the manual hung at 0 % CPU with no active handles
+  after the TeX phase; four identical runs completed. Not reproduced, not
+  explained.

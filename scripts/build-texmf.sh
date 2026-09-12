@@ -32,12 +32,13 @@ cp -R "$TEXMF/tex/plain/etex" "$OUT/tex/plain/etex"
 mkdir -p "$OUT/tex/generic/config"
 printf '%%%% language.def for tex.wasm: US English only\n\\addlanguage{USenglish}{hyphen}{}{0}{0}\n\\uselanguage{USenglish}\n' > "$OUT/tex/generic/config/language.def"
 printf '%%%% language.dat for tex.wasm: US English only\nenglish hyphen.tex\n=usenglish\n=USenglish\n' > "$OUT/tex/generic/config/language.dat"
-for d in hyphen tex-ini-files pdftex unicode-data iftex kvsetkeys kvdefinekeys ltxcmds pdftexcmds infwarerr etexcmds atbegshi atveryend xkeyval gettitlestring bigintcalc bitset intcalc uniquecounter tikz-cd; do
+for d in hyphen tex-ini-files pdftex unicode-data iftex kvsetkeys kvdefinekeys ltxcmds pdftexcmds infwarerr etexcmds atbegshi atveryend xkeyval gettitlestring bigintcalc bitset intcalc uniquecounter tikz-cd pdfescape stringenc; do
   [ -d "$TEXMF/tex/generic/$d" ] && cp -R "$TEXMF/tex/generic/$d" "$OUT/tex/generic/$d"
 done
 for d in base tex-ini-files l3kernel l3backend l3packages amsmath amsfonts amscls tools graphics graphics-cfg graphics-def latexconfig \
          xcolor pgf tikz-cd pgfplots psnfss kvoptions etoolbox xkeyval geometry booktabs mathtools \
-         ec standalone varwidth preview currfile filehook fontenc; do
+         ec standalone varwidth preview currfile filehook fontenc \
+         hyperref hycolor kvsetkeys refcount rerunfilecheck atveryend letltxmacro auxhook url listings fp imakeidx todonotes; do
   [ -d "$TEXMF/tex/latex/$d" ] && cp -R "$TEXMF/tex/latex/$d" "$OUT/tex/latex/$d"
 done
 # pgf's and pgfplots' generic parts live under tex/generic
@@ -100,10 +101,20 @@ find "$TEXMF/fonts/tfm/public/lm" -name '*.tfm' -exec cp {} "$OUT/fonts/tfm/" \;
 find "$TEXMF/fonts/type1/public/lm" -name '*.pfb' -exec cp {} "$OUT/fonts/type1/" \;
 find "$TEXMF/fonts/enc/dvips/lm" -name '*.enc' -exec cp {} "$OUT/fonts/enc/" \;
 cp -R "$TEXMF/tex/latex/lm" "$OUT/tex/latex/lm"
+# The 35 standard PostScript fonts (psnfss: times, helvetica, courier, palatino,
+# bookman, avant garde, new century, zapf chancery, symbol, dingbats) as URW
+# Type 1 clones: LaTeX reads the T1-encoded metrics, dvisvgm resolves them
+# through the virtual fonts to the 8r raw metrics and the URW outlines.
+for d in avantgar bookman courier helvetic ncntrsbk palatino symbol times zapfchan zapfding; do
+  [ -d "$TEXMF/fonts/tfm/adobe/$d" ] && find "$TEXMF/fonts/tfm/adobe/$d" -name '*.tfm' -exec cp {} "$OUT/fonts/tfm/" \;
+  [ -d "$TEXMF/fonts/vf/adobe/$d" ] && find "$TEXMF/fonts/vf/adobe/$d" -name '*.vf' -exec cp {} "$OUT/fonts/vf/" \;
+  [ -d "$TEXMF/fonts/type1/urw/$d" ] && find "$TEXMF/fonts/type1/urw/$d" -name '*.pfb' -exec cp {} "$OUT/fonts/type1/" \;
+done
+cp "$TEXMF/fonts/enc/dvips/base/8r.enc" "$OUT/fonts/enc/"
 # MetaPost looks for mpost.map first, then psfonts.map (psout.w); pdfTeX in PDF
 # mode and dvisvgm read pdftex.map / ps2pk.map. All are built from the dvips map
 # fragments of the fonts we ship.
-cat "$TEXMF"/fonts/map/dvips/amsfonts/{cm,cmextra,symbols,euler,latxfont}.map "$TEXMF/fonts/map/dvips/lm/lm.map" > "$OUT/fonts/map/mpost.map"
+cat "$TEXMF"/fonts/map/dvips/amsfonts/{cm,cmextra,symbols,euler,latxfont}.map "$TEXMF/fonts/map/dvips/lm/lm.map" "$TEXMF/fonts/map/dvips/tetex/ps2pk35.map" > "$OUT/fonts/map/mpost.map"
 cp "$OUT/fonts/map/mpost.map" "$OUT/fonts/map/psfonts.map"
 cp "$OUT/fonts/map/mpost.map" "$OUT/fonts/map/pdftex.map"
 cp "$OUT/fonts/map/mpost.map" "$OUT/fonts/map/ps2pk.map"

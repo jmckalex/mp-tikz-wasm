@@ -41,6 +41,12 @@ The output is **byte-identical to native TeX Live 2025** on the golden corpora
 the C output is left untouched, and every deviation from upstream lives in a
 numbered, explained patch in [`patches/`](patches/).
 
+The strongest test is the complete PGF/TikZ manual from TeX Live 2025: all 1181
+pages, every library it documents, typeset through the API to a DVI byte-identical
+to native `latex`, with all 1181 SVG pages matching native dvisvgm (after
+normalising dvisvgm's own run-to-run glyph aliasing, which makes two native runs
+differ too). `node scripts/stress-pgfmanual.mjs` reproduces it.
+
 ## Try it
 
 ```sh
@@ -61,7 +67,7 @@ static files and cached by the browser.
 | `dist/tex.wasm` | 1.1 MB | pdfTeX 1.40.27 in DVI mode (= `tex`, `etex`, `latex`) with kpathsea, zlib, libpng |
 | `dist/dvisvgm.wasm` | 2.7 MB | dvisvgm 3.4.3 with FreeType, potrace, clipper, woff2/brotli and PGF's special handlers (no Ghostscript) |
 | `dist/index.js` + friends | ~70 KB | the TypeScript API, the Worker, the TeX bridge, the CLI, `auto.js` (the tag renderer) |
-| `dist/bundles/*` | 38 MB total, fetched per file on demand | `core` (plain.mp, mpost.mp, boxes, graph, format, sarith, metaobj…), `cm-tfm`, `cm-type1`, `lm-fonts` (Latin Modern, T1/TS1), `tex-plain` (+ `plain.fmt`, `etex.fmt`), `latex-core` (+ `latex.fmt`), `latex-extra` (pgf/TikZ with all libraries, pgfplots, amsmath, amsfonts, tools, graphics, xcolor, standalone, geometry, booktabs, mathtools, …) |
+| `dist/bundles/*` | 47 MB total, fetched per file on demand | `core` (plain.mp, mpost.mp, boxes, graph, format, sarith, metaobj…), `cm-tfm`, `cm-type1`, `ps-fonts` (the 35 standard PostScript fonts as URW Type 1), `lm-fonts` (Latin Modern, T1/TS1), `tex-plain` (+ `plain.fmt`, `etex.fmt`), `latex-core` (+ `latex.fmt`), `latex-extra` (pgf/TikZ with all libraries, pgfplots, amsmath, amsfonts, tools, graphics, xcolor, standalone, geometry, booktabs, mathtools, …) |
 
 The formats (`plain.fmt` 114 KB, `etex.fmt` 128 KB, `latex.fmt` 2.2 MB) are
 built **by the wasm engine itself** (`scripts/make-formats.mjs`), so they match
@@ -166,7 +172,7 @@ what its diagrams use:
 | TikZ figure, `tikz.fmt` snapshot | 5.9 MB | 5.5 MB |
 | TikZ with Latin Modern T1 text | +0.3 MB | +0.3 MB |
 
-The whole bundle tree on the server is 42 MB, but no page downloads it. A
+The whole bundle tree on the server is 47 MB, but no page downloads it. A
 single self-contained file is possible too — `site/standalone.html` inlines
 the three engines plus the gallery's fonts, formats and packages, gzip +
 base64, at 9.8 MB — but the per-file layout is the right one for a drop-in
@@ -281,7 +287,7 @@ Every patch is a unified diff in `patches/`, applied by
 | M5 TeX bridge, plain TeX | done — batched, cached, fixpoint |
 | M6 LaTeX | done — `latex.fmt` built by the wasm engine; amsmath sample byte-identical |
 | M7 API, worker, CLI, JSON backend | done (worker mode does not yet support the `runScript`/`makeText` callbacks; they force in-process mode) |
-| M8 conformance | golden corpus 15/15 byte-identical; TikZ corpus 7/7 byte-identical to `latex` + `dvisvgm`; `mtrap.mp` output files identical to native MetaPost 2.11 (see [docs/14](docs/14-implementation-notes.md) §4); the interactive `trap.mp` half needs `errorstopmode` terminal input and is not applicable to the library |
+| M8 conformance | golden corpus 15/15 byte-identical; TikZ corpus 7/7 byte-identical to `latex` + `dvisvgm`; the 1181-page PGF manual identical to native `latex` + `dvisvgm`; `mtrap.mp` output files identical to native MetaPost 2.11 (see [docs/14](docs/14-implementation-notes.md) §4); the interactive `trap.mp` half needs `errorstopmode` terminal input and is not applicable to the library |
 | TikZ/PGF (beyond the plan) | done — `dvisvgm.wasm`, `latex()`, `--latex` CLI mode, Latin Modern and pgfplots bundles |
 | M9 hardening | PNG, `binary`/`interval` number systems, IndexedDB cache and JSPI are not done |
 
