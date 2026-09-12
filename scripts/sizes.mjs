@@ -1,9 +1,9 @@
 // what a page actually downloads, per scenario (bundle files touched) + the fixed wasm/js payload
-import { MetaPost } from new URL('../dist', import.meta.url).pathname.replace(/\/$/, '') + '/index.js';
+import { MetaPost } from '../dist/index.js';
 import fs from 'node:fs';
 import zlib from 'node:zlib';
-const BUNDLES = new URL('../dist', import.meta.url).pathname.replace(/\/$/, '') + '/bundles';
-const DIST = new URL('../dist', import.meta.url).pathname.replace(/\/$/, '') + '';
+const BUNDLES = new URL('../dist/bundles', import.meta.url).pathname;
+const DIST = new URL('../dist', import.meta.url).pathname;
 const gz = (b) => zlib.gzipSync(b, { level: 6 }).length;
 const MB = (n) => (n / 1048576).toFixed(2) + ' MB';
 let used = new Map();
