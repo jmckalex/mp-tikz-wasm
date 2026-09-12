@@ -20,8 +20,14 @@ export function postProcessSvg(svg: string, opts: SvgPostOptions = {}, figureInd
     });
   }
   if (opts.idPrefix !== false) {
+    // MetaPost's ids (GLYPHcmr10_77, CLIP1, ...) are global per figure and
+    // collide when several figures are inlined on one page: url(#CLIP1) then
+    // resolves to the first CLIP1 in the document. Namespace every id and
+    // every reference to one.
     const prefix = opts.idPrefix ?? `mp${figureIndex}-`;
-    s = s.replace(/id="GLYPH/g, `id="${prefix}GLYPH`).replace(/href="#GLYPH/g, `href="#${prefix}GLYPH`);
+    s = s.replace(/\bid="([^"]+)"/g, (_m, id) => `id="${prefix}${id}"`)
+      .replace(/href="#([^"]+)"/g, (_m, id) => `href="#${prefix}${id}"`)
+      .replace(/url\(#([^)]+)\)/g, (_m, id) => `url(#${prefix}${id})`);
   }
   if (opts.modernHref) s = s.replace(/xlink:href=/g, 'href=');
   if (opts.units === 'px') {
@@ -48,9 +54,11 @@ function escapeXml(s: string): string { return s.replace(/[<>&"]/g, (c) => ({ '<
 export function sanitizeSvg(svg: string): string {
   const allowedTags = new Set(['svg', 'g', 'path', 'defs', 'use', 'text', 'title', 'desc', 'clipPath', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'tspan']);
   const allowedAttr = /^(id|class|d|x|y|width|height|viewBox|version|xmlns|xmlns:xlink|xlink:href|href|transform|style|fill|fill-rule|stroke|stroke-width|stroke-linecap|stroke-linejoin|stroke-miterlimit|stroke-dasharray|stroke-dashoffset|clip-path|font-size|font-family|role|aria-label|opacity|fill-opacity|stroke-opacity)$/;
-  // comments are harmless but drop them to be safe
+  // comments are harmless but drop them to be safe; scripts and foreign
+  // content go with their contents, not just their tags
   let out = svg.replace(/<!--[\s\S]*?-->/g, '');
   out = out.replace(/<\?xml[^>]*\?>/, '');
+  out = out.replace(/<(script|style|foreignObject|iframe|object|embed)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '');
   out = out.replace(/<\/?([a-zA-Z:]+)([^>]*)>/g, (m, tag: string, attrs: string) => {
     if (!allowedTags.has(tag)) return '';
     if (m.startsWith('</')) return `</${tag}>`;
@@ -59,7 +67,9 @@ export function sanitizeSvg(svg: string): string {
       if (!allowedAttr.test(name)) return false;
       const val = a.slice(a.indexOf('=') + 1).trim().slice(1, -1);
       if (/href/.test(name) && !val.startsWith('#')) return false;
-      if (/javascript:|expression\(|url\(/i.test(val)) return false;
+      // only same-document url(#id) references (clip-path, fill patterns); nothing external
+      if (/url\(/i.test(val) && !/^url\(#[^)]+\)$/.test(val.trim())) return false;
+      if (/javascript:|expression\(|@import|data:/i.test(val)) return false;
       return true;
     });
     const selfClose = attrs.trim().endsWith('/') ? '/' : '';

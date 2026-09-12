@@ -99,24 +99,27 @@ end.`,
 
   {
     id: 'koch', title: 'Recursion: Koch snowflake', tier: 'geometry',
-    blurb: 'MetaPost is a real programming language; vardefs recurse and paths are first-class.',
-    src: `vardef koch(expr a, b, n) =
+    blurb: 'MetaPost is a real programming language; vardefs recurse and paths are first-class values joined with &.',
+    src: `% Each segment a--b becomes four: the middle third is replaced by the two
+% sides of an equilateral triangle pointing away from the interior.
+vardef koch(expr a, b, n) =
   if n = 0: a--b
   else:
     save c, d, e; pair c, d, e;
-    c = 1/3[a,b]; d = 2/3[a,b]; e = c rotatedaround(1/2[a,b], -60) shifted (0,0);
-    e := 1/2[a,b] + (unitvector(b-a) rotated 90) * (abs(b-a)/3) * sqrt(3)/2;
+    c = 1/3[a,b]; d = 2/3[a,b];
+    e = 1/2[a,b] + ((b-a) rotated -90) scaled ((sqrt 3)/6);   % note: 3/6 alone would lex as one fraction token
     koch(a,c,n-1) & koch(c,e,n-1) & koch(e,d,n-1) & koch(d,b,n-1)
   fi
 enddef;
 beginfig(1);
-  pair p, q, r; p = (-70,-40); q = (70,-40); r = (0, 80);
+  pair p, q, r; p = (-75,-43); q = (75,-43); r = (0, 87);   % counterclockwise
   path s; s := koch(p,q,4) & koch(q,r,4) & koch(r,p,4) & cycle;
   fill s withcolor (0.85,0.93,1);
   draw s withpen pencircle scaled .6 withcolor (0.1,0.3,0.7);
 endfig;
 end.`,
   },
+
   {
     id: 'clip', title: 'Clipping, pens, dashes', tier: 'geometry',
     blurb: 'Elliptical and polygonal pens, dash patterns, clip and setbounds — all rendered as SVG paths by MetaPost\'s own backend.',
