@@ -45,7 +45,13 @@
   table { border-collapse: collapse; width: 100%; max-width: 78ch; font-size: 15px; margin-top: 14px; }
   th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
-  td.n, td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 14px; }
+  td.n, td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 14px; }
+  td.n { white-space: nowrap; }
+  td.mono { overflow-wrap: break-word; }
+  table.three th:first-child { width: 32%; }
+  table.three th:nth-child(2) { width: 14%; }
+  table.build th:first-child { width: 40%; }
+  @media (max-width: 480px) { table { font-size: 14px; } th, td { padding-right: 8px; } td.n, td.mono { font-size: 12.5px; } }
   .tablewrap { overflow-x: auto; }
   /* figures */
   .ex { margin: 26px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); overflow: hidden; }
@@ -167,7 +173,7 @@ const t = await mp.latex(String.raw`
 t.pages[0]          // SVG
 t.diagnostics       // TeX errors with document line numbers, package warnings
 t.stats             // texMs, dvisvgmMs, format ('latex' or 'tikz')</code></pre>
-<div class="tablewrap"><table>
+<div class="tablewrap"><table class="three">
 <thead><tr><th>Option</th><th>Where</th><th>Meaning</th></tr></thead>
 <tbody>
 <tr><td class="mono">bundles, bundleBaseUrl</td><td>create</td><td>which texmf bundles to load and from where (default: all, next to the script)</td></tr>
@@ -281,7 +287,7 @@ __FIG:tz-plain__
 
 <h2 id="build">Building</h2>
 <p>The build is reproducible from the pinned TeX Live 2025 source tarball (<code>vendor/SOURCES.lock</code> records its SHA-256). It never modifies the vendored tree: patches are applied to a copy, <code>ctangle</code> is built from the vendored CWEB, and every generated file lands under <code>build/</code> or <code>dist/</code>.</p>
-<div class="tablewrap"><table>
+<div class="tablewrap"><table class="build">
 <thead><tr><th>Step</th><th>Produces</th></tr></thead>
 <tbody>
 <tr><td class="mono">make tangle / make native / make contract</td><td>the tangled C, <code>build/native/libmplib.a</code>, and the native contract harness</td></tr>

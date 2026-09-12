@@ -45,7 +45,13 @@
   table { border-collapse: collapse; width: 100%; max-width: 78ch; font-size: 15px; margin-top: 14px; }
   th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { font: 500 12px var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
-  td.n, td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 14px; }
+  td.n, td.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 14px; }
+  td.n { white-space: nowrap; }
+  td.mono { overflow-wrap: break-word; }
+  table.three th:first-child { width: 32%; }
+  table.three th:nth-child(2) { width: 14%; }
+  table.build th:first-child { width: 40%; }
+  @media (max-width: 480px) { table { font-size: 14px; } th, td { padding-right: 8px; } td.n, td.mono { font-size: 12.5px; } }
   .tablewrap { overflow-x: auto; }
   /* figures */
   .ex { margin: 26px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); overflow: hidden; }
@@ -205,7 +211,7 @@ const t = await mp.latex(String.raw`
 t.pages[0]          // SVG
 t.diagnostics       // TeX errors with document line numbers, package warnings
 t.stats             // texMs, dvisvgmMs, format ('latex' or 'tikz')</code></pre>
-<div class="tablewrap"><table>
+<div class="tablewrap"><table class="three">
 <thead><tr><th>Option</th><th>Where</th><th>Meaning</th></tr></thead>
 <tbody>
 <tr><td class="mono">bundles, bundleBaseUrl</td><td>create</td><td>which texmf bundles to load and from where (default: all, next to the script)</td></tr>
@@ -242,7 +248,7 @@ npx mpost-wasm --latex --plain --fonts=woff2 figure.tex</code></pre>
   <path d="M161.52 62.322C171.52 12.322,211.52 12.322,221.52 62.322" style="stroke:rgb(0%,0%,0%); stroke-width: 0.5;stroke-linecap: round;stroke-dasharray: 3 3 ;stroke-linejoin: round;stroke-miterlimit: 10;fill: none;"></path>
 </svg>
 </div>
-  <figcaption><b>Paths, tension and curl</b> — MetaPost's path syntax: <code>..</code> for smooth curves solved by Hobby's algorithm, <code>--</code> for straight lines, tension and curl control, explicit controls, cycles. <span class="ms">15 ms MetaPost</span></figcaption>
+  <figcaption><b>Paths, tension and curl</b> — MetaPost's path syntax: <code>..</code> for smooth curves solved by Hobby's algorithm, <code>--</code> for straight lines, tension and curl control, explicit controls, cycles. <span class="ms">14 ms MetaPost</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>beginfig(1);
   draw (0,0)..(30,40)..(60,0) withcolor (0.1,0.3,0.8);
   draw (0,50)..tension 2..(30,90)..(60,50);
@@ -613,7 +619,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>Labels typeset by plain TeX</b> — <code>btex … etex</code> blocks are typeset by a real pdfTeX (DVI mode) in one batched run per document, converted by MetaPost's own <code>dvitomp</code>, and cached by content hash. <span class="ms">2 ms MetaPost, 55 ms TeX</span></figcaption>
+  <figcaption><b>Labels typeset by plain TeX</b> — <code>btex … etex</code> blocks are typeset by a real pdfTeX (DVI mode) in one batched run per document, converted by MetaPost's own <code>dvitomp</code>, and cached by content hash. <span class="ms">2 ms MetaPost, 52 ms TeX</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>prologues := 3;
 beginfig(1);
   numeric a; a := 60;
@@ -878,7 +884,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>Labels typeset by LaTeX</b> — A <code>verbatimtex</code> preamble with <code>\documentclass</code> switches the label engine to LaTeX automatically. amsmath, amssymb, tabular, any package in the bundles. <span class="ms">2 ms MetaPost, 132 ms TeX</span></figcaption>
+  <figcaption><b>Labels typeset by LaTeX</b> — A <code>verbatimtex</code> preamble with <code>\documentclass</code> switches the label engine to LaTeX automatically. amsmath, amssymb, tabular, any package in the bundles. <span class="ms">2 ms MetaPost, 134 ms TeX</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>verbatimtex
 \documentclass{article}
 \usepackage{amsmath,amssymb}
@@ -1189,7 +1195,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>graph.mp</b> — John Hobby's graph package with TeX-typeset tick labels; MetaPost chooses the ticks. <span class="ms">6 ms MetaPost, 47 ms TeX</span></figcaption>
+  <figcaption><b>graph.mp</b> — John Hobby's graph package with TeX-typeset tick labels; MetaPost chooses the ticks. <span class="ms">5 ms MetaPost, 47 ms TeX</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>input graph;
 prologues := 3;
 beginfig(1);
@@ -1208,7 +1214,7 @@ endfig; end.</code></pre></details>
   <path d="M0.329 130.3L2.18 130.3L3.106 131.904L4.032 130.3L5.884 130.3L6.81 131.904L5.884 133.508L7.736 133.507L8.662 135.111L9.588 133.507L11.439 133.507L10.513 131.904L11.439 130.3L13.291 130.3L14.217 131.904L15.143 130.3L16.995 130.3L17.921 131.904L16.995 133.508L18.847 133.507L19.772 135.111L18.847 136.715L16.995 136.715L17.921 138.319L16.995 139.923L18.847 139.923L19.773 141.526L20.698 139.923L22.55 139.923L23.476 141.526L22.55 143.13L24.402 143.13L25.328 144.734L26.254 143.13L28.106 143.13L27.18 141.526L28.106 139.923L29.958 139.923L30.884 141.526L31.81 139.923L33.662 139.923L32.736 138.319L33.662 136.715L31.81 136.715L30.884 135.111L31.81 133.507L33.662 133.507L32.736 131.904L33.662 130.3L35.513 130.3L36.439 131.904L37.365 130.3L39.217 130.3L40.143 131.904L39.217 133.508L41.069 133.507L41.995 135.111L42.921 133.507L44.772 133.507L43.847 131.904L44.772 130.3L46.624 130.3L47.55 131.904L48.476 130.3L50.328 130.3L51.254 131.904L50.328 133.508L52.18 133.507L53.106 135.111L52.18 136.715L50.328 136.715L51.254 138.319L50.328 139.923L52.18 139.923L53.106 141.526L54.032 139.923L55.883 139.923L56.809 141.526L55.883 143.13L57.735 143.13L58.661 144.734L57.735 146.338L55.883 146.338L56.809 147.941L55.883 149.545L54.031 149.545L53.105 147.941L52.179 149.545L50.327 149.545L51.253 151.149L50.327 152.753L52.179 152.753L53.105 154.357L52.18 155.961L50.328 155.961L51.254 157.565L50.328 159.168L52.18 159.168L53.106 160.772L54.031 159.168L55.883 159.168L56.809 160.772L55.883 162.376L57.735 162.376L58.661 163.98L59.587 162.376L61.439 162.376L60.513 160.772L61.439 159.168L63.291 159.168L64.217 160.772L65.143 159.168L66.995 159.168L67.921 160.772L66.995 162.376L68.847 162.376L69.773 163.98L68.847 165.583L66.995 165.583L67.921 167.187L66.995 168.791L68.847 168.791L69.773 170.395L70.699 168.791L72.551 168.791L73.477 170.395L72.551 171.998L74.403 171.998L75.329 173.602L76.254 171.998L78.106 171.998L77.18 170.395L78.106 168.791L79.958 168.791L80.884 170.395L81.81 168.791L83.662 168.791L82.736 167.187L83.662 165.583L81.81 165.583L80.884 163.98L81.81 162.376L83.662 162.376L82.736 160.772L83.662 159.168L85.514 159.168L86.44 160.772L87.366 159.168L89.218 159.168L90.144 160.772L89.218 162.376L91.07 162.376L91.996 163.98L92.922 162.376L94.774 162.376L93.848 160.772L94.774 159.168L96.626 159.168L97.552 160.772L98.478 159.168L100.329 159.168L99.404 157.565L100.329 155.961L98.478 155.961L97.552 154.357L98.478 152.753L100.33 152.753L99.404 151.149L100.33 149.545L98.478 149.545L97.552 147.941L96.626 149.545L94.774 149.545L93.848 147.941L94.774 146.338L92.922 146.338L91.996 144.734L92.922 143.13L94.774 143.13L93.848 141.526L94.774 139.923L96.626 139.923L97.551 141.526L98.477 139.923L100.329 139.923L99.403 138.319L100.329 136.715L98.477 136.715L97.552 135.111L98.477 133.507L100.329 133.507L99.403 131.904L100.329 130.3L102.181 130.3L103.107 131.904L104.033 130.3L105.885 130.3L106.811 131.904L105.885 133.508L107.736 133.507L108.662 135.111L109.588 133.507L111.44 133.507L110.514 131.904L111.44 130.3L113.292 130.3L114.218 131.904L115.144 130.3L116.995 130.3L117.921 131.904L116.995 133.508L118.847 133.507L119.773 135.111L118.847 136.715L116.995 136.715L117.921 138.319L116.995 139.923L118.847 139.923L119.773 141.526L120.699 139.923L122.551 139.923L123.477 141.526L122.551 143.13L124.403 143.13L125.329 144.734L126.255 143.13L128.107 143.13L127.181 141.526L128.107 139.923L129.959 139.923L130.885 141.526L131.811 139.923L133.662 139.923L132.736 138.319L133.662 136.715L131.811 136.715L130.885 135.111L131.811 133.507L133.662 133.507L132.736 131.904L133.662 130.3L135.514 130.3L136.44 131.904L137.366 130.3L139.218 130.3L140.144 131.904L139.218 133.508L141.07 133.507L141.995 135.111L142.921 133.507L144.773 133.507L143.847 131.904L144.773 130.3L146.625 130.3L147.551 131.904L148.477 130.3L150.329 130.3L149.403 128.695L150.33 127.091L148.477 127.09L147.551 125.485L148.478 123.881L150.331 123.882L149.405 122.277L150.332 120.672L148.479 120.672L147.553 119.067L146.626 120.671L144.773 120.671L143.847 119.066L144.774 117.461L142.921 117.461L141.995 115.856L142.922 114.252L144.775 114.252L143.849 112.647L144.776 111.043L146.629 111.044L147.555 112.649L148.482 111.044L150.335 111.045L149.409 109.44L150.336 107.835L148.483 107.835L147.557 106.23L148.484 104.625L150.337 104.626L149.411 103.021L150.338 101.417L148.485 101.416L147.559 99.811L146.632 101.416L144.779 101.415L143.853 99.81L144.78 98.206L142.928 98.205L142.002 96.6L141.075 98.204L139.222 98.204L140.148 99.809L139.221 101.413L137.368 101.413L136.442 99.808L135.515 101.412L133.662 101.411L132.736 99.806L133.663 98.202L131.81 98.202L130.884 96.597L131.811 94.992L133.664 94.993L132.738 93.388L133.665 91.784L131.812 91.783L130.886 90.178L129.959 91.783L128.107 91.782L127.181 90.177L128.108 88.573L126.255 88.572L125.329 86.967L126.256 85.363L128.109 85.364L127.183 83.759L128.11 82.154L129.963 82.155L130.889 83.76L131.816 82.155L133.669 82.156L132.743 80.551L133.67 78.947L131.817 78.946L130.891 77.341L131.818 75.737L133.671 75.737L132.745 74.132L133.672 72.528L135.524 72.529L136.45 74.134L137.377 72.529L139.23 72.53L140.156 74.135L139.229 75.739L141.082 75.74L142.008 77.345L142.935 75.74L144.788 75.741L143.862 74.136L144.789 72.532L146.642 72.532L147.568 74.137L148.495 72.533L150.348 72.533L149.422 70.928L150.349 69.324L148.496 69.323L147.57 67.718L148.497 66.114L150.35 66.114L149.424 64.509L150.351 62.905L148.498 62.904L147.572 61.299L146.645 62.904L144.792 62.903L143.866 61.298L144.793 59.694L142.94 59.693L142.014 58.088L142.941 56.484L144.794 56.484L143.868 54.879L144.795 53.275L146.648 53.276L147.574 54.881L148.501 53.276L150.354 53.277L149.428 51.672L150.355 50.068L148.502 50.067L147.576 48.462L148.503 46.858L150.356 46.858L149.43 45.253L150.357 43.649L148.504 43.648L147.578 42.043L146.651 43.648L144.798 43.647L143.873 42.042L144.8 40.438L142.947 40.437L142.021 38.832L141.094 40.437L139.241 40.436L140.167 42.041L139.24 43.645L137.387 43.645L136.461 42.04L135.534 43.644L133.681 43.644L132.755 42.039L133.682 40.434L131.829 40.434L130.903 38.829L131.83 37.224L133.683 37.225L132.757 35.62L133.684 34.015L131.831 34.015L130.905 32.409L129.978 34.014L128.125 34.013L127.199 32.408L128.126 30.804L126.273 30.803L125.347 29.198L124.42 30.803L122.567 30.802L123.493 32.407L122.566 34.012L120.713 34.011L119.787 32.406L118.86 34.01L117.007 34.01L117.933 35.615L117.006 37.219L118.859 37.22L119.785 38.825L118.858 40.429L117.005 40.429L117.931 42.034L117.004 43.638L115.151 43.637L114.225 42.033L113.298 43.637L111.446 43.636L110.52 42.031L111.447 40.427L109.594 40.426L108.668 38.821L107.741 40.426L105.888 40.425L106.814 42.03L105.887 43.634L104.034 43.634L103.108 42.029L102.181 43.633L100.328 43.633L99.402 42.028L100.329 40.424L98.476 40.423L97.551 38.818L98.477 37.214L100.33 37.214L99.404 35.609L100.331 34.005L98.478 34.004L97.553 32.4L96.626 34.004L94.773 34.003L93.847 32.398L94.774 30.794L92.921 30.794L91.995 29.189L92.922 27.584L94.775 27.585L93.849 25.98L94.776 24.376L96.629 24.376L97.555 25.981L98.482 24.377L100.335 24.377L99.409 22.772L100.336 21.168L98.483 21.167L97.557 19.562L98.484 17.958L100.337 17.959L99.411 16.354L100.338 14.749L98.485 14.749L97.559 13.144L96.632 14.748L94.779 14.748L93.853 13.143L94.78 11.538L92.927 11.538L92.001 9.933L91.074 11.537L89.221 11.536L90.147 13.141L89.22 14.746L87.367 14.745L86.441 13.14L85.514 14.745L83.662 14.744L82.736 13.139L83.663 11.535L81.81 11.534L80.884 9.929L81.811 8.325L83.664 8.326L82.738 6.721L83.665 5.116L81.812 5.116L80.886 3.511L79.959 5.115L78.106 5.115L77.18 3.51L78.107 1.905L76.254 1.905L75.329 0.3L74.403 1.905L72.55 1.905L73.477 3.51L72.551 5.115L70.698 5.115L69.771 3.511L68.845 5.116L66.992 5.116L67.919 6.721L66.993 8.326L68.846 8.325L69.773 9.929L68.847 11.534L66.994 11.535L67.921 13.139L66.995 14.744L65.143 14.745L64.216 13.14L63.29 14.745L61.437 14.746L60.51 13.141L61.436 11.536L59.583 11.537L58.656 9.933L57.73 11.538L55.877 11.538L56.804 13.143L55.878 14.748L54.025 14.748L53.098 13.144L52.172 14.749L50.319 14.749L51.246 16.354L50.32 17.959L52.173 17.958L53.1 19.562L52.174 21.167L50.321 21.168L51.248 22.772L50.322 24.377L52.175 24.377L53.102 25.981L54.028 24.376L55.881 24.376L56.808 25.98L55.882 27.585L57.735 27.584L58.662 29.189L57.736 30.794L55.883 30.794L56.81 32.398L55.884 34.003L54.032 34.004L53.105 32.4L52.179 34.004L50.326 34.005L51.253 35.609L50.327 37.214L52.18 37.214L53.107 38.818L52.181 40.423L50.328 40.424L51.255 42.028L50.329 43.633L48.476 43.633L47.549 42.029L46.623 43.634L44.77 43.634L43.843 42.03L44.769 40.425L42.916 40.426L41.989 38.821L41.063 40.426L39.21 40.427L40.137 42.031L39.211 43.636L37.359 43.637L36.432 42.033L35.506 43.637L33.653 43.638L32.726 42.034L33.652 40.429L31.799 40.429L30.872 38.825L31.798 37.22L33.651 37.219L32.724 35.615L33.65 34.01L31.797 34.01L30.87 32.406L29.944 34.011L28.091 34.012L27.164 32.407L28.09 30.802L26.237 30.803L25.31 29.198L24.384 30.803L22.531 30.804L23.458 32.408L22.532 34.013L20.679 34.014L19.752 32.41L18.826 34.015L16.973 34.015L17.9 35.62L16.974 37.225L18.827 37.224L19.754 38.829L18.828 40.434L16.975 40.434L17.902 42.039L16.976 43.644L15.123 43.644L14.196 42.04L13.27 43.645L11.417 43.645L10.49 42.041L11.416 40.436L9.563 40.437L8.636 38.832L7.711 40.437L5.858 40.438L6.785 42.042L5.859 43.647L4.006 43.648L3.079 42.043L2.153 43.648L0.3 43.649L1.227 45.253L0.301 46.858L2.154 46.858L3.081 48.462L2.155 50.067L0.302 50.068L1.229 51.672L0.303 53.277L2.156 53.276L3.083 54.881L4.009 53.276L5.862 53.275L6.789 54.879L5.863 56.484L7.716 56.484L8.643 58.088L7.717 59.693L5.864 59.694L6.791 61.298L5.865 62.903L4.012 62.904L3.085 61.299L2.159 62.904L0.306 62.905L1.233 64.509L0.307 66.114L2.16 66.114L3.087 67.718L2.161 69.323L0.308 69.324L1.235 70.928L0.309 72.533L2.162 72.533L3.089 74.137L4.015 72.532L5.868 72.532L6.795 74.136L5.869 75.741L7.722 75.74L8.649 77.345L9.575 75.74L11.428 75.739L10.501 74.135L11.427 72.53L13.28 72.529L14.207 74.134L15.133 72.529L16.986 72.528L17.912 74.132L16.987 75.737L18.839 75.737L19.766 77.341L18.84 78.946L16.987 78.947L17.914 80.551L16.989 82.156L18.841 82.155L19.768 83.76L20.694 82.155L22.547 82.154L23.474 83.759L22.548 85.364L24.401 85.363L25.328 86.967L24.402 88.572L22.549 88.573L23.476 90.177L22.551 91.782L20.698 91.783L19.771 90.178L18.845 91.783L16.992 91.784L17.919 93.388L16.993 94.993L18.846 94.992L19.773 96.597L18.847 98.202L16.994 98.202L17.921 99.806L16.995 101.411L15.142 101.412L14.215 99.808L13.289 101.413L11.436 101.413L10.509 99.809L11.435 98.204L9.582 98.204L8.655 96.6L7.73 98.205L5.877 98.206L6.804 99.81L5.878 101.415L4.025 101.416L3.098 99.811L2.172 101.416L0.319 101.417L1.246 103.021L0.32 104.626L2.173 104.625L3.1 106.23L2.174 107.835L0.321 107.835L1.248 109.44L0.322 111.045L2.175 111.044L3.102 112.649L4.028 111.044L5.881 111.043L6.808 112.647L5.882 114.252L7.735 114.252L8.662 115.856L7.736 117.461L5.883 117.461L6.81 119.066L5.884 120.671L4.031 120.671L3.104 119.067L2.178 120.672L0.325 120.672L1.252 122.277L0.326 123.882L2.179 123.881L3.106 125.485L2.18 127.09L0.327 127.091L1.254 128.695Z" style="stroke:rgb(10.001%,30%,70%); stroke-width: 0.6;stroke-linecap: round;stroke-linejoin: round;stroke-miterlimit: 10;fill: none;"></path>
 </svg>
 </div>
-  <figcaption><b>A real programming language</b> — Recursive <code>vardef</code>s, paths as first-class values joined with <code>&amp;</code>, loops, and linear equations solved for you. <span class="ms">5 ms MetaPost</span></figcaption>
+  <figcaption><b>A real programming language</b> — Recursive <code>vardef</code>s, paths as first-class values joined with <code>&amp;</code>, loops, and linear equations solved for you. <span class="ms">4 ms MetaPost</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>vardef koch(expr a, b, n) =
   if n = 0: a--b
   else:
@@ -1312,7 +1318,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Shadings</b> — Axis, radial and ball shadings become SVG gradients, through PGF's own dvisvgm driver. This is where a JavaScript DVI reader gives up. <span class="ms">75 ms TeX, 26 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Shadings</b> — Axis, radial and ball shadings become SVG gradients, through PGF's own dvisvgm driver. This is where a JavaScript DVI reader gives up. <span class="ms">75 ms TeX, 27 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{shadings}
 \begin{document}
@@ -1387,7 +1393,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Patterns, opacity, clipping, decorations</b> — Fill patterns become SVG patterns; opacity, clipping scopes and path decorations all survive intact. <span class="ms">113 ms TeX, 12 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Patterns, opacity, clipping, decorations</b> — Fill patterns become SVG patterns; opacity, clipping scopes and path decorations all survive intact. <span class="ms">115 ms TeX, 13 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{patterns,decorations.pathmorphing,decorations.markings}
 \begin{document}
@@ -1546,7 +1552,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Nodes, shapes, arrows</b> — positioning, shapes.geometric and arrows.meta; bent and curved edges; every library that ships with PGF in TeX Live 2025 is available. <span class="ms">89 ms TeX, 20 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Nodes, shapes, arrows</b> — positioning, shapes.geometric and arrows.meta; bent and curved edges; every library that ships with PGF in TeX Live 2025 is available. <span class="ms">131 ms TeX, 20 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{positioning,shapes.geometric,arrows.meta}
 \begin{document}
@@ -1752,7 +1758,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Commutative diagrams (tikz-cd)</b> <span class="ms">139 ms TeX, 36 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Commutative diagrams (tikz-cd)</b> <span class="ms">140 ms TeX, 17 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[border=3pt]{standalone}
 \usepackage{tikz-cd,amssymb}
 \begin{document}
@@ -2067,7 +2073,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>pgfplots</b> — The real pgfplots package: axes, grids, legends, sampled functions, data coordinates, filled areas. <span class="ms">241 ms TeX, 43 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>pgfplots</b> — The real pgfplots package: axes, grids, legends, sampled functions, data coordinates, filled areas. <span class="ms">199 ms TeX, 25 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[border=3pt]{standalone}
 \usepackage{amsmath,pgfplots}
 \pgfplotsset{compat=1.18}
@@ -2226,7 +2232,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Latin Modern, T1 encoding, amsmath</b> — Text is glyph outlines in the SVG, so it renders identically everywhere; <code>fonts: 'woff2'</code> embeds web fonts instead if you prefer selectable text. <span class="ms">131 ms TeX, 63 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Latin Modern, T1 encoding, amsmath</b> — Text is glyph outlines in the SVG, so it renders identically everywhere; <code>fonts: 'woff2'</code> embeds web fonts instead if you prefer selectable text. <span class="ms">133 ms TeX, 64 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usepackage{lmodern}
 \usepackage[T1]{fontenc}
@@ -2500,7 +2506,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Trees, matrices, decorations</b> <span class="ms">140 ms TeX, 36 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Trees, matrices, decorations</b> <span class="ms">138 ms TeX, 33 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{trees,decorations.pathreplacing}
 \begin{document}
@@ -2672,7 +2678,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Plain TeX too</b> — <code>engine: 'plain'</code> runs plain TeX with e-TeX (TeX Live's <code>etex</code>), which is what PGF needs. <span class="ms">96 ms TeX, 41 ms dvisvgm</span></figcaption>
+  <figcaption><b>Plain TeX too</b> — <code>engine: 'plain'</code> runs plain TeX with e-TeX (TeX Live's <code>etex</code>), which is what PGF needs. <span class="ms">98 ms TeX, 41 ms dvisvgm</span></figcaption>
   <details><summary>source (plain TeX)</summary><pre><code>\input tikz
 \nopagenumbers
 \tikzpicture
@@ -2754,7 +2760,7 @@ endfig; end.</code></pre></details>
 
 <h2 id="build">Building</h2>
 <p>The build is reproducible from the pinned TeX Live 2025 source tarball (<code>vendor/SOURCES.lock</code> records its SHA-256). It never modifies the vendored tree: patches are applied to a copy, <code>ctangle</code> is built from the vendored CWEB, and every generated file lands under <code>build/</code> or <code>dist/</code>.</p>
-<div class="tablewrap"><table>
+<div class="tablewrap"><table class="build">
 <thead><tr><th>Step</th><th>Produces</th></tr></thead>
 <tbody>
 <tr><td class="mono">make tangle / make native / make contract</td><td>the tangled C, <code>build/native/libmplib.a</code>, and the native contract harness</td></tr>
