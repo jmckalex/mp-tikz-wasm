@@ -221,3 +221,11 @@ per TeX run and again per dvisvgm run, more than the snapshot saved.
 `lookup` hook on directory nodes, so a run pays for the files it touches:
 setup fell to 1–2 ms and a dvisvgm run from ~80 ms to ~13 ms. A tiny TikZ
 document now costs about 100 ms of TeX with the snapshot.
+
+Two more things the tag renderer taught: `input boxes` *inside* a figure
+makes MetaPost recurse until its input stack overflows — native `mpost`
+prints the same "input stack overflow" — so `wrapMetaPost` hoists `input`
+statements above `beginfig`; and mplib handles that limit with a hard
+`exit(1)` rather than an error, which Emscripten surfaces as an `ExitStatus`
+exception. The core now catches it and reports a fatal diagnostic carrying the
+last lines the engine printed, instead of failing the whole call.

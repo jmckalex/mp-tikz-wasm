@@ -66,9 +66,10 @@ export class MetaPostCore {
   async init(): Promise<void> {
     const o = this.env.options;
     this.env.onProgress?.({ phase: 'loading', detail: 'mplib.wasm' });
+    const note = (s: string) => { this.recentOutput.push(s); if (this.recentOutput.length > 20) this.recentOutput.shift(); this.env.onLog?.(s); };
     this.M = await this.env.mplibFactory({
-      print: (s: string) => this.env.onLog?.(s),
-      printErr: (s: string) => this.env.onLog?.(s),
+      print: note,
+      printErr: note,
       ...(o.wasmUrls?.mplib ? { locateFile: (p: string) => (p.endsWith('.wasm') ? o.wasmUrls!.mplib! : p) } : {}),
     });
     const FS = this.M.FS;
@@ -196,6 +197,7 @@ export class MetaPostCore {
     const t0 = now();
     this.stats = { totalMs: 0, metapostMs: 0, texMs: 0, texRuns: 0, metapostRuns: 0, snippetCacheHits: 0, snippetCacheMisses: 0 };
     this.texDiagnostics = [];
+    this.recentOutput = [];
     const FS = this.M.FS;
     const jobName = ro.jobName ?? 'job';
     if (ro.files) this.addFiles(ro.files);
@@ -276,6 +278,7 @@ export class MetaPostCore {
   }
 
   private lastTexLog = '';
+  private recentOutput: string[] = [];
 
   /**
    * Typeset a complete LaTeX (or plain TeX) document with tex.wasm and convert
@@ -326,7 +329,13 @@ export class MetaPostCore {
       },
       onLine: this.env.onLog,
     });
-    const diagnostics = parseTexLogDocument(texLog || tex.log, `${job}.tex`);
+    const diagnostics = parseTexLogDocument(texLog || tex.log, `${job}.tex`).filter((d) => {
+      // environmental noise, not the document's doing: there is never a shell here
+      if (/^shellesc: Shell escape disabled/.test(d.message)) return false;
+      // the snapshot preloads pgfplots; its compat notice only concerns documents that use it
+      if (fmt === 'tikz' && /^pgfplots: running in backwards compatibility mode/.test(d.message) && !/pgfplots/.test(source)) return false;
+      return true;
+    });
     // LaTeX runs are full of benign package warnings, so unlike MetaPost's
     // history the status only turns on errors: ok | error | fatal (no DVI).
     let status: LatexResult['status'] = (tex.exitCode === 0 && !diagnostics.some((d) => d.severity === 'error')) ? 'ok' : 'error';
@@ -404,7 +413,16 @@ export class MetaPostCore {
       prefix += typeof v === 'string' ? `${k}:="${v.replace(/"/g, '')}"; ` : `${k}:=${v}; `;
     }
     const cmd = `${prefix}input ${jobName}${(o.autoEnd ?? true) ? '; end.' : ''}`;
-    job.run(cmd);
+    try {
+      job.run(cmd);
+    } catch (e: any) {
+      // mplib calls exit() on a few hard limits (e.g. "input stack overflow",
+      // which native mpost hits too); Emscripten surfaces that as ExitStatus.
+      if (e && e.name === 'ExitStatus') {
+        job.history = 3;
+        this.texDiagnostics.push({ severity: 'error', source: 'metapost', message: `MetaPost aborted: ${this.recentOutput.slice(-3).join(' ').trim() || 'exit ' + e.status}` });
+      } else throw e;
+    }
     this.stats.metapostRuns++;
     this.stats.metapostMs += now() - t0;
     return job;

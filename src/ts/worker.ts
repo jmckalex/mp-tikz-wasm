@@ -70,6 +70,7 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
       case 'dispose': post({ id: req.id, ok: true }); (self as any).close(); break;
     }
   } catch (e: any) {
-    post({ id: req.id, ok: false, error: e?.stack ?? String(e) });
+    const msg = typeof e === 'string' ? e : e?.stack ?? e?.message ?? (() => { try { return JSON.stringify(e); } catch { return String(e); } })();
+    post({ id: req.id, ok: false, error: msg });
   }
 };

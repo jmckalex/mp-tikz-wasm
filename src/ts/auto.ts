@@ -35,6 +35,7 @@ import { sha256Hex } from './tex/cache-key.js';
 type Kind = 'tikz' | 'metapost';
 
 export interface RenderRequest { kind: Kind; source: string; attrs: Record<string, string> }
+/** ms is the engine's own time for this diagram (queueing and engine start-up excluded). */
 export interface RenderOutput { svg: string; log: string; diagnostics: { severity: string; message: string; line?: number }[]; ok: boolean; ms: number; cached: boolean }
 
 /** Wrap a TikZ body in a standalone document unless it already is one. */
@@ -54,11 +55,22 @@ export function wrapTikz(source: string, attrs: Record<string, string> = {}): st
   ].join('\n');
 }
 
-/** Wrap a MetaPost body in one figure unless it already has beginfig/endfig. */
+/**
+ * Wrap a MetaPost body in one figure unless it already has beginfig/endfig.
+ * `input` statements are hoisted out of the figure: `input boxes` inside a
+ * figure group makes MetaPost (native mpost too) recurse until its input stack
+ * overflows, and macro packages are meant to be loaded at top level anyway.
+ */
 export function wrapMetaPost(source: string, attrs: Record<string, string> = {}): string {
   const prologues = attrs.prologues ?? '3';
   if (/\bbeginfig\s*\(/.test(source)) return `prologues:=${prologues};\n${source}`;
-  return `prologues:=${prologues};\nbeginfig(1);\n${source}\nendfig;\nend.`;
+  const inputs: string[] = [];
+  const body = source.split('\n').filter((line) => {
+    const m = /^\s*(input\s+[^;%]+;?)\s*(%.*)?$/.exec(line);
+    if (m) { inputs.push(m[1].endsWith(';') ? m[1] : m[1] + ';'); return false; }
+    return true;
+  }).join('\n');
+  return `prologues:=${prologues};\n${inputs.join('\n')}${inputs.length ? '\n' : ''}beginfig(1);\n${body}\nendfig;\nend.`;
 }
 
 const DB_NAME = 'metapost-wasm-cache', STORE = 'svg';
@@ -91,23 +103,22 @@ export class AutoRenderer {
   }
 
   async render(req: RenderRequest): Promise<RenderOutput> {
-    const t0 = performance.now();
     const useCache = this.options.cacheResults !== false && req.attrs.cache !== 'off';
     const doc = req.kind === 'tikz' ? wrapTikz(req.source, req.attrs) : wrapMetaPost(req.source, req.attrs);
     const key = sha256Hex(`${this.version}\0${req.kind}\0${req.attrs.fonts ?? ''}\0${req.attrs.tex ?? ''}\0${doc}`);
     if (useCache) {
       const hit = await cacheGet(key);
-      if (hit) return { svg: hit, log: '', diagnostics: [], ok: true, ms: performance.now() - t0, cached: true };
+      if (hit) return { svg: hit, log: '', diagnostics: [], ok: true, ms: 0, cached: true };
     }
     const mp = await this.mp;
     let out: RenderOutput;
     if (req.kind === 'tikz') {
       const r: LatexResult = await mp.latex(doc, { fonts: req.attrs.fonts === 'woff2' ? 'woff2' : 'paths', engine: /\\bye\b/.test(doc) ? 'plain' : 'latex', svg: { idPrefix: `mpw${key.slice(0, 8)}-`, precision: false } });
-      out = { svg: r.pages.join('\n'), log: r.log, diagnostics: r.diagnostics, ok: r.status === 'ok' && r.pages.length > 0, ms: performance.now() - t0, cached: false };
+      out = { svg: r.pages.join('\n'), log: r.log, diagnostics: r.diagnostics, ok: r.status === 'ok' && r.pages.length > 0, ms: r.stats.totalMs, cached: false };
     } else {
       const tex = (req.attrs.tex ?? 'auto') as MetaPostOptions['tex'];
       const r: RunResult = await mp.run(doc, { format: 'svg', tex, svg: { idPrefix: `mpw${key.slice(0, 8)}-` } });
-      out = { svg: r.figures.map((f) => f.svg ?? '').join('\n'), log: r.log, diagnostics: r.diagnostics, ok: r.history < 2 && r.figures.length > 0, ms: performance.now() - t0, cached: false };
+      out = { svg: r.figures.map((f) => f.svg ?? '').join('\n'), log: r.log, diagnostics: r.diagnostics, ok: r.history < 2 && r.figures.length > 0, ms: r.stats.totalMs, cached: false };
     }
     if (useCache && out.ok) void cachePut(key, out.svg);
     return out;
@@ -159,7 +170,8 @@ export async function renderElement(el: Element): Promise<void> {
     host.dispatchEvent(new CustomEvent('metapost-wasm:rendered', { bubbles: true, detail: { kind, ok: r.ok, ms: r.ms, cached: r.cached } }));
   } catch (e: any) {
     host.className = `mpw-figure mpw-${kind} mpw-error`;
-    host.innerHTML = `<pre class="mpw-console">${String(e?.message ?? e).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!))}</pre>`;
+    const msg = typeof e === 'string' ? e : e?.message ?? e?.error ?? (() => { try { return JSON.stringify(e); } catch { return String(e); } })();
+    host.innerHTML = `<pre class="mpw-console">${String(msg).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!))}</pre>`;
   }
 }
 

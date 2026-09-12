@@ -20,6 +20,9 @@ describe('wrapMetaPost', () => {
   it('wraps a body in one figure with prologues 3', () => {
     expect(wrapMetaPost('draw origin;')).toBe('prologues:=3;\nbeginfig(1);\ndraw origin;\nendfig;\nend.');
   });
+  it('hoists input statements out of the figure', () => {
+    expect(wrapMetaPost('  input boxes;\n  boxit.a("x"); drawboxed(a);')).toBe('prologues:=3;\ninput boxes;\nbeginfig(1);\n  boxit.a("x"); drawboxed(a);\nendfig;\nend.');
+  });
   it('keeps existing figures and honours prologues', () => {
     expect(wrapMetaPost('beginfig(2); draw origin; endfig;', { prologues: '0' })).toBe('prologues:=0;\nbeginfig(2); draw origin; endfig;');
   });
