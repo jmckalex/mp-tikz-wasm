@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagram tags</title>
+<style>
+  body { margin: 0 auto; max-width: 820px; padding: 32px 20px 64px; font: 16px/1.55 Georgia, "Times New Roman", serif; color: #1c1b18; background: #fbfaf7; }
+  h1 { font-size: 26px; margin: 0 0 6px; } h2 { font-size: 19px; margin: 36px 0 8px; }
+  p, li { max-width: 68ch; } code, pre { font: 13px/1.45 Menlo, Consolas, monospace; } pre { background: #f0efe9; padding: 10px 12px; border-radius: 4px; overflow-x: auto; }
+  .row { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; }
+  .muted { color: #6b6860; font-size: 14px; }
+  #stats { font: 13px Menlo, monospace; color: #6b6860; }
+</style>
+<!-- the whole integration is this one line -->
+<script type="module" src="../dist/auto.js"></script>
+<script>
+  // optional: listen for renders
+  let n = 0, cached = 0, total = 0;
+  document.addEventListener('metapost-wasm:rendered', (e) => { n++; total += e.detail.ms; if (e.detail.cached) cached++; document.getElementById('stats').textContent = `${n} diagrams rendered, ${cached} from cache, ${total.toFixed(0)} ms total`; });
+</script>
+</head>
+<body>
+<h1>Diagram tags</h1>
+<p class="muted">This page contains no pre-rendered images. Every figure below is typeset on load by MetaPost, pdfTeX and dvisvgm running in this tab, from a <code>&lt;script&gt;</code> or custom tag in the HTML source. <span id="stats"></span></p>
+
+<h2>TikZ, the tikzjax way</h2>
+<p>A <code>&lt;script type="text/tikz"&gt;</code> holding just a <code>tikzpicture</code>. It is wrapped in a <code>standalone</code> document automatically; libraries come from <code>data-libraries</code>.</p>
+<div class="row">
+<script type="text/tikz" data-libraries="arrows.meta,calc">
+\begin{tikzpicture}[scale=1.2]
+  \draw[->,thick] (0,0) -- (3,0) node[right] {$x$};
+  \draw[->,thick] (0,0) -- (0,2) node[above] {$y$};
+  \draw[blue,domain=0:3,samples=60] plot (\x,{sin(\x r)+1});
+  \node[fill=yellow!30,draw,rounded corners] at ($(1.5,1.7)$) {$y=\sin x+1$};
+\end{tikzpicture}
+</script>
+<script type="text/tikz" data-libraries="shadings,patterns">
+\begin{tikzpicture}
+  \shade[ball color=red!70] (0,0) circle (0.6);
+  \shade[left color=blue,right color=green] (1,-0.4) rectangle (2.6,0.4);
+  \fill[pattern=crosshatch,pattern color=gray] (3,-0.5) rectangle (4.2,0.5);
+\end{tikzpicture}
+</script>
+</div>
+
+<h2>A whole document</h2>
+<p>If the body contains <code>\documentclass</code>, it is compiled as is — any class, any package in the bundles, pgfplots included.</p>
+<script type="text/tikz">
+\documentclass[border=3pt]{standalone}
+\usepackage{amsmath,pgfplots}
+\pgfplotsset{compat=1.18}
+\begin{document}
+\begin{tikzpicture}
+  \begin{axis}[width=7cm,height=4.5cm,xlabel=$x$,ylabel={$f(x)$},grid=major,legend pos=north east]
+    \addplot[blue,thick,domain=0:4,samples=50] {x^2*exp(-x)};
+    \addplot[red,dashed,domain=0:4,samples=50] {0.5*sin(deg(3*x))+0.5};
+    \legend{$x^2e^{-x}$,$\tfrac12(1+\sin 3x)$}
+  \end{axis}
+\end{tikzpicture}
+\end{document}
+</script>
+
+<h2>Custom elements</h2>
+<p><code>&lt;tikz-diagram&gt;</code> and <code>&lt;metapost-diagram&gt;</code> work the same way and render when they enter the page (a <code>MutationObserver</code> catches later additions). Inside a custom element the content is HTML, so write <code>&amp;lt;</code> for <code>&lt;</code>.</p>
+<div class="row">
+<tikz-diagram data-libraries="positioning,shapes.geometric" alt="two connected nodes">
+\begin{tikzpicture}[node distance=1.4cm]
+  \node[circle,draw,fill=blue!15] (a) {$a$};
+  \node[diamond,draw,fill=red!15,right=of a] (b) {$b$};
+  \draw[-latex,thick] (a) -- node[above] {$f$} (b);
+\end{tikzpicture}
+</tikz-diagram>
+<metapost-diagram alt="a MetaPost figure">
+  draw fullcircle scaled 60 withpen pencircle scaled 1.2 withcolor (0.1,0.3,0.8);
+  for i = 0 upto 11: draw origin -- 30 dir (30i) withcolor (i/11)[blue,red]; endfor
+  label.top(btex $\oint_\gamma f = 2\pi i\sum \mathrm{Res}$ etex, (0,32));
+</metapost-diagram>
+</div>
+
+<h2>MetaPost script tags</h2>
+<p><code>&lt;script type="text/metapost"&gt;</code>: a body without <code>beginfig</code> becomes one figure; <code>data-tex</code> chooses the label engine.</p>
+<div class="row">
+<script type="text/metapost">
+  input boxes;
+  boxit.a(btex lexer etex); boxit.b(btex parser etex); circleit.c(btex AST etex);
+  b.w = a.e + (22,0); c.w = b.e + (22,0);
+  drawboxed(a,b,c); drawarrow a.e -- b.w; drawarrow b.e -- c.w;
+</script>
+<script type="text/metapost" data-tex="latex">
+  verbatimtex \documentclass{article}\usepackage{amsmath}\begin{document} etex
+  draw (0,0)--(80,0)--(80,50)--cycle;
+  label.lft(btex $\displaystyle\int_0^1\!x\,dx$ etex, (0,25));
+</script>
+</div>
+
+<h2>Errors</h2>
+<p>A broken diagram shows its diagnostics instead of failing silently.</p>
+<script type="text/tikz">\begin{tikzpicture}\draw (0,0) -- (1,1) node {\undefinedmacro};\end{tikzpicture}</script>
+
+<h2>How to use it on your page</h2>
+<pre>&lt;script type="module" src="https://your-host/metapost-wasm/dist/auto.js"&gt;&lt;/script&gt;
+&lt;script type="text/tikz" data-libraries="arrows.meta"&gt;
+  \begin{tikzpicture} \draw[-&gt;] (0,0) -- (2,1); \end{tikzpicture}
+&lt;/script&gt;
+&lt;metapost-diagram&gt;draw fullcircle scaled 50;&lt;/metapost-diagram&gt;</pre>
+<p class="muted">Host the <code>dist/</code> folder (the three <code>.wasm</code> files, the JS, and <code>bundles/</code>) anywhere static; the script finds them relative to itself. Rendered SVGs are cached in IndexedDB by content hash, so a revisit shows the figures without running TeX.</p>
+</body>
+</html>

@@ -60,7 +60,7 @@ static files and cached by the browser.
 | `dist/mplib.wasm` | 1.2 MB | MetaPost 2.11: interpreter, PostScript + SVG backends, Type 1 font machinery, TFM reader, `scaled`/`double`/`decimal` arithmetic, `mpto` + `dvitomp` |
 | `dist/tex.wasm` | 1.1 MB | pdfTeX 1.40.27 in DVI mode (= `tex`, `etex`, `latex`) with kpathsea, zlib, libpng |
 | `dist/dvisvgm.wasm` | 2.7 MB | dvisvgm 3.4.3 with FreeType, potrace, clipper, woff2/brotli and PGF's special handlers (no Ghostscript) |
-| `dist/index.js` + friends | ~60 KB | the TypeScript API, the Worker, the TeX bridge, the CLI |
+| `dist/index.js` + friends | ~70 KB | the TypeScript API, the Worker, the TeX bridge, the CLI, `auto.js` (the tag renderer) |
 | `dist/bundles/*` | 38 MB total, fetched per file on demand | `core` (plain.mp, mpost.mp, boxes, graph, format, sarith, metaobj…), `cm-tfm`, `cm-type1`, `lm-fonts` (Latin Modern, T1/TS1), `tex-plain` (+ `plain.fmt`, `etex.fmt`), `latex-core` (+ `latex.fmt`), `latex-extra` (pgf/TikZ with all libraries, pgfplots, amsmath, amsfonts, tools, graphics, xcolor, standalone, geometry, booktabs, mathtools, …) |
 
 The formats (`plain.fmt` 114 KB, `etex.fmt` 128 KB, `latex.fmt` 2.2 MB) are
@@ -104,6 +104,45 @@ patterns, clipping, opacity and pgfplots all survive. Options: `engine`,
 Results: `pages[]` (SVG strings), `log`, `texLog`, `dvisvgmLog`, `diagnostics`
 (TeX errors with document line numbers, package warnings), `stats`.
 
+### Drop-in tags (the tikzjax replacement)
+
+One script turns diagram tags into SVGs, with no other code on the page:
+
+```html
+<script type="module" src="https://your-host/metapost-wasm/dist/auto.js"></script>
+
+<script type="text/tikz" data-libraries="arrows.meta,calc">
+  \begin{tikzpicture} \draw[->] (0,0) -- (2,1) node[right] {$x$}; \end{tikzpicture}
+</script>
+<script type="text/metapost">draw fullcircle scaled 50; label(btex $\pi$ etex, origin);</script>
+
+<tikz-diagram data-libraries="shadings">\shade[ball color=red] (0,0) circle (1);</tikz-diagram>
+<metapost-diagram>draw unitsquare scaled 40;</metapost-diagram>
+```
+
+A TikZ body without `\documentclass` is wrapped in a `standalone` document
+(`data-libraries`, `data-packages`, `data-preamble`, `data-border`); a
+complete document is compiled as is. A MetaPost body without `beginfig` becomes
+one figure (`data-tex` picks the label engine). Errors show their diagnostics
+under the figure; `data-show-console` keeps the log. Rendered SVGs are cached
+in IndexedDB by content hash, so a revisited page shows its figures without
+running TeX. Elements added later are rendered by a `MutationObserver`; a
+`metapost-wasm:rendered` event fires per figure; `window.metapostWasm.render()`
+renders programmatically. `site/tags.html` is a working example page.
+
+### The pre-warmed snapshot
+
+`tikz.fmt` (5.8 MB, in the optional `tikz-snapshot` bundle, loaded by default)
+is `latex.fmt` with PGF, its common libraries, pgfplots and tikz-cd already
+loaded — the equivalent of tikzjax's memory image, built by the wasm engine
+from `tikz.ini`, which intercepts `latex.ltx`'s final `\dump` to
+`\RequirePackage` them first. `latex()` uses it automatically for documents
+that load tikz, pgfplots or tikz-cd (`snapshot: 'auto' | 'tikz' | 'none'`).
+Only definitional libraries are in it and PGF's object counters are reset, so
+the pages it produces are byte-identical to plain `latex.fmt`'s — the TikZ
+golden runner checks that for every case. It saves 50–160 ms per document
+(pgfplots: 414 → 255 ms of TeX).
+
 Compared with tikzjax: real LaTeX rather than a pre-dumped plain-TeX snapshot,
 so `\documentclass`, `\usepackage` and every TikZ library work unchanged;
 formats built by the engine itself; per-file lazy loading through real
@@ -122,8 +161,8 @@ Measured on an M-series Mac, Node 23 (`scripts/smoke-api.mjs`):
 | the same, warm cache | 5 ms |
 | 40 labels, cold cache | 62 ms, one TeX run |
 | 40 labels with one edited | 91 ms, one TeX run, one page |
-| TikZ standalone figure (`latex()`) | ~320 ms (TeX 230 ms, dvisvgm 85 ms) |
-| pgfplots axis with two curves | ~500 ms (TeX 400 ms, dvisvgm 90 ms) |
+| TikZ standalone figure (`latex()`), snapshot | ~120 ms (TeX 100 ms, dvisvgm 13 ms) |
+| pgfplots axis with two curves, snapshot | ~270 ms (TeX 255 ms, dvisvgm 15 ms) |
 
 ## API
 

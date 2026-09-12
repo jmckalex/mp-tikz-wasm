@@ -31,10 +31,13 @@ const FORMATS = [
   { name: 'plain', args: ['-ini', '-jobname=plain', '-progname=tex', '-interaction=nonstopmode', 'tex.ini'] },
   { name: 'etex',  args: ['-ini', '-etex', '-jobname=etex', '-progname=etex', '-interaction=nonstopmode', 'etex.ini'] },
   { name: 'latex', args: ['-ini', '-etex', '-jobname=latex', '-progname=latex', '-interaction=nonstopmode', 'latex.ini'] },
+  // the pre-warmed TikZ snapshot: latex.fmt plus pgf, its libraries and pgfplots (needs latex.fmt first)
+  { name: 'tikz', args: ['-ini', '-etex', '-jobname=tikz', '-progname=latex', '-interaction=nonstopmode', 'tikz.ini'] },
 ];
 let failed = 0;
 for (const f of FORMATS) {
   const t0 = performance.now();
+  if (f.after) fs.copyFileSync(path.join(TEXMF, 'web2c', `${f.after}.fmt`), path.join(WORK, `${f.after}.fmt`));   // &latex resolves via TEXFORMATS (. first)
   const r = await runTex(f.args);
   const fmt = path.join(WORK, `${f.name}.fmt`);
   const ok = r.exitCode === 0 && fs.existsSync(fmt);

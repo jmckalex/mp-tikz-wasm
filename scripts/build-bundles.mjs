@@ -18,9 +18,10 @@ const RECIPES = [
   ['lm-fonts',   (p) => /^fonts\/(tfm|type1)\/([a-z0-9]+-)?lm/.test(p) || p.startsWith('fonts/enc/') || p.startsWith('tex/latex/lm/')],
   ['cm-tfm',     (p) => p.startsWith('fonts/tfm/') || p.startsWith('fonts/vf/')],
   ['cm-type1',   (p) => p.startsWith('fonts/type1/')],
-  ['tex-plain',  (p) => (p.startsWith('tex/plain/') && !p.startsWith('tex/plain/pgf')) || (p.startsWith('tex/generic/') && !p.startsWith('tex/generic/pgf')) || p === 'web2c/plain.fmt' || p === 'web2c/etex.fmt'],
+  ['tikz-snapshot', (p) => p === 'web2c/tikz.fmt'],
+  ['tex-plain',  (p) => (p.startsWith('tex/plain/') && !p.startsWith('tex/plain/pgf')) || (p.startsWith('tex/generic/') && !/^tex\/generic\/(pgf|tikz-cd)/.test(p)) || p === 'web2c/plain.fmt' || p === 'web2c/etex.fmt'],
   ['latex-core', (p) => /^tex\/latex\/(base|l3kernel|l3backend|latexconfig|tex-ini-files)\//.test(p) || p === 'web2c/latex.fmt'],
-  ['latex-extra', (p) => p.startsWith('tex/latex/') || p.startsWith('tex/generic/pgf') || p.startsWith('tex/plain/pgf')],
+  ['latex-extra', (p) => p.startsWith('tex/latex/') || /^tex\/generic\/(pgf|tikz-cd)/.test(p) || p.startsWith('tex/plain/pgf')],
 ];
 const EAGER = {
   core: ['web2c/texmf.cnf', 'metapost/base/plain.mp', 'metapost/base/mpost.mp', 'fonts/map/mpost.map'],

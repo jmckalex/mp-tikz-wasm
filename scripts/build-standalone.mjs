@@ -38,7 +38,9 @@ const wordmark = (await mp.run('prologues:=3; beginfig(1); draw "MetaPost" infon
 const tikzGallery = [];
 for (let i = 0; i < TIKZ_EXAMPLES.length; i++) {
   const ex = TIKZ_EXAMPLES[i];
-  const r = await mp.latex(ex.src, { engine: ex.plain ? 'plain' : 'latex', svg: { idPrefix: `t${i}-`, precision: false } });
+  // no snapshot here: tikz.fmt is 5.8 MB and does not compress, and a run
+  // without it must touch every pgf file the page needs to embed
+  const r = await mp.latex(ex.src, { engine: ex.plain ? 'plain' : 'latex', snapshot: 'none', svg: { idPrefix: `t${i}-`, precision: false } });
   tikzGallery.push({ id: ex.id, title: ex.title, tier: ex.tier, blurb: ex.blurb, src: ex.src, svg: r.pages[0] ?? '', status: r.status, stats: r.stats, plain: !!ex.plain });
   console.log(`  ${ex.id.padEnd(12)} ${r.status.padEnd(7)} TeX ${r.stats.texMs.toFixed(0).padStart(4)} ms, dvisvgm ${r.stats.dvisvgmMs.toFixed(0).padStart(3)} ms  ${(r.pages[0]?.length ?? 0)} B`);
 }
@@ -62,6 +64,7 @@ const fromBundle = (rel) => {
   for (const b of fs.readdirSync(BUNDLES)) { const p = path.join(BUNDLES, b, 'files', rel); if (fs.existsSync(p)) return p; }
   return null;
 };
+used.delete('web2c/tikz.fmt');
 for (const rel of [...used].sort()) {
   const p = fromBundle(rel); if (!p) continue;
   const data = fs.readFileSync(p);

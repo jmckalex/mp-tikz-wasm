@@ -290,8 +290,14 @@ export class MetaPostCore {
     const engine = lo.engine ?? 'latex';
     // 'plain' is plain TeX with e-TeX (TeX Live's etex), which PGF requires;
     // 'tex' is Knuth-compatible plain.fmt without it.
-    const fmt = engine === 'plain' ? 'etex' : engine;
+    let fmt: string = engine === 'plain' ? 'etex' : engine;
     const progname = engine === 'plain' ? 'etex' : engine;
+    // the pre-warmed snapshot: latex.fmt with pgf/pgfplots/tikz-cd preloaded
+    const snapshot = lo.snapshot ?? 'auto';
+    if (engine === 'latex' && snapshot !== 'none' && this.hasSnapshot()) {
+      const usesTikz = /\\usepackage\s*(\[[^\]]*\])?\s*\{[^}]*\b(tikz|pgfplots|tikz-cd)\b|\\documentclass\s*\[[^\]]*\btikz\b/.test(source);
+      if (snapshot === 'tikz' || usesTikz) fmt = 'tikz';
+    }
     if (lo.files) this.addFiles(lo.files);
     // PGF's default DVI driver (dvips) draws with PostScript specials, which
     // dvisvgm can only interpret through Ghostscript. PGF ships a dvisvgm
@@ -357,7 +363,13 @@ export class MetaPostCore {
       status = diagnostics.some((d) => d.severity === 'error') ? 'error' : 'fatal';
       if (!diagnostics.length) diagnostics.push({ severity: 'error', source: 'tex', message: `TeX produced no DVI (exit ${tex.exitCode})` });
     }
-    return { status, pages, log: tex.log, texLog, dvisvgmLog, diagnostics, stats: { totalMs: now() - t0, texMs: tex.ms, dvisvgmMs }, artifacts };
+    return { status, pages, log: tex.log, texLog, dvisvgmLog, diagnostics, stats: { totalMs: now() - t0, texMs: tex.ms, dvisvgmMs, texSetupMs: tex.setupMs, texMainMs: tex.mainMs, instantiateMs: tex.ms - tex.setupMs - tex.mainMs }, format: fmt, artifacts };
+  }
+
+  private hasSnapshot(): boolean {
+    if (this.env.bundles) return this.env.bundles.files.has('web2c/tikz.fmt');
+    if (this.env.texmfDir) { try { return this.M.FS.analyzePath(`${TEXMF_ROOT}/web2c/tikz.fmt`).exists; } catch { return false; } }
+    return false;
   }
 
   private async typeset(misses: Snippet[]): Promise<void> {

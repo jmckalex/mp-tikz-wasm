@@ -32,7 +32,7 @@ cp -R "$TEXMF/tex/plain/etex" "$OUT/tex/plain/etex"
 mkdir -p "$OUT/tex/generic/config"
 printf '%%%% language.def for tex.wasm: US English only\n\\addlanguage{USenglish}{hyphen}{}{0}{0}\n\\uselanguage{USenglish}\n' > "$OUT/tex/generic/config/language.def"
 printf '%%%% language.dat for tex.wasm: US English only\nenglish hyphen.tex\n=usenglish\n=USenglish\n' > "$OUT/tex/generic/config/language.dat"
-for d in hyphen tex-ini-files pdftex unicode-data iftex kvsetkeys kvdefinekeys ltxcmds pdftexcmds infwarerr etexcmds atbegshi atveryend xkeyval gettitlestring bigintcalc bitset intcalc uniquecounter kvsetkeys; do
+for d in hyphen tex-ini-files pdftex unicode-data iftex kvsetkeys kvdefinekeys ltxcmds pdftexcmds infwarerr etexcmds atbegshi atveryend xkeyval gettitlestring bigintcalc bitset intcalc uniquecounter tikz-cd; do
   [ -d "$TEXMF/tex/generic/$d" ] && cp -R "$TEXMF/tex/generic/$d" "$OUT/tex/generic/$d"
 done
 for d in base tex-ini-files l3kernel l3backend l3packages amsmath amsfonts amscls tools graphics graphics-cfg graphics-def latexconfig \
@@ -44,6 +44,47 @@ done
 for d in pgf pgfplots; do [ -d "$TEXMF/tex/generic/$d" ] && cp -R "$TEXMF/tex/generic/$d" "$OUT/tex/generic/$d"; done
 # drop documentation-ish files that are never input
 find "$OUT/tex" \( -name '*.dtx' -o -name '*.ins' -o -name '*.pdf' -o -name 'README*' -o -name 'CHANGES*' \) -delete
+
+# --- the TikZ snapshot format (docs/14 §8) -------------------------------------
+# tikz.fmt is latex.fmt plus pgf, its common libraries, pgfplots and tikz-cd,
+# preloaded with \RequirePackage before any \documentclass (the documented way
+# to load packages ahead of the class). tikz.ini wraps latex.ini: it lets
+# latex.ltx run and intercepts its final \dump to load the packages first.
+# Only behaviour-neutral packages go in: nothing here changes the output of a
+# document that does not use it.
+mkdir -p "$OUT/tex/latex/metapost-wasm"
+cat > "$OUT/tex/latex/metapost-wasm/tikz-snapshot.tex" <<'INI'
+% tikz-snapshot.tex — read by tikz.ini in place of latex.ltx's final \dump.
+% pgf loads its own dependencies with \usepackage, which latex.ltx forbids
+% before \documentclass; \documentclass re-establishes the real \usepackage.
+% Only libraries that are purely definitional are preloaded: `bending`,
+% `babel`, `external`, `patterns.meta` and \pgfplotsset{compat=...} change
+% the output of documents that did not ask for them, so they stay out
+% (scripts/golden-tikz.mjs proves tikz.fmt and latex.fmt give identical pages).
+\let\usepackage\RequirePackage
+\def\pgfsysdriver{pgfsys-dvisvgm.def}
+\RequirePackage{tikz}
+\usetikzlibrary{arrows.meta,calc,positioning,shapes.geometric,shapes.misc,shapes.symbols,shapes.arrows,shapes.multipart,shapes.callouts,decorations.pathmorphing,decorations.pathreplacing,decorations.markings,decorations.text,decorations.shapes,patterns,shadings,shadows,fadings,mindmap,fit,backgrounds,matrix,trees,intersections,through,angles,quotes,3d,math,plotmarks,scopes,chains,automata,petri,er,topaths,perspective,graphs}
+\RequirePackage{pgfplots}
+\RequirePackage{tikz-cd}
+% loading libraries allocated pgf/svg object ids; start documents from the
+% same counters a plain latex.fmt run would
+\makeatletter
+\global\pgf@sys@id@count=0 \global\pgf@sys@svg@objectcount=0 \global\pgf@sys@svg@scopecount=0 \global\pgf@sys@svg@type@count=0
+\makeatother
+INI
+cat > "$OUT/tex/latex/metapost-wasm/tikz.ini" <<'INI'
+% tikz.ini — like latex.ini, but load tikz-snapshot.tex before dumping
+\catcode`\{=1 \catcode`\}=2 \catcode`\#=6
+\ifx\pdfoutput\undefined \else \ifx\pdfoutput\relax \else \input pdftexconfig \pdfoutput=0 \fi\fi
+\scrollmode
+\let\mpwasmrealdump\dump
+\def\dump{\let\dump\mpwasmrealdump \input tikz-snapshot.tex \dump}
+% latex.ltx insists on virgin catcodes (it checks that { is not yet a brace)
+\catcode`\{=12 \catcode`\}=12 \catcode`\#=12
+\input latex.ltx
+\endinput
+INI
 
 # --- fonts ------------------------------------------------------------------
 for d in cm amsfonts/cmextra amsfonts/symbols amsfonts/euler latex-fonts knuth-lib; do

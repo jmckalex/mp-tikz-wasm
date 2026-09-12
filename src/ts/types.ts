@@ -195,6 +195,10 @@ export interface LatexRunOptions {
    *  draws with SVG specials; 'auto' leaves PGF's own choice (dvips, whose PostScript specials need
    *  Ghostscript and are ignored here). */
   pgfDriver?: 'dvisvgm' | 'auto';
+  /** The pre-warmed format: 'auto' (default) runs documents that load tikz, pgfplots or tikz-cd with
+   *  tikz.fmt (LaTeX with PGF, its common libraries and pgfplots already loaded);
+   *  'tikz' forces it, 'none' always uses plain latex.fmt. Requires the tikz-snapshot bundle. */
+  snapshot?: 'auto' | 'tikz' | 'none';
   /** Files to place next to the document (images, .sty, .tex inputs). */
   files?: Record<string, string | Uint8Array>;
   jobName?: string;                          // default 'doc'
@@ -218,7 +222,9 @@ export interface LatexResult {
   texLog: string;          // the .log file
   dvisvgmLog: string;
   diagnostics: Diagnostic[];
-  stats: { totalMs: number; texMs: number; dvisvgmMs: number };
+  stats: { totalMs: number; texMs: number; dvisvgmMs: number; texSetupMs: number; texMainMs: number; instantiateMs: number };
+  /** The format that ran the document ('latex', 'tikz', 'etex', 'plain'). */
+  format: string;
   artifacts: Record<string, Uint8Array>;
 }
 

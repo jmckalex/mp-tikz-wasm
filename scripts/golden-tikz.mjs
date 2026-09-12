@@ -54,10 +54,16 @@ for (const f of files) {
   const name = path.basename(f, '.tex');
   const src = fs.readFileSync(path.join(CASES, f), 'utf8');
   const plain = /\\bye\s*$/.test(src.trim());
-  let r;
-  try { r = await mp.latex(src, { engine: plain ? 'plain' : 'latex' }); }
-  catch (e) { fail++; console.log(`FAIL ${name}: threw ${e?.message ?? e}`); continue; }
+  let r, rs;
+  try {
+    r = await mp.latex(src, { engine: plain ? 'plain' : 'latex', snapshot: 'none' });
+    // the pre-warmed tikz.fmt must produce exactly the same pages as plain latex.fmt
+    rs = await mp.latex(src, { engine: plain ? 'plain' : 'latex' });
+  } catch (e) { fail++; console.log(`FAIL ${name}: threw ${e?.message ?? e}`); continue; }
   const ours = r.pages.map(normalise);
+  const snapPages = rs.pages.map(normalise);
+  const snapNote = rs.format === 'tikz' ? ` | snapshot: TeX ${rs.stats.texMs.toFixed(0)} ms${JSON.stringify(snapPages) === JSON.stringify(ours) ? ', identical' : ', DIFFERENT'}` : '';
+  if (rs.format === 'tikz' && JSON.stringify(snapPages) !== JSON.stringify(ours)) { fail++; console.log(`FAIL ${name}: tikz.fmt output differs from latex.fmt output`); continue; }
   const caseOut = path.join(OUT, name); fs.mkdirSync(caseOut, { recursive: true });
   fs.writeFileSync(path.join(caseOut, 'log.txt'), r.log + '\n---- dvisvgm ----\n' + r.dvisvgmLog);
   ours.forEach((s, i) => fs.writeFileSync(path.join(caseOut, `${i + 1}.ours.svg`), s));
@@ -75,7 +81,7 @@ for (const f of files) {
     }
   }
   if (problems.length) { fail++; console.log(`FAIL ${name} (status ${r.status})\n      ${problems.join('\n      ')}`); }
-  else { pass++; console.log(`ok   ${name} (${ours.length} page${ours.length === 1 ? '' : 's'}, ${r.status}, TeX ${r.stats.texMs.toFixed(0)} ms, dvisvgm ${r.stats.dvisvgmMs.toFixed(0)} ms)`); }
+  else { pass++; console.log(`ok   ${name} (${ours.length} page${ours.length === 1 ? '' : 's'}, ${r.status}, TeX ${r.stats.texMs.toFixed(0)} ms, dvisvgm ${r.stats.dvisvgmMs.toFixed(0)} ms${snapNote})`); }
 }
 mp.dispose();
 console.log(`\n${pass} passed, ${fail} failed`);

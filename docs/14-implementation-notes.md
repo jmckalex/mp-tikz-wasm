@@ -183,3 +183,41 @@ Golden corpus: `test/golden/tikz/*.tex` — axes/plot with calc, nodes and
 edges, shadings/patterns/clip/opacity, pgfplots, Latin Modern T1 text with
 amsmath, plain TeX with `\input tikz`, and a two-page article; 7/7
 byte-identical to `latex` (or `etex`) + `dvisvgm` from TeX Live 2025.
+
+## 8. The tikzjax replacement: tags and the snapshot
+
+`src/ts/auto.ts` (`dist/auto.js`) renders `<script type="text/tikz">`,
+`<script type="text/metapost">`, `<tikz-diagram>` and `<metapost-diagram>`
+into SVG on load and on later insertion, wraps bare bodies in a standalone
+document or a single figure, caches results in IndexedDB by content hash, and
+exposes `window.metapostWasm`. Custom elements hold HTML, so `<` must be
+written `&lt;` in them; script tags are raw, which is why tikzjax uses them.
+
+`tikz.fmt` is the pre-warmed format. Building it taught three things:
+
+* `&latex` on the command line is not honoured in `-ini` mode (neither by the
+  host pdftex nor by `tex.wasm`), and `-fmt=latex -ini` dumps a bare format.
+  `tikz.ini` therefore reproduces `latex.ini` and redefines `\dump` so that
+  `latex.ltx`'s own final `\dump` first `\input`s the snapshot preamble.
+  `latex.ltx` refuses to start unless `{` still has catcode 12, so the
+  wrapper resets the catcodes it needed for its `\def` before `\input latex.ltx`.
+* PGF loads its dependencies with `\usepackage`, which `latex.ltx` forbids
+  before `\documentclass`; the snapshot sets `\let\usepackage\RequirePackage`
+  (the document's `\documentclass` restores the real one).
+* Preloading is only invisible if the libraries are purely definitional and
+  the object counters are reset. `bending` changes curved arrows, `babel`
+  changes catcode handling, `\pgfplotsset{compat=1.18}` changes pgfplots
+  defaults — all left out. Loading the libraries allocates pgf/svg ids, so
+  `\pgf@sys@id@count`, `\pgf@sys@svg@objectcount`, `scopecount` and
+  `type@count` are zeroed before the dump; without that, clip paths were
+  named `pgfcp9` instead of `pgfcp1`. `scripts/golden-tikz.mjs` runs every
+  case with and without the snapshot and requires identical pages.
+
+Profiling the per-run cost (`stats.texSetupMs` / `texMainMs` /
+`instantiateMs`) showed that installing the bundle tree into each fresh
+Emscripten filesystem — ~2300 lazy nodes plus the ls-R text — cost 50–75 ms
+per TeX run and again per dvisvgm run, more than the snapshot saved.
+`BundleSet.install` now creates directories and files on demand through a
+`lookup` hook on directory nodes, so a run pays for the files it touches:
+setup fell to 1–2 ms and a dvisvgm run from ~80 ms to ~13 ms. A tiny TikZ
+document now costs about 100 ms of TeX with the snapshot.

@@ -23,7 +23,7 @@ export interface TexRunOptions {
   onLine?: (line: string) => void;
 }
 
-export interface TexRunResult { exitCode: number; log: string; ms: number }
+export interface TexRunResult { exitCode: number; log: string; ms: number; setupMs: number; mainMs: number }
 
 const FIXED_EPOCH = '1735689600'; // 2025-01-01T00:00:00Z, docs/04 §7 (4)
 
@@ -45,9 +45,11 @@ export async function runTex(factory: TexFactory, opts: TexRunOptions): Promise<
     }],
     onExit: (code: number) => { exitCode = code; },
   });
+  const t1 = now();
   try { M.FS.mkdir('/bin'); } catch { /* exists */ }
   M.FS.writeFile('/bin/pdftex', '');            // kpathsea wants dirname(argv[0]) to exist
   opts.setup(M);
+  const t2 = now();
   try {
     const r = M.callMain(opts.args);
     if (typeof r === 'number') exitCode = r;
@@ -55,8 +57,9 @@ export async function runTex(factory: TexFactory, opts: TexRunOptions): Promise<
     if (e && e.name === 'ExitStatus') exitCode = e.status;
     else throw e;
   }
+  const t3 = now();
   opts.collect?.(M);
-  return { exitCode, log: lines.join('\n'), ms: now() - t0 };
+  return { exitCode, log: lines.join('\n'), ms: now() - t0, setupMs: t2 - t1, mainMs: t3 - t2 };
 }
 
 function now(): number { return typeof performance !== 'undefined' ? performance.now() : Date.now(); }

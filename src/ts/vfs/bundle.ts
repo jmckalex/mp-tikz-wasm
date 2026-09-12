@@ -12,7 +12,7 @@
  *     fetch() by `prefetchAll()` before the engine runs.
  */
 import type { BundleManifest, BundleSpec } from '../types.js';
-import { createLazyFile, mkdirp, writeFileDeep, type EmscriptenFS } from './lazyfs.js';
+import { createLazyFile, mkdirp, type EmscriptenFS } from './lazyfs.js';
 
 export interface BundleFile { bundle: string; path: string; size: number; sha?: string; url: string }
 
@@ -97,20 +97,62 @@ export class BundleSet {
   has(path: string): boolean { return this.cache.has(path); }
 
   /**
-   * Materialise the whole tree in the Emscripten FS under /texmf as lazy
-   * nodes (or real files for those already in memory), plus an ls-R database
-   * so kpathsea never has to walk directories.
+   * Materialise the tree in the Emscripten FS under /texmf, plus an ls-R
+   * database so kpathsea never has to walk directories. Directories are
+   * created on demand: the root gets a lookup hook that creates a child
+   * directory or a lazy file the first time anything asks for it, so a run
+   * pays for the handful of files it touches, not for the whole tree
+   * (installing every node eagerly cost ~60 ms per TeX run).
    */
   install(FS: EmscriptenFS, root = TEXMF_ROOT): void {
     mkdirp(FS, root);
-    for (const { manifest } of this.manifests) for (const d of manifest.dirs ?? []) mkdirp(FS, `${root}/${d}`);
-    for (const f of this.files.values()) {
-      const full = `${root}/${f.path}`;
-      const data = this.cache.get(f.path);
-      if (data) { if (!FS.analyzePath(full).exists) writeFileDeep(FS, full, data); continue; }
-      createLazyFile(FS, full, f.size, () => this.fetchSyncFile(f));
+    const index = this.index();
+    const lazyDir = (dirPath: string, rel: string) => {
+      const node = FS.lookupPath(dirPath).node;
+      const origOps = node.node_ops;
+      const children = index.dirs.get(rel);
+      const materialised = new Set<string>();
+      const create = (name: string): boolean => {
+        if (materialised.has(name)) return false;
+        materialised.add(name);
+        const childRel = rel ? `${rel}/${name}` : name;
+        const full = `${dirPath}/${name}`;
+        if (index.dirs.has(childRel)) { FS.mkdir(full); lazyDir(full, childRel); return true; }
+        const f = this.files.get(childRel);
+        if (!f) return false;
+        const data = this.cache.get(childRel);
+        if (data) FS.writeFile(full, data); else createLazyFile(FS, full, f.size, () => this.fetchSyncFile(f));
+        return true;
+      };
+      node.node_ops = {
+        ...origOps,
+        lookup: (parent: any, name: string) => {
+          if (children?.has(name) && create(name)) return FS.lookupNode(parent, name);
+          return origOps.lookup(parent, name);
+        },
+        readdir: (n: any) => { if (children) for (const name of children) create(name); return origOps.readdir(n); },
+      };
+    };
+    lazyDir(root, '');
+    FS.writeFile(`${root}/ls-R`, this.lsRText ??= this.lsR());
+  }
+
+  private lsRText?: string;
+  private indexCache?: { dirs: Map<string, Set<string>> };
+  /** directory -> immediate children, for the on-demand tree */
+  private index(): { dirs: Map<string, Set<string>> } {
+    if (this.indexCache) return this.indexCache;
+    const dirs = new Map<string, Set<string>>();
+    const ensure = (d: string) => { let s = dirs.get(d); if (!s) { s = new Set(); dirs.set(d, s); } return s; };
+    ensure('');
+    for (const path of this.files.keys()) {
+      const parts = path.split('/');
+      let d = '';
+      for (let i = 0; i < parts.length - 1; i++) { ensure(d).add(parts[i]); d = d ? `${d}/${parts[i]}` : parts[i]; ensure(d); }
+      ensure(d).add(parts[parts.length - 1]);
     }
-    writeFileDeep(FS, `${root}/ls-R`, this.lsR());
+    for (const { manifest } of this.manifests) for (const d of manifest.dirs ?? []) { const parts = d.split('/'); let p = ''; for (const x of parts) { ensure(p).add(x); p = p ? `${p}/${x}` : x; ensure(p); } }
+    return (this.indexCache = { dirs });
   }
 
   /** kpathsea ls-R database text for the merged tree. */
