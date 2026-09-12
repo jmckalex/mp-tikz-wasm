@@ -47,10 +47,14 @@ the guide link in the single-file pages.
 
 ## Known issues, honestly
 
-1. **Residual per-instance leak, ~1.2 KB.** Patches 0010/0011 took it from
-   319 KB to 1.2 KB per MetaPost instance (docs/14 §11 has the remaining
-   sites with line numbers). At 60 instances a second that is a day of
-   continuous animation. `test/e2e/memory.test.ts` guards the fix.
+1. **Residual per-instance leak, ~1 KB.** Patches 0010/0011 took it from
+   319 KB to about 1 KB per MetaPost instance (docs/14 §11 has the remaining
+   sites with line numbers). A 200,000-frame soak in Node showed 0.8 KB of
+   heap growth per frame and no errors: at 60 instances a second the wasm
+   ceiling would be reached after some twelve hours. The live page's
+   animation cards therefore recycle their engine every 30,000 frames
+   (replacement created first, no frame lost; verified over 70,000 frames
+   with two swaps). `test/e2e/memory.test.ts` guards the fix itself.
 2. **One unexplained hang.** One of five API runs of the 1181-page manual
    hung at 0 % CPU after the TeX phase (Node, in-process). Never reproduced.
 3. **CI unverified on Linux.** `.github/workflows/ci.yml` was extended
