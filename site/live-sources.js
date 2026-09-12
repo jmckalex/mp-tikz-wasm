@@ -17,9 +17,11 @@ beginfig(1);
 endfig;
 end.`,
   // One frame of a spinning wire-frame cube in perspective; t is seconds.
+  // The two rotation angles are reduced modulo 360 here, so the numbers MetaPost
+  // sees stay small however long the animation has been running.
   cube: (t = 0) => `
 beginfig(1);
-  numeric t, a, b, s; t := ${t.toFixed(3)}; a := 37t; b := 23t; s := 52;
+  numeric a, b, s; a := ${((37 * t) % 360).toFixed(3)}; b := ${((23 * t) % 360).toFixed(3)}; s := 52;
   vardef proj(expr x, y, z) =
     save yb, zb, xc, zc; numeric yb, zb, xc, zc;
     yb := y*cosd(b) - z*sind(b); zb := y*sind(b) + z*cosd(b);

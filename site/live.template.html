@@ -111,11 +111,14 @@ const cube = card('c-cube');
 let playing = true, t = 0, last = performance.now(), frames = 0, fpsAt = performance.now(), fps = 0;
 async function frame() {
   if (!playing) return;
-  const now = performance.now(); t += (now - last) / 1000 * cube.values().speed; last = now;
+  const now = performance.now();
+  if (now - last < 15) { requestAnimationFrame(frame); return; }      // at most ~60 frames a second
+  t += (now - last) / 1000 * cube.values().speed; last = now;
   const src = S.cube(t);
   const r = await cubeEngine.run(src, { format: 'svg', svg: { idPrefix: 'c-' } });
-  cube.fig.innerHTML = r.figures[0]?.svg ?? '';
-  if (++frames % 10 === 0) { fps = 10000 / (performance.now() - fpsAt); fpsAt = performance.now(); cube.ms.textContent = `${r.stats.metapostMs.toFixed(1)} ms MetaPost · ${fps.toFixed(0)} fps`; cube.pre.textContent = src; }
+  const errs = r.diagnostics.filter((d) => d.severity === 'error' || d.severity === 'fatal');
+  if (r.figures[0]?.svg && !errs.length) cube.fig.innerHTML = r.figures[0].svg;   // keep the last good frame otherwise
+  if (++frames % 10 === 0) { fps = 10000 / (performance.now() - fpsAt); fpsAt = performance.now(); cube.ms.textContent = errs.length ? `MetaPost error: ${errs[0].message}` : `${r.stats.metapostMs.toFixed(1)} ms MetaPost · ${fps.toFixed(0)} fps`; cube.pre.textContent = src; }
   requestAnimationFrame(frame);
 }
 $('#cube-toggle').onclick = () => { playing = !playing; $('#cube-toggle').textContent = playing ? 'Pause' : 'Play'; if (playing) { last = performance.now(); frame(); } };

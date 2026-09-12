@@ -70,7 +70,8 @@ const ENGINE_SETS = {
   // name -> MetaPost.create options; the live page keeps three instances so that a
   // TeX run (clock, plot) or a harmonograph redraw never delays a cube frame
   one: { enginePromise: {} },
-  three: { enginePromise: { tex: 'none' }, cubeEnginePromise: { tex: 'none' }, texEnginePromise: {} },
+  // double arithmetic: the default scaled system stops at 4096, which an animation clock or a fast harmonograph exceeds
+  three: { enginePromise: { tex: 'none', numberSystem: 'double' }, cubeEnginePromise: { tex: 'none', numberSystem: 'double' }, texEnginePromise: {} },
 };
 function remoteBoot(engines) {
   const set = ENGINE_SETS[engines];
