@@ -1,0 +1,91 @@
+--- a/mp.w
++++ b/mp.w
+@@ -399,6 +399,7 @@
+ @ @c
+ static void mp_free (MP mp) {
+   int k;        /* loop variable */
++  @<Release what the symbol table points to@>;
+   @<Dealloc variables@>;
+   if (mp->noninteractive)
+     @<Finish non-interactive use@>@;
+@@ -4825,6 +4826,51 @@
+   avl_destroy (mp->symbols);
+ if (mp->frozen_symbols != NULL)
+   avl_destroy (mp->frozen_symbols);
++
++@ MetaPost-WASM patch 0010. Destroying the symbol table frees the symbol
++structures only; what they point to (macro bodies, the values and dependency
++lists of variables) stayed allocated, some 300\,KB per instance for the
++definitions in \.{plain.mp} alone. That is invisible to a process that runs
++one instance and dies, but an embedder that creates an instance per job
++leaks it every time. Releasing each symbol's equivalent the way a
++redefinition does, before the node free lists are torn down, returns the
++memory.
++
++@<Declarations@>=
++static void mp_clear_symbol (MP mp, mp_sym p, boolean saving);
++static void mp_release_symbol_equivalent (const void *item, void *param);
++
++@ @c
++static void mp_release_symbol_equivalent (const void *item, void *param) {
++  mp_clear_symbol ((MP) param, (mp_sym) item, false);
++}
++
++@ @<Release what the symbol table points to@>=
++if (mp->symbols != NULL)
++  avl_walk (mp->symbols, mp_release_symbol_equivalent, mp);
++if (mp->temp_val != NULL) { /* allocated at initialization, never released */
++  mp_free_value_node (mp, mp->temp_val);
++  mp->temp_val = NULL;
++}
++if (mp->zero_val != NULL) {
++  mp_free_value_node (mp, mp->zero_val);
++  mp->zero_val = NULL;
++}
++if (mp->inf_val != NULL) {
++  mp_free_value_node (mp, mp->inf_val);
++  mp->inf_val = NULL;
++}
++if (mp->id_lookup_test != NULL) { /* its |text->str| points into the buffer: free the rest only */
++  free_number (mp->id_lookup_test->v.data.n);
++  mp_xfree (mp->id_lookup_test->text);
++  mp_xfree (mp->id_lookup_test);
++  mp->id_lookup_test = NULL;
++}
++if (mp->mem_file != NULL) { /* the preload file was read but never closed */
++  (mp->close_file) (mp, mp->mem_file);
++  mp->mem_file = NULL;
++}
++xfree (mp->name_of_file);
+ 
+ @ Actually creating symbols is done by |id_lookup|, but in order to
+ do so it needs a way to create a new, empty symbol structure.
+@@ -21820,7 +21866,11 @@
+       s = xrealloc (s, l + 5, 1);
+       strcat (s, ".mp");
+     }
+-    s = (mp->find_file) (mp, s, "r", mp_filetype_program);
++    {
++      char *found = (mp->find_file) (mp, s, "r", mp_filetype_program);
++      free (s); /* patch 0010: the name we searched for was leaked */
++      s = found;
++    }
+     xfree(mp->name_of_file);
+     if (s == NULL)
+       return false;
+@@ -30875,6 +30925,7 @@
+   xfree (mp->term_out);
+   xfree (mp->term_in);
+   xfree (mp->err_out);
++  xfree (mp->log_file); /* patch 0010: a stream wrapper like the three above, never released */
+ }
+ 
+ @ @<Start non-interactive work@>=
+@@ -35472,6 +35523,7 @@
+   cur_file = old_cur_file;
+   mp->cur_input  = old_state;
+   mp->in_open = old_in_open;
++  xfree (fname); /* patch 0010 */
+   return true;
+ }
+ 

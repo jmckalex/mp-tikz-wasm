@@ -71,7 +71,9 @@ mpwasm_ctx *mpwasm_new(void) {
 void mpwasm_free(mpwasm_ctx *c) {
   int i;
   if (!c) return;
-  if (c->mp) mp_finish(c->mp);       /* frees the edges too — copy first */
+  /* the exported edge objects (mp_gr_export at shipout) are ours to free: mp_finish leaves them */
+  for (i = 0; i < c->nfigs; i++) if (c->figs[i]) mp_gr_toss_objects(c->figs[i]);
+  if (c->mp) { mp_rundata(c->mp)->edges = NULL; mp_finish(c->mp); }
   if (c->opt) { free(c->opt->mem_name); free(c->opt->job_name); free(c->opt->banner); free(c->opt); }
   free(c->term_out); free(c->log_out); free(c->error_out); free(c->out);
   for (i = 0; i <= N_FTYPES; i++) sl_free(&c->paths[i]);

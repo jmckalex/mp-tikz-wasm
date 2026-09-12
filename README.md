@@ -299,8 +299,16 @@ Every patch is a unified diff in `patches/`, applied by
 | 0007 | `mpxout.w` | `mpto`'s prologue used a bare `%` in a printf format (glibc printed it, BSD dropped it, musl printed nothing) |
 | 0008 | `mp.w` | the `extensions=1` scanner required a space before `etex`; `mpto` accepts any non-letter, and TeX Live's own `texnum.mp` writes `btex$-$etex` |
 | 0009 | `psout.w`, `mp.w` | record the `prologues`/`mpprocset` internals per figure at shipout time, so deferred rendering matches immediate rendering |
+| 0010 | `mp.w` | **upstream leak:** `mp_finish` freed the symbol table but not what it points to (macro bodies, variable values, dependency lists), nor the preload file handle, the log wrapper, `name_of_file`, and a few initialisation nodes — about 300 KB per instance, invisible to a one-instance process, fatal to an embedder creating an instance per job |
+| 0011 | `mpstrings.w` | **upstream leak:** `mp_make_string` inserted a copy into the string tree and dropped its own struct, 32 bytes per new string |
 
-0003, 0004, 0005 and 0007 are genuine upstream defects worth reporting.
+0003, 0004, 0005, 0007, 0010 and 0011 are genuine upstream defects worth
+reporting. After 0010 and 0011 an instance leaks about 1.2 KB (measured with
+macOS `leaks` on `test/leak/leaktest.c`), down from 319 KB; the remainder is
+three 144-byte nodes created by statement processing, the 208-byte
+`jump_buf` of `mp_execute`, and a 16-byte file wrapper, listed in
+[docs/14](docs/14-implementation-notes.md) §11. `test/e2e/memory.test.ts`
+fails if 300 runs grow the wasm heap by more than a few megabytes.
 
 ## Status against the plan
 

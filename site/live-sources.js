@@ -53,6 +53,30 @@ end.`,
   \\fill (0,0) circle (2.2pt); \\fill[red] (0,0) circle (1.2pt);
 \\end{tikzpicture}
 \\end{document}`,
+  // One frame of a double pendulum: the state comes from a small simulation in
+  // the page (see live.html); MetaPost draws rods, bobs and the trail of the
+  // lower bob. Angles in radians, lengths of 60 units.
+  pendulum: ({ a1 = 2.2, a2 = 2.6, trail = [] } = {}) => {
+    const x1 = 60 * Math.sin(a1), y1 = -60 * Math.cos(a1), x2 = x1 + 60 * Math.sin(a2), y2 = y1 - 60 * Math.cos(a2);
+    const pts = trail.map(([x, y]) => `(${x.toFixed(2)},${y.toFixed(2)})`);
+    return `
+beginfig(1);
+  setbounds currentpicture to unitsquare shifted (-0.5,-0.5) scaled 270;
+  ${pts.length > 1 ? `draw ${pts.join('--')} withpen pencircle scaled 0.7 withcolor (0.85,0.45,0.15);` : ''}
+  pair p[]; p0 := (0,0); p1 := (${x1.toFixed(2)},${y1.toFixed(2)}); p2 := (${x2.toFixed(2)},${y2.toFixed(2)});
+  draw p0 -- p1 -- p2 withpen pencircle scaled 1.4 withcolor (0.25,0.3,0.4);
+  fill fullcircle scaled 5 shifted p0 withcolor (0.25,0.3,0.4);
+  fill fullcircle scaled 11 shifted p1 withcolor (0.1,0.35,0.75);
+  fill fullcircle scaled 11 shifted p2 withcolor (0.85,0.25,0.1);
+endfig;
+end.`;
+  },
+  // A formula typed by the reader, typeset by LaTeX with amsmath.
+  formula: (tex = '\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}') => `\\documentclass[border=4pt]{standalone}
+\\usepackage{amsmath,amssymb}
+\\begin{document}
+$\\displaystyle ${tex}$
+\\end{document}`,
   // A damped oscillator plotted by pgfplots.
   plot: ({ A = 1, k = 0.3, w = 2 } = {}) => `\\documentclass[border=3pt]{standalone}
 \\usepackage{pgfplots}

@@ -13,7 +13,7 @@ proven, what to read next, and what to do in your first hour.
 > including the complete 1181-page PGF manual and TikZ graph drawing. Start
 > with [`README.md`](README.md) for how to build and run, and
 > [`docs/14-implementation-notes.md`](docs/14-implementation-notes.md) for what
-> was learned (including nine patches to upstream, four of them real bugs).
+> was learned (including eleven patches to upstream, six of them real bugs).
 > The rest of this file is the original plan, kept because every design
 > decision in it still holds.
 

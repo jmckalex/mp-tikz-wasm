@@ -313,3 +313,37 @@ add `data-gdlibraries` (which also implies the graphdrawing library) and
 metrics before anything can redirect it, so `fonts/tfm/jknappen/ec` (2 MB of
 TFM) is bundled now; the cm-super outlines are not.
 
+## 11. The per-instance leak (patches 0010 and 0011)
+
+The live-graphics page renders one MetaPost instance per animation frame. It
+died after a couple of minutes: 3,000 frames in Node grew the process by
+640 MB. `test/leak/leaktest.c` (30 instances through the shim, under macOS
+`leaks`) put it at 319 KB per instance, and the roots were all inside mplib:
+token lists of macro bodies (`mp_scan_def`), variable values and their
+dependency lists, hanging off the symbol table. `mp_finish` destroys the
+symbol *entries* but never what they point to — the source says "symbols are
+not freed until the end of the run" — which is invisible when the process
+exits and unnoticed by LuaTeX, which keeps one instance alive. Patch 0010
+walks the symbol table before teardown and releases each symbol the way a
+redefinition does (`mp_clear_symbol`), then also frees the preload file
+handle, the log-stream wrapper, `name_of_file`, the `temp_val`, `zero_val`
+and `inf_val` nodes and the `id_lookup_test` symbol (whose name points into
+the input buffer and must not be freed), and fixes a leaked buffer in
+`mp_open_mem_name` and the file name in `mp_load_preload_file`. Patch 0011
+fixes `mp_make_string`, which inserts a *copy* into the string tree and
+dropped its own struct. The shim leaked too: the exported edge objects were
+never tossed (`mp_gr_toss_objects`); a comment claimed `mp_finish` freed
+them, which was never true.
+
+Result: 1.2 KB per instance. What remains, with the sites resolved by
+AddressSanitizer builds and `atos`: three 144-byte value/dependency nodes
+allocated during statement processing (`mp_do_statement` at the equation
+and `addto` cases, mp.w around lines 29637 and 29717), the 208-byte
+`jump_buf` malloc'd in `mp_execute` (mp.w ~30986; `mp_free` frees
+`mp->jump_buf`, so this one is replaced somewhere without a free), and a
+16-byte `File` wrapper. At 60 instances a second that is 70 KB/s, a day of
+continuous animation before it matters; at 1 KB it was not worth more time.
+`test/e2e/memory.test.ts` guards against regression. Lessons: the plan's
+soak test was on the list and not done; and a comment asserting what a
+library frees is not evidence.
+

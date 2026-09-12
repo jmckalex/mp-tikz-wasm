@@ -33,7 +33,7 @@
 <body>
 <header>
   <h1>Live graphics with MetaPost and TikZ</h1>
-  <p>Every picture here is re-typeset by MetaPost or LaTeX in your browser each time it changes: the harmonograph and the cube by MetaPost (a few milliseconds a frame), the plot and the clock by pdfTeX and dvisvgm (a few hundred milliseconds). <span id="status">Loading the engines…</span> <a href="./guide.html">Feature guide</a> · <a href="https://github.com/YOUR-GITHUB-USER/metapost-wasm">Source</a></p>
+  <p>Every picture here is re-typeset by MetaPost or LaTeX in your browser each time it changes: the harmonograph, the cube and the pendulum by MetaPost (a few milliseconds a frame); the plot, the clock and the formula by pdfTeX and dvisvgm (a few hundred milliseconds). <span id="status">Loading the engines…</span> <a href="./guide.html">Feature guide</a> · <a href="https://github.com/YOUR-GITHUB-USER/metapost-wasm">Source</a></p>
 </header>
 
 <div class="grid">
@@ -62,6 +62,16 @@
     <details><summary>MetaPost source of the last frame</summary><pre></pre></details>
   </div>
 
+  <div class="card" id="c-pend">
+    <h2>Double pendulum <small>simulated in JavaScript, drawn by MetaPost each frame</small><span class="ms"></span></h2>
+    <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
+    <div class="controls">
+      <label>trail</label><input type="range" min="0" max="400" step="10" value="150" data-k="trail"><span class="v">150</span>
+      <button id="pend-restart">Restart</button>
+    </div>
+    <details><summary>MetaPost source of the last frame</summary><pre></pre></details>
+  </div>
+
   <div class="card" id="c-plot">
     <h2>Damped oscillator <small>pgfplots, re-typeset on release</small><span class="ms"></span></h2>
     <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
@@ -78,9 +88,18 @@
     <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
     <details><summary>LaTeX source of the last render</summary><pre></pre></details>
   </div>
+
+  <div class="card" id="c-formula">
+    <h2>Formula <small>LaTeX with amsmath, as you type</small><span class="ms"></span></h2>
+    <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
+    <div class="controls" style="grid-template-columns: 1fr">
+      <input type="text" id="formula-input" spellcheck="false" style="font: 14px ui-monospace, Menlo, monospace; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px" value="\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}">
+    </div>
+    <details><summary>LaTeX source of the last render</summary><pre></pre></details>
+  </div>
 </div>
 
-<footer>Three engine instances run in Web Workers: MetaPost-only ones for the cube and for the harmonograph, and one with pdfTeX and dvisvgm for the LaTeX documents, so neither a TeX run nor a slider drag ever stalls an animation frame. Sources: <code>live-sources.js</code>.</footer>
+<footer>Four engine instances run in Web Workers: MetaPost-only ones for the harmonograph, the cube and the pendulum, and one with pdfTeX and dvisvgm for the LaTeX documents, so neither a TeX run nor a slider drag ever stalls an animation frame. Sources: <code>live-sources.js</code>.</footer>
 
 <script src="./live-sources.js"></script>
 <script src="./page-common.js"></script>
@@ -89,6 +108,7 @@ import { MetaPost } from '../dist/index.js';
 globalThis.ENGINE_MODE = 'workers';
 globalThis.enginePromise = MetaPost.create({"tex":"none","numberSystem":"double"});
 globalThis.cubeEnginePromise = MetaPost.create({"tex":"none","numberSystem":"double"});
+globalThis.pendulumEnginePromise = MetaPost.create({"tex":"none","numberSystem":"double"});
 globalThis.texEnginePromise = MetaPost.create({"snapshot":"auto"});
 </script>
 <script type="module">
@@ -97,9 +117,9 @@ const S = globalThis.PAGE_SOURCES;
 const card = (id) => { const c = $('#' + id); return { c, fig: $('.fig', c), ms: $('.ms', c), pre: $('pre', c), values() { const o = {}; for (const i of c.querySelectorAll('input[type=range]')) o[i.dataset.k] = parseFloat(i.value); return o; } }; };
 for (const i of document.querySelectorAll('input[type=range]')) i.addEventListener('input', () => { i.nextElementSibling.textContent = i.value; });
 const showSvg = (k, svg, ms) => { k.fig.innerHTML = svg || '<span class="placeholder">no output</span>'; k.ms.textContent = ms; };
-let mpEngine, cubeEngine, texEngine;
+let mpEngine, cubeEngine, pendEngine, texEngine;
 try {
-  [mpEngine, cubeEngine, texEngine] = await Promise.all([globalThis.enginePromise, globalThis.cubeEnginePromise, globalThis.texEnginePromise]);
+  [mpEngine, cubeEngine, pendEngine, texEngine] = await Promise.all([globalThis.enginePromise, globalThis.cubeEnginePromise, globalThis.pendulumEnginePromise, globalThis.texEnginePromise]);
   $('#status').textContent = globalThis.ENGINE_MODE === 'workers' ? 'Engines ready, each in its own Web Worker.' : 'Engines ready, running in-process: this host allows no workers, so the animation pauses while TeX runs.';
 } catch (e) { $('#status').textContent = `The engines could not start here: ${e.message}`; throw e; }
 
@@ -129,6 +149,51 @@ async function frame() {
 }
 $('#cube-toggle').onclick = () => { playing = !playing; $('#cube-toggle').textContent = playing ? 'Pause' : 'Play'; if (playing) { last = performance.now(); frame(); } };
 frame();
+
+// -- double pendulum: the physics runs here (RK4), MetaPost draws every frame on its own engine
+const pend = card('c-pend');
+const G = 9.81, L = 1, MASS = 1;
+let ps = { a1: 2.2, w1: 0, a2: 2.6, w2: 0 }, trail = [], pendLast = performance.now();
+function deriv(s) {
+  const d = s.a1 - s.a2, den = 2 * MASS + MASS - MASS * Math.cos(2 * d);
+  const dw1 = (-G * (2 * MASS + MASS) * Math.sin(s.a1) - MASS * G * Math.sin(s.a1 - 2 * s.a2) - 2 * Math.sin(d) * MASS * (s.w2 * s.w2 * L + s.w1 * s.w1 * L * Math.cos(d))) / (L * den);
+  const dw2 = (2 * Math.sin(d) * (s.w1 * s.w1 * L * (MASS + MASS) + G * (MASS + MASS) * Math.cos(s.a1) + s.w2 * s.w2 * L * MASS * Math.cos(d))) / (L * den);
+  return { a1: s.w1, w1: dw1, a2: s.w2, w2: dw2 };
+}
+function step(s, h) {
+  const add = (a, b, k) => ({ a1: a.a1 + k * b.a1, w1: a.w1 + k * b.w1, a2: a.a2 + k * b.a2, w2: a.w2 + k * b.w2 });
+  const k1 = deriv(s), k2 = deriv(add(s, k1, h / 2)), k3 = deriv(add(s, k2, h / 2)), k4 = deriv(add(s, k3, h));
+  return { a1: s.a1 + h / 6 * (k1.a1 + 2 * k2.a1 + 2 * k3.a1 + k4.a1), w1: s.w1 + h / 6 * (k1.w1 + 2 * k2.w1 + 2 * k3.w1 + k4.w1), a2: s.a2 + h / 6 * (k1.a2 + 2 * k2.a2 + 2 * k3.a2 + k4.a2), w2: s.w2 + h / 6 * (k1.w2 + 2 * k2.w2 + 2 * k3.w2 + k4.w2) };
+}
+let pendFrames = 0, pendAt = performance.now();
+async function pendFrame() {
+  const now = performance.now();
+  if (now - pendLast < 15) { requestAnimationFrame(pendFrame); return; }
+  const dt = Math.min(now - pendLast, 50) / 1000; pendLast = now;
+  for (let i = 0; i < 4; i++) ps = step(ps, dt / 4);                       // four sub-steps keep RK4 accurate at 60 fps
+  const x2 = 60 * Math.sin(ps.a1) + 60 * Math.sin(ps.a2), y2 = -60 * Math.cos(ps.a1) - 60 * Math.cos(ps.a2);
+  trail.push([x2, y2]); const keep = pend.values().trail; if (trail.length > keep) trail.splice(0, trail.length - keep);
+  const src = S.pendulum({ a1: ps.a1, a2: ps.a2, trail });
+  try {
+    const r = await pendEngine.run(src, { format: 'svg', svg: { idPrefix: 'd-' } });
+    if (r.figures[0]?.svg && r.status !== 'error') pend.fig.innerHTML = r.figures[0].svg;
+    if (++pendFrames % 10 === 0) { pend.ms.textContent = `${r.stats.metapostMs.toFixed(1)} ms MetaPost · ${(10000 / (performance.now() - pendAt)).toFixed(0)} fps`; pendAt = performance.now(); pend.pre.textContent = src; }
+  } catch (e) { pend.ms.textContent = `error: ${e.message}`; }
+  requestAnimationFrame(pendFrame);
+}
+$('#pend-restart').onclick = () => { ps = { a1: 1.5 + Math.random() * 2, w1: 0, a2: 1 + Math.random() * 3, w2: 0 }; trail = []; };
+pendFrame();
+
+// -- formula: typeset by LaTeX as you type, debounced and coalesced
+const formula = card('c-formula');
+const drawFormula = makeQueue(async (tex) => {
+  const src = S.formula(tex); formula.pre.textContent = src;
+  const r = await texEngine.latex(src, { svg: { idPrefix: 'f-', precision: false } });
+  const errs = r.diagnostics.filter((d) => d.severity === 'error' || d.severity === 'fatal');
+  if (r.pages[0]) formula.fig.innerHTML = r.pages[0];
+  formula.ms.textContent = errs.length ? `LaTeX: ${errs[0].message.slice(0, 70)}` : `${r.stats.texMs.toFixed(0)} ms TeX + ${r.stats.dvisvgmMs.toFixed(0)} ms dvisvgm`;
+});
+$('#formula-input').addEventListener('input', debounce(() => drawFormula($('#formula-input').value), 300)); drawFormula($('#formula-input').value);
 
 // -- pgfplots: debounced, coalesced; the pre-warmed tikz.fmt makes each run ~250 ms when available
 const plot = card('c-plot');

@@ -33,7 +33,10 @@ const PAGES = {
     sources: 'live-sources.js', engines: 'three',
     extras: false,   // no editor on this page: leave out the spare metric files, keeping the single file small
     warm: (S) => [{ mp: S.harmonograph() }, { mp: S.harmonograph({ f1: 5.3, f2: 1.2, f3: 7, f4: 4.4, phase: 200, damping: 0.9, hue: 0.1 }) }, { mp: S.cube(0) }, { mp: S.cube(7.31) },
-      { tex: S.clock(23, 59, 59) }, { tex: S.clock(1, 5, 0) }, { tex: S.plot() }, { tex: S.plot({ A: 0.1, k: 0, w: 6 }) }, { tex: S.plot({ A: 0.55, k: 1, w: 0.5 }) }],
+      { mp: S.pendulum({ a1: 1, a2: 2, trail: [[0, -100], [5, -103], [9, -108]] }) },
+      { tex: S.clock(23, 59, 59) }, { tex: S.clock(1, 5, 0) }, { tex: S.plot() }, { tex: S.plot({ A: 0.1, k: 0, w: 6 }) }, { tex: S.plot({ A: 0.55, k: 1, w: 0.5 }) },
+      { tex: S.formula() }, { tex: S.formula('\\sum_{n=1}^\\infty \\frac{1}{n^2} = \\frac{\\pi^2}{6} \\quad \\mathbb{R}^n \\otimes \\mathcal{H} \\quad \\begin{pmatrix} \\alpha & \\beta \\\\ \\gamma & \\delta \\end{pmatrix} \\quad \\hat{x} \\vec{v} \\tilde{y} \\leqslant \\varnothing \\aleph_0') },
+      { tex: S.formula('\\lim_{x\\to 0} \\frac{\\sin x}{x} = 1, \\qquad \\oint_\\gamma f(z)\\,dz = 2\\pi i \\sum \\operatorname{Res} f, \\qquad \\nabla \\cdot \\mathbf{E} = \\frac{\\rho}{\\varepsilon_0}, \\quad \\sqrt[3]{x} \\Big| \\big\\| \\prod_{k} \\binom{n}{k}') }],
   },
 };
 
@@ -71,7 +74,7 @@ const ENGINE_SETS = {
   // TeX run (clock, plot) or a harmonograph redraw never delays a cube frame
   one: { enginePromise: {} },
   // double arithmetic: the default scaled system stops at 4096, which an animation clock or a fast harmonograph exceeds
-  three: { enginePromise: { tex: 'none', numberSystem: 'double' }, cubeEnginePromise: { tex: 'none', numberSystem: 'double' }, texEnginePromise: {} },
+  three: { enginePromise: { tex: 'none', numberSystem: 'double' }, cubeEnginePromise: { tex: 'none', numberSystem: 'double' }, pendulumEnginePromise: { tex: 'none', numberSystem: 'double' }, texEnginePromise: {} },
 };
 function remoteBoot(engines) {
   const set = ENGINE_SETS[engines];
