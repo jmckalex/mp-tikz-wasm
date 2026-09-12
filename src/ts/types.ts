@@ -61,6 +61,10 @@ export interface MetaPostOptions {
   bundleIO?: { fetch(url: string): Promise<Uint8Array>; fetchSync?: (url: string) => Uint8Array; fetchJson(url: string): Promise<unknown> };
   /** Run in-process instead of in a Web Worker (default: worker in browsers, in-process in Node). */
   worker?: boolean;
+  /** Default for latex()'s snapshot option. Node: 'auto' (tikz.fmt from local files is free). Browser: 'none',
+   *  because the 5.8 MB format does not compress and costs more to download than the files it replaces
+   *  (2.5 MB gzipped); set 'auto' when many TikZ figures amortise it or the format is already cached. */
+  snapshot?: 'auto' | 'none';
 }
 
 export type OutputFormat = 'svg' | 'eps' | 'json' | 'none';

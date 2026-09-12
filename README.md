@@ -141,7 +141,37 @@ that load tikz, pgfplots or tikz-cd (`snapshot: 'auto' | 'tikz' | 'none'`).
 Only definitional libraries are in it and PGF's object counters are reset, so
 the pages it produces are byte-identical to plain `latex.fmt`'s — the TikZ
 golden runner checks that for every case. It saves 50–160 ms per document
-(pgfplots: 414 → 255 ms of TeX).
+(pgfplots: 414 → 255 ms of TeX). It is the default in Node, where the format
+comes from local files, and **opt-in in browsers** (`snapshot: 'auto'` on
+`create()`, or `data-snapshot="on"` on the loader script): format files do
+not compress, so the 5.8 MB `tikz.fmt` costs more to download than the 2.5 MB
+(gzipped) of `latex.fmt` plus PGF files it replaces, and only a page with
+many TikZ figures, or a returning visitor with the format cached, comes out
+ahead.
+
+### What a page downloads
+
+Measured with `node scripts/sizes.mjs`. The fixed part is fetched once and
+then browser-cached; the rest is per file, on demand, so a page pays only for
+what its diagrams use:
+
+| | raw | gzipped over the wire |
+| --- | --- | --- |
+| `mplib.wasm` + `tex.wasm` + `dvisvgm.wasm` + JS (fixed) | 5.2 MB | 2.2 MB |
+| MetaPost, geometry only | 0.07 MB | 0.01 MB |
+| MetaPost with `label()` text | 0.16 MB | 0.05 MB |
+| MetaPost with plain-TeX `btex` | 0.37 MB | 0.25 MB |
+| MetaPost with LaTeX `btex` (amsmath) | 2.4 MB | 2.2 MB |
+| TikZ figure, `latex.fmt` | 3.8 MB | 2.5 MB |
+| TikZ figure, `tikz.fmt` snapshot | 5.9 MB | 5.5 MB |
+| TikZ with Latin Modern T1 text | +0.3 MB | +0.3 MB |
+
+The whole bundle tree on the server is 42 MB, but no page downloads it. A
+single self-contained file is possible too — `site/standalone.html` inlines
+the three engines plus the gallery's fonts, formats and packages, gzip +
+base64, at 9.8 MB — but the per-file layout is the right one for a drop-in
+script: a first TikZ figure costs about 4.7 MB, a first MetaPost figure about
+2.3 MB, and everything after that is cached.
 
 Compared with tikzjax: real LaTeX rather than a pre-dumped plain-TeX snapshot,
 so `\documentclass`, `\usepackage` and every TikZ library work unchanged;

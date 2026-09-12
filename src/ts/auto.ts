@@ -26,7 +26,8 @@
  *   data-show-console                    keep the log visible under the figure
  *
  * Loader script attributes: data-base (bundle/wasm base URL), data-worker="off",
- * data-observe="off" (no MutationObserver for later-added elements).
+ * data-observe="off" (no MutationObserver for later-added elements),
+ * data-snapshot="on" (use the pre-warmed tikz.fmt; see README for the trade-off).
  */
 import { MetaPost } from './index.js';
 import type { MetaPostOptions, RunResult, LatexResult } from './types.js';
@@ -183,6 +184,7 @@ function loaderOptions(): MetaPostOptions & { cacheResults?: boolean } {
   if (ds.worker === 'off') o.worker = false;
   if (ds.cache === 'off') o.cacheResults = false;
   if (ds.bundles) o.bundles = ds.bundles.split(/[,\s]+/).filter(Boolean);
+  if (ds.snapshot === 'on' || ds.snapshot === 'auto') o.snapshot = 'auto';   // opt in: 5.8 MB format, faster after the first figure
   return o;
 }
 

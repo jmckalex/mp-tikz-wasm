@@ -56,3 +56,26 @@ describe('sanitizeSvg', () => {
     expect(clean).toContain('xlink:href="#GLYPHcmr10_77"');
   });
 });
+
+describe('postProcessSvg on dvisvgm output', () => {
+  const DVI = `<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='10pt' height='10pt' viewBox='0 0 10 10'>
+<defs>
+<path id='g5-97' d='M1 1'/>
+<clipPath id='pgfcp1'><path d='M0 0'/></clipPath>
+</defs>
+<g id='page1'>
+<use x='1' y='2' xlink:href='#g5-97'/>
+<g clip-path='url(#pgfcp1)'><path d='M2 2'/></g>
+</g>
+</svg>`;
+  it('namespaces single-quoted ids and references too', () => {
+    const s = postProcessSvg(DVI, { precision: false, idPrefix: 't3-' });
+    expect(s).toContain("id='t3-g5-97'");
+    expect(s).toContain("xlink:href='#t3-g5-97'");
+    expect(s).toContain("id='t3-pgfcp1'");
+    expect(s).toContain("clip-path='url(#t3-pgfcp1)'");
+    expect(s).toContain("id='t3-page1'");
+    const ids = new Set([...s.matchAll(/id='([^']+)'/g)].map((m) => m[1]));
+    for (const m of s.matchAll(/(?:url\(#|href='#)([^)']+)/g)) expect(ids.has(m[1])).toBe(true);
+  });
+});

@@ -120,6 +120,7 @@ export class MetaPost {
   private constructor(private backend: Backend, private options: MetaPostOptions) {}
 
   static async create(options: MetaPostOptions = {}): Promise<MetaPost> {
+    if (options.snapshot === undefined) options = { ...options, snapshot: isNode ? 'auto' : 'none' };
     const hasCallbacks = !!(options.runScript || options.makeText || options.onFindFile || options.modules || options.bundleIO);
     const useWorker = options.worker ?? (!isNode && typeof Worker !== 'undefined' && !hasCallbacks);
     if (!isNode && (options.runScript || options.makeText || options.onFindFile) && options.worker === undefined && typeof console !== 'undefined') {

@@ -296,7 +296,7 @@ export class MetaPostCore {
     let fmt: string = engine === 'plain' ? 'etex' : engine;
     const progname = engine === 'plain' ? 'etex' : engine;
     // the pre-warmed snapshot: latex.fmt with pgf/pgfplots/tikz-cd preloaded
-    const snapshot = lo.snapshot ?? 'auto';
+    const snapshot = lo.snapshot ?? this.env.options.snapshot ?? 'auto';
     if (engine === 'latex' && snapshot !== 'none' && this.hasSnapshot()) {
       const usesTikz = /\\usepackage\s*(\[[^\]]*\])?\s*\{[^}]*\b(tikz|pgfplots|tikz-cd)\b|\\documentclass\s*\[[^\]]*\btikz\b/.test(source);
       if (snapshot === 'tikz' || usesTikz) fmt = 'tikz';

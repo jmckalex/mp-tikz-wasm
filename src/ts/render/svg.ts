@@ -24,9 +24,10 @@ export function postProcessSvg(svg: string, opts: SvgPostOptions = {}, figureInd
     // collide when several figures are inlined on one page: url(#CLIP1) then
     // resolves to the first CLIP1 in the document. Namespace every id and
     // every reference to one.
+    // MetaPost's backend writes double-quoted attributes, dvisvgm single-quoted ones
     const prefix = opts.idPrefix ?? `mp${figureIndex}-`;
-    s = s.replace(/\bid="([^"]+)"/g, (_m, id) => `id="${prefix}${id}"`)
-      .replace(/href="#([^"]+)"/g, (_m, id) => `href="#${prefix}${id}"`)
+    s = s.replace(/\bid=(["'])([^"']+)\1/g, (_m, q, id) => `id=${q}${prefix}${id}${q}`)
+      .replace(/href=(["'])#([^"']+)\1/g, (_m, q, id) => `href=${q}#${prefix}${id}${q}`)
       .replace(/url\(#([^)]+)\)/g, (_m, id) => `url(#${prefix}${id})`);
   }
   if (opts.modernHref) s = s.replace(/xlink:href=/g, 'href=');
