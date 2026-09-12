@@ -106,6 +106,7 @@
 <script type="module">
 import { MetaPost } from '../dist/index.js';
 globalThis.ENGINE_MODE = 'workers';
+globalThis.newMetaPostEngine = () => MetaPost.create({ tex: 'none', numberSystem: 'double' });   // for the animation cards' engine recycling
 globalThis.enginePromise = MetaPost.create({"tex":"none","numberSystem":"double"});
 globalThis.cubeEnginePromise = MetaPost.create({"tex":"none","numberSystem":"double"});
 globalThis.pendulumEnginePromise = MetaPost.create({"tex":"none","numberSystem":"double"});
@@ -132,8 +133,25 @@ const drawHarm = makeQueue(async (p) => {
 });
 harm.c.addEventListener('input', () => drawHarm(harm.values())); drawHarm(harm.values());
 
+// An animation runs one MetaPost instance per frame. Patches 0010/0011 removed
+// the leak that made that die in minutes, but about 1 KB per instance remains
+// (docs/14 §11), which would reach the wasm memory ceiling after some twelve
+// hours at 60 fps. So each animation card retires its engine every 30,000
+// frames, after the replacement is ready, and no frame is lost.
+const RECYCLE_AFTER = 30000;
+function recycling(engine) {
+  const ref = { engine, runs: 0, swapping: null };
+  return async (src, opts) => {
+    const r = await ref.engine.run(src, opts);
+    if (++ref.runs >= RECYCLE_AFTER && !ref.swapping) {
+      ref.swapping = globalThis.newMetaPostEngine().then((fresh) => { const old = ref.engine; ref.engine = fresh; ref.runs = 0; ref.swapping = null; old.dispose?.(); }, (e) => { ref.swapping = null; console.warn('engine recycling failed:', e.message); });
+    }
+    return r;
+  };
+}
 // -- cube: an animation loop; each frame is a MetaPost run with the time as a variable
 const cube = card('c-cube');
+const runCube = recycling(cubeEngine);
 let playing = true, t = 0, last = performance.now(), frames = 0, fpsAt = performance.now(), fps = 0;
 async function frame() {
   if (!playing) return;
@@ -141,7 +159,7 @@ async function frame() {
   if (now - last < 15) { requestAnimationFrame(frame); return; }      // at most ~60 frames a second
   t += (now - last) / 1000 * cube.values().speed; last = now;
   const src = S.cube(t);
-  const r = await cubeEngine.run(src, { format: 'svg', svg: { idPrefix: 'c-' } });
+  const r = await runCube(src, { format: 'svg', svg: { idPrefix: 'c-' } });
   const errs = r.diagnostics.filter((d) => d.severity === 'error' || d.severity === 'fatal');
   if (r.figures[0]?.svg && !errs.length) cube.fig.innerHTML = r.figures[0].svg;   // keep the last good frame otherwise
   if (++frames % 10 === 0) { fps = 10000 / (performance.now() - fpsAt); fpsAt = performance.now(); cube.ms.textContent = errs.length ? `MetaPost error: ${errs[0].message}` : `${r.stats.metapostMs.toFixed(1)} ms MetaPost · ${fps.toFixed(0)} fps`; cube.pre.textContent = src; }
@@ -152,6 +170,7 @@ frame();
 
 // -- double pendulum: the physics runs here (RK4), MetaPost draws every frame on its own engine
 const pend = card('c-pend');
+const runPend = recycling(pendEngine);
 const G = 9.81, L = 1, MASS = 1;
 let ps = { a1: 2.2, w1: 0, a2: 2.6, w2: 0 }, trail = [], pendLast = performance.now();
 function deriv(s) {
@@ -175,7 +194,7 @@ async function pendFrame() {
   trail.push([x2, y2]); const keep = pend.values().trail; if (trail.length > keep) trail.splice(0, trail.length - keep);
   const src = S.pendulum({ a1: ps.a1, a2: ps.a2, trail });
   try {
-    const r = await pendEngine.run(src, { format: 'svg', svg: { idPrefix: 'd-' } });
+    const r = await runPend(src, { format: 'svg', svg: { idPrefix: 'd-' } });
     if (r.figures[0]?.svg && r.status !== 'error') pend.fig.innerHTML = r.figures[0].svg;
     if (++pendFrames % 10 === 0) { pend.ms.textContent = `${r.stats.metapostMs.toFixed(1)} ms MetaPost · ${(10000 / (performance.now() - pendAt)).toFixed(0)} fps`; pendAt = performance.now(); pend.pre.textContent = src; }
   } catch (e) { pend.ms.textContent = `error: ${e.message}`; }

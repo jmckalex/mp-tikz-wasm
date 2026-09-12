@@ -81,6 +81,7 @@ function remoteBoot(engines) {
   return `<script type="module">
 import { MetaPost } from '../dist/index.js';
 globalThis.ENGINE_MODE = 'workers';
+globalThis.newMetaPostEngine = () => MetaPost.create({ tex: 'none', numberSystem: 'double' });   // for the animation cards' engine recycling
 ${Object.entries(set).map(([k, o]) => `globalThis.${k} = MetaPost.create(${JSON.stringify(k === 'texEnginePromise' || engines === 'one' ? { ...o, snapshot: 'auto' } : o)});`).join('\n')}
 </script>`;
 }
@@ -144,6 +145,7 @@ async function engine(options) {
   mode = 'in-process'; globalThis.ENGINE_MODE = 'in-process';
   return globalThis.__mpwCreate(assetsText, options);
 }
+globalThis.newMetaPostEngine = () => engine({ tex: 'none', numberSystem: 'double' });
 ${Object.entries(set).map(([k, o]) => `globalThis.${k} = engine(${JSON.stringify(o)});`).join('\n')}
 </script>`;
 }

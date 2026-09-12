@@ -53,6 +53,7 @@
 <script type="module">
 import { MetaPost } from '../dist/index.js';
 globalThis.ENGINE_MODE = 'workers';
+globalThis.newMetaPostEngine = () => MetaPost.create({ tex: 'none', numberSystem: 'double' });   // for the animation cards' engine recycling
 globalThis.enginePromise = MetaPost.create({"snapshot":"auto"});
 </script>
 <script type="module">
