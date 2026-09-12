@@ -27,3 +27,19 @@ describe('wrapMetaPost', () => {
     expect(wrapMetaPost('beginfig(2); draw origin; endfig;', { prologues: '0' })).toBe('prologues:=0;\nbeginfig(2); draw origin; endfig;');
   });
 });
+
+import { needsLuaTeX } from '../../src/ts/core.js';
+describe('LuaTeX engine selection', () => {
+  it('detects graphdrawing, \\directlua and luacode', () => {
+    expect(needsLuaTeX('\\usetikzlibrary{graphdrawing}\\usegdlibrary{trees}')).toBe(true);
+    expect(needsLuaTeX('\\node{\\directlua{tex.print(1)}};')).toBe(true);
+    expect(needsLuaTeX('\\begin{luacode}x\\end{luacode}')).toBe(true);
+    expect(needsLuaTeX('\\draw (0,0) -- (1,1);')).toBe(false);
+  });
+  it('wrapTikz adds \\usegdlibrary and the graphdrawing library from gdlibraries', () => {
+    const doc = wrapTikz('\\graph[tree layout]{a->b};', { gdlibraries: 'trees, layered' });
+    expect(doc).toMatch(/\\usetikzlibrary\{graphs,graphdrawing\}/);
+    expect(doc).toContain('\\usegdlibrary{trees,layered}');
+    expect(needsLuaTeX(doc)).toBe(true);
+  });
+});

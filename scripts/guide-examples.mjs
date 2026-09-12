@@ -223,6 +223,24 @@ endfig; end.` },
   \\draw[decorate,decoration={brace,amplitude=4pt},thick] (-3.2,-2.6) -- (3.2,-2.6) node[midway,below=4pt,draw=none,fill=none] {all in the browser};
 \\end{tikzpicture}
 \\end{document}` },
+  { id: 'tz-graphdrawing', section: 'tikz', title: 'Graph drawing (LuaTeX)', kind: 'tikz', engine: 'lualatex',
+    note: 'The `graphdrawing` library computes layouts in Lua, so it needs LuaTeX. `engine: \'auto\'` (and the tags) switch to `luatex.wasm` when a document uses it; layered, spring, tree, circular and phylogenetic layouts all run. This is the library tikzjax could never offer.',
+    src: `\\documentclass[tikz,border=3pt]{standalone}
+\\usetikzlibrary{graphs,graphs.standard,graphdrawing,quotes}
+\\usegdlibrary{trees,layered,force,circular}
+\\begin{document}
+\\begin{tikzpicture}[>=stealth, nodes={draw,circle,fill=blue!10,font=\\small}]
+  \\graph[layered layout, sibling distance=8mm, level distance=8mm] {
+    a -> {b -> {d, e}, c -> {f -> g, h}}; e -> g;
+  };
+  \\begin{scope}[xshift=4.2cm, nodes={fill=red!10}]
+    \\graph[spring layout, node distance=9mm] { 1 -- {2,3,4}; 2 -- 3 -- 4 -- 5 -- 2; 5 -- 6 -- 7 -- 5 };
+  \\end{scope}
+  \\begin{scope}[xshift=8.4cm, nodes={fill=orange!20}]
+    \\graph[simple necklace layout, node distance=9mm] { subgraph C_n [n=7] };
+  \\end{scope}
+\\end{tikzpicture}
+\\end{document}` },
   { id: 'tz-plain', section: 'tikz', title: 'Plain TeX too', kind: 'tikz', plain: true,
     note: '`engine: \'plain\'` runs plain TeX with e-TeX (TeX Live\'s `etex`), which is what PGF needs.',
     src: `\\input tikz

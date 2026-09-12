@@ -44,6 +44,8 @@ const DEFAULT_EXT: Record<number, string> = {
 export interface CoreEnv {
   mplibFactory: MplibFactory;
   texFactory?: TexFactory;
+  /** luatex.wasm, same module interface as tex.wasm; needed for engine 'lualatex' / 'luatex' */
+  luatexFactory?: TexFactory;
   dvisvgmFactory?: DvisvgmFactory;
   /** bundles merged into /texmf (browser, or Node without texmfDir) */
   bundles?: BundleSet;
@@ -290,11 +292,15 @@ export class MetaPostCore {
     if (!this.env.texFactory) throw new Error('metapost-wasm: tex.wasm is not available in this build');
     if (!this.env.dvisvgmFactory) throw new Error('metapost-wasm: dvisvgm.wasm is not available in this build');
     const job = lo.jobName ?? 'doc';
-    const engine = lo.engine ?? 'latex';
+    let engine = lo.engine ?? 'latex';
+    if (engine === 'auto') engine = needsLuaTeX(source) ? 'lualatex' : /\\bye\b/.test(source) ? 'plain' : 'latex';
+    const lua = engine === 'lualatex' || engine === 'luatex';
+    if (lua && !this.env.luatexFactory) throw new Error('metapost-wasm: luatex.wasm is not available in this build');
     // 'plain' is plain TeX with e-TeX (TeX Live's etex), which PGF requires;
-    // 'tex' is Knuth-compatible plain.fmt without it.
-    let fmt: string = engine === 'plain' ? 'etex' : engine;
-    const progname = engine === 'plain' ? 'etex' : engine;
+    // 'tex' is Knuth-compatible plain.fmt without it; the LuaTeX engines use
+    // TeX Live's DVI-mode formats dvilualatex / dviluatex.
+    let fmt: string = engine === 'plain' ? 'etex' : engine === 'lualatex' ? 'dvilualatex' : engine === 'luatex' ? 'dviluatex' : engine;
+    const progname = engine === 'plain' ? 'etex' : lua ? fmt : engine;
     // the pre-warmed snapshot: latex.fmt with pgf/pgfplots/tikz-cd preloaded
     const snapshot = lo.snapshot ?? this.env.options.snapshot ?? 'auto';
     if (engine === 'latex' && snapshot !== 'none' && this.hasSnapshot()) {
@@ -315,8 +321,10 @@ export class MetaPostCore {
     let dvi: Uint8Array | null = null;
     let texLog = '';
     const artifacts: Record<string, Uint8Array> = {};
-    const tex = await runTex(this.env.texFactory, {
-      args: [`-fmt=${fmt}`, `-progname=${progname}`, '-interaction=nonstopmode', '-parse-first-line', `-jobname=${job}`, `${job}.tex`],
+    const tex = await runTex(lua ? this.env.luatexFactory! : this.env.texFactory, {
+      program: lua ? '/bin/luatex' : '/bin/pdftex',
+      // LuaTeX has no -parse-first-line option (%& lines are honoured through texmf.cnf instead)
+      args: [`-fmt=${fmt}`, `-progname=${progname}`, '-interaction=nonstopmode', ...(lua ? [] : ['-parse-first-line']), `-jobname=${job}`, `${job}.tex`],
       setup: (M) => { mkdirp(M.FS, '/work'); this.installTexmf(M.FS, M.NODEFS); this.copyUserFiles(M); writeFileDeep(M.FS, `/work/${job}.tex`, doc); M.FS.chdir('/work'); },
       collect: (M) => {
         try { dvi = M.FS.readFile(`/work/${job}.dvi`, { encoding: 'binary' }) as Uint8Array; } catch { dvi = null; }
@@ -332,6 +340,8 @@ export class MetaPostCore {
     const diagnostics = parseTexLogDocument(texLog || tex.log, `${job}.tex`).filter((d) => {
       // environmental noise, not the document's doing: there is never a shell here
       if (/^shellesc: Shell escape disabled/.test(d.message)) return false;
+      // LuaLaTeX probes for the OpenType font loader, which is not bundled, and falls back to the Type 1 fonts
+      if (/luaotfload/.test(d.message)) return false;
       // the snapshot preloads pgfplots; its compat notice only concerns documents that use it
       if (fmt === 'tikz' && /^pgfplots: running in backwards compatibility mode/.test(d.message) && !/pgfplots/.test(source)) return false;
       return true;
@@ -511,4 +521,9 @@ function inputStatements(src: string): { name: string; line: number }[] {
     while ((m = re.exec(l))) if (wanted.has(m[3])) out.push({ name: m[3], line: i + 1 });
   }
   return out;
+}
+
+/** Does a LaTeX source need LuaTeX? (TikZ graphdrawing, \directlua, luacode.) Used by engine 'auto'. */
+export function needsLuaTeX(source: string): boolean {
+  return /\\usegdlibrary|graphdrawing|\\directlua|\\latelua|luacode|\\usepackage(\[[^\]]*\])?\{luatexbase\}/.test(source);
 }

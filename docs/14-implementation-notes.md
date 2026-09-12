@@ -266,3 +266,50 @@ needed, none of it an engine limitation:
 - One of five API runs of the manual hung at 0 % CPU with no active handles
   after the TeX phase; four identical runs completed. Not reproduced, not
   explained.
+
+## 10. LuaTeX
+
+`luatex.wasm` is LuaTeX 1.21.0 (the pinned TeX Live 2025 source; the installed
+binaries are 1.22.0) built the same way as pdfTeX: `scripts/native-luatex.sh`
+builds it natively in `vendor/native-build` with `make V=1`, records every
+compile command into `build/native-luatex-compiles.json`, and
+`scripts/build-luatex-wasm.sh` replays them with emcc, substituting our fixed
+`c-auto.h`, Emscripten's zlib/libpng ports, no `LUA_USE_DLOPEN`, and our
+patched mplib tangle for the native one (LuaTeX links `libmplibcore` without
+the SVG/PNG backends and stubs them in `mplibstuff.c`, so `svgout.c` stays
+out). Lua 5.3, pplib and zziplib are compiled from the vendored sources with
+TeX Live's flags; `zzip/_config.h` needs `ZZIP_SIZEOF_LONG 4`. The C FFI
+(`luaffi`, machine code at run time) is replaced by a stub `luaopen_ffi` that
+returns an empty table. Everything is C; 340 files, 4.4 MB of wasm.
+
+Two traps: parallel `make` interleaves output, so a compile command can be
+glued to the end of a warning line (the recorder scans for `gcc -DHAVE_CONFIG_H`
+anywhere in the line); and `lib/main.c` must stay out because `luatex.c` has
+its own `main`.
+
+Run in DVI mode with TeX Live's `dvilualatex.ini` / `dviluatex.ini`, the
+formats build with the wasm engine (6.5 MB and 1.25 MB, 5 s and 0.4 s). The
+texmf needs `luatex85`, `firstaid`, babel's `hyphen.cfg`/`luababel.def`, the
+LuaTeX `etex.src` (which checks `language.def` for the `%% e-TeX V2.0;2`
+header) and a `language.dat.lua`. `texmf.cnf` gains `TEXINPUTS.dvilualatex`,
+`LUAINPUTS` and friends; PGF's graphdrawing Lua tree (212 files) was already
+in the bundles under `tex/generic/pgf`.
+
+No OpenType font loader: `luaotfload` (7 MB of Lua plus a font database that
+scans directories) is not bundled. LaTeX's kernel probes for it at the start
+of every job, prints "Error in luaotfload: reverting to OT1" into the log and
+falls back to the Type 1 fonts; that line is filtered from the diagnostics.
+Consequence for the oracle comparison: TeX Live's `dvilualatex` format does
+load luaotfload and sets OpenType Latin Modern by default, so a golden case
+must pin `\usepackage[T1]{fontenc}\usepackage{lmodern}` to compare equal —
+with that, the five-page graphdrawing case (layered, spring, tree and circular
+layouts plus `\directlua`) is byte-identical after dvisvgm. A graphdrawing
+document takes ~600 ms in LuaTeX against ~150 ms for a comparable pdfTeX one.
+
+`engine: 'auto'` selects LuaTeX when the source mentions graphdrawing,
+`\usegdlibrary`, `\directlua`, `\latelua`, luacode or luatexbase; the tags
+add `data-gdlibraries` (which also implies the graphdrawing library) and
+`data-engine`; the CLI has `--engine`. `\usepackage[T1]{fontenc}` loads the EC
+metrics before anything can redirect it, so `fonts/tfm/jknappen/ec` (2 MB of
+TFM) is bundled now; the cm-super outlines are not.
+

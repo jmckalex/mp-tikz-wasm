@@ -86,6 +86,26 @@ export const TIKZ_EXAMPLES = [
 \\end{document}`,
   },
   {
+    id: 'tikz-graphdrawing', title: 'Graph drawing (LuaTeX)', tier: 'TikZ',
+    blurb: 'The graphdrawing library lays graphs out in Lua, so this document runs on luatex.wasm — picked automatically. Layered, spring and circular layouts.',
+    src: `\\documentclass[tikz,border=3pt]{standalone}
+\\usetikzlibrary{graphs,graphs.standard,graphdrawing}
+\\usegdlibrary{layered,force,circular}
+\\begin{document}
+\\begin{tikzpicture}[>=stealth, nodes={draw,circle,fill=blue!10,font=\\small}]
+  \\graph[layered layout, sibling distance=8mm, level distance=8mm] {
+    a -> {b -> {d, e}, c -> {f -> g, h}}; e -> g;
+  };
+  \\begin{scope}[xshift=4.2cm, nodes={fill=red!10}]
+    \\graph[spring layout, node distance=9mm] { 1 -- {2,3,4}; 2 -- 3 -- 4 -- 5 -- 2; 5 -- 6 -- 7 -- 5 };
+  \\end{scope}
+  \\begin{scope}[xshift=8.4cm, nodes={fill=orange!20}]
+    \\graph[simple necklace layout, node distance=9mm] { subgraph C_n [n=7] };
+  \\end{scope}
+\\end{tikzpicture}
+\\end{document}`,
+  },
+  {
     id: 'tikz-mindmap', title: 'Trees and decorations', tier: 'TikZ',
     blurb: 'A tree with the grow and sibling-distance keys, plus decorated paths.',
     src: `\\documentclass[tikz,border=3pt]{standalone}

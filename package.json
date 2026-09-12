@@ -6,7 +6,7 @@
   "type": "module",
   "license": "LGPL-3.0-or-later",
   "scripts": {
-    "build": "npm run build:mplib && npm run build:tex && npm run build:dvisvgm && npm run build:texmf && npm run build:formats && npm run build:bundles && npm run build:ts",
+    "build": "npm run build:mplib && npm run build:tex && npm run build:luatex && npm run build:dvisvgm && npm run build:texmf && npm run build:formats && npm run build:bundles && npm run build:ts",
     "build:mplib": "make wasm",
     "build:tex": "./scripts/build-tex-wasm.sh",
     "build:texmf": "./scripts/build-texmf.sh",
@@ -22,6 +22,7 @@
     "demo": "node scripts/serve.mjs 8080",
     "verify-pin": "./scripts/verify-pin.sh",
     "build:dvisvgm": "./scripts/build-dvisvgm-wasm.sh",
+    "build:luatex": "./scripts/native-luatex.sh && ./scripts/build-luatex-wasm.sh",
     "build:standalone": "node scripts/build-standalone.mjs",
     "test:golden:tikz": "node scripts/golden-tikz.mjs",
     "package": "./scripts/package-release.sh",

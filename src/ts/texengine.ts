@@ -21,6 +21,8 @@ export interface TexRunOptions {
   collect?: (M: TexModule) => void;
   env?: Record<string, string>;
   onLine?: (line: string) => void;
+  /** argv[0] as the engine sees it; default '/bin/pdftex' (luatex.wasm: '/bin/luatex') */
+  program?: string;
 }
 
 export interface TexRunResult { exitCode: number; log: string; ms: number; setupMs: number; mainMs: number }
@@ -35,7 +37,7 @@ export async function runTex(factory: TexFactory, opts: TexRunOptions): Promise<
     print: (s: string) => { lines.push(s); opts.onLine?.(s); },
     printErr: (s: string) => { lines.push(s); opts.onLine?.(s); },
     noInitialRun: true,
-    thisProgram: '/bin/pdftex',
+    thisProgram: opts.program ?? '/bin/pdftex',
     preRun: [(m: TexModule) => {
       m.ENV.TEXMFCNF = '/texmf/web2c';
       m.ENV.SOURCE_DATE_EPOCH = FIXED_EPOCH;
@@ -47,7 +49,7 @@ export async function runTex(factory: TexFactory, opts: TexRunOptions): Promise<
   });
   const t1 = now();
   try { M.FS.mkdir('/bin'); } catch { /* exists */ }
-  M.FS.writeFile('/bin/pdftex', '');            // kpathsea wants dirname(argv[0]) to exist
+  M.FS.writeFile(opts.program ?? '/bin/pdftex', '');   // kpathsea wants dirname(argv[0]) to exist
   opts.setup(M);
   const t2 = now();
   try {

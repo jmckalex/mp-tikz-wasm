@@ -118,17 +118,17 @@
   </g>
 </svg>
 </div>
-    <div class="eyebrow">MetaPost-WASM · version 0.1.0 · MetaPost 2.11, pdfTeX 1.40, dvisvgm 3.4.3</div>
+    <div class="eyebrow">MetaPost-WASM · version 0.1.0 · MetaPost 2.11, pdfTeX 1.40, LuaTeX 1.21, dvisvgm 3.4.3</div>
   </div>
   <div class="thesis">
     <div>
-      <p class="lede">MetaPost and TikZ in the browser, with real LaTeX. John Hobby's MetaPost, pdfTeX and dvisvgm are compiled to WebAssembly and wrapped in one TypeScript library: MetaPost source becomes SVG with real glyph outlines, EPS and structured JSON, and whole LaTeX/TikZ documents become one SVG per page — shadings, patterns, opacity, pgfplots and all. No server, no web fonts, and output that is byte-identical to TeX Live's own <code>mpost</code> and <code>latex</code>&nbsp;+&nbsp;<code>dvisvgm</code>.</p>
+      <p class="lede">MetaPost and TikZ in the browser, with real LaTeX. John Hobby's MetaPost, pdfTeX, LuaTeX and dvisvgm are compiled to WebAssembly and wrapped in one TypeScript library: MetaPost source becomes SVG with real glyph outlines, EPS and structured JSON, and whole LaTeX/TikZ documents become one SVG per page — shadings, patterns, opacity, pgfplots and all. No server, no web fonts, and output that is byte-identical to TeX Live's own <code>mpost</code> and <code>latex</code>&nbsp;+&nbsp;<code>dvisvgm</code>.</p>
       <nav class="toc">
         <a href="#get">Get it</a><a href="#tags">Drop-in tags</a><a href="#api">Library API</a><a href="#cli">Command line</a><a href="#metapost">MetaPost features</a><a href="#tikz">TikZ features</a><a href="#how">How it works</a><a href="#fidelity">Fidelity</a><a href="#tikzjax">vs tikzjax</a><a href="#limits">Limits</a><a href="#build">Building</a><a href="#licence">Licences</a>
       </nav>
     </div>
     <div class="facts">
-      <div><b>4.8 MB</b><span>of WebAssembly (2.1 MB gzipped), three TeX-family programs</span></div>
+      <div><b>4.8 MB</b><span>of WebAssembly (2.1 MB gzipped) for MetaPost, pdfTeX and dvisvgm; LuaTeX adds 4.2 MB on demand</span></div>
       <div><b>1181 / 1181</b><span>pages of the PGF/TikZ manual identical to TeX Live 2025</span></div>
       <div><b>~15 ms</b><span>for a MetaPost figure; ~100 ms for a TikZ figure</span></div>
       <div><b>0 servers</b><span>everything runs in the page or in Node</span></div>
@@ -177,7 +177,7 @@ npm run demo                     # http://localhost:8080/site/</code></pre>
 &lt;metapost-diagram&gt;input boxes; boxit.a("hello"); drawboxed(a);&lt;/metapost-diagram&gt;</code></pre>
 <ul>
   <li>A TikZ body without <code>\documentclass</code> is wrapped in a <code>standalone</code> document; a complete document is compiled as is. A MetaPost body without <code>beginfig</code> becomes one figure; <code>input</code> lines are hoisted above it.</li>
-  <li>Attributes (as <code>data-*</code> on script tags, plain on custom elements): <code>libraries</code>, <code>packages</code>, <code>preamble</code>, <code>border</code> for TikZ; <code>tex</code> (<code>auto</code> | <code>plain</code> | <code>latex</code> | <code>none</code>) and <code>prologues</code> for MetaPost; <code>fonts="woff2"</code> for embedded fonts instead of outlines; <code>cache="off"</code>; <code>show-console</code>; <code>alt</code>.</li>
+  <li>Attributes (as <code>data-*</code> on script tags, plain on custom elements): <code>libraries</code>, <code>packages</code>, <code>preamble</code>, <code>border</code>, <code>gdlibraries</code> (graph drawing, implies LuaTeX) and <code>engine</code> (<code>auto</code> | <code>latex</code> | <code>lualatex</code> | <code>plain</code>) for TikZ; <code>tex</code> (<code>auto</code> | <code>plain</code> | <code>latex</code> | <code>none</code>) and <code>prologues</code> for MetaPost; <code>fonts="woff2"</code> for embedded fonts instead of outlines; <code>cache="off"</code>; <code>show-console</code>; <code>alt</code>.</li>
   <li>Loader attributes: <code>data-base</code> (where <code>bundles/</code> and the wasm files live, default next to the script), <code>data-worker="off"</code>, <code>data-observe="off"</code>, <code>data-snapshot="on"</code>.</li>
   <li>Results are cached in IndexedDB by content hash; a revisited page shows every figure without running TeX. Elements added later are rendered by a <code>MutationObserver</code>. Each render dispatches a <code>metapost-wasm:rendered</code> event; <code>window.metapostWasm.render()</code> renders programmatically.</li>
   <li>Errors show their diagnostics under the figure rather than failing silently. Inside custom elements the content is HTML, so write <code>&amp;lt;</code> for <code>&lt;</code>; script tags are raw.</li>
@@ -210,7 +210,13 @@ const t = await mp.latex(String.raw`
   \end{tikzpicture}\end{document}`);
 t.pages[0]          // SVG
 t.diagnostics       // TeX errors with document line numbers, package warnings
-t.stats             // texMs, dvisvgmMs, format ('latex' or 'tikz')</code></pre>
+t.stats             // texMs, dvisvgmMs, format ('latex', 'tikz', 'dvilualatex' …)
+
+// TikZ graph drawing needs LuaTeX: engine 'auto' switches to luatex.wasm by itself
+const g = await mp.latex(String.raw`
+  \documentclass[tikz]{standalone}
+  \usetikzlibrary{graphs,graphdrawing} \usegdlibrary{layered}
+  \begin{document}\tikz\graph[layered layout]{a -> {b, c} -> d};\end{document}`, { engine: 'auto' });</code></pre>
 <div class="tablewrap"><table class="three">
 <thead><tr><th>Option</th><th>Where</th><th>Meaning</th></tr></thead>
 <tbody>
@@ -221,7 +227,7 @@ t.stats             // texMs, dvisvgmMs, format ('latex' or 'tikz')</code></pre>
 <tr><td class="mono">runScript, makeText, onFindFile</td><td>create</td><td>JavaScript hooks for <code>runscript</code>, for overriding label typesetting, and for last-chance file lookup (in-process mode)</td></tr>
 <tr><td class="mono">worker, timeoutMs, snapshot</td><td>create</td><td>Worker vs in-process; watchdog; default snapshot policy</td></tr>
 <tr><td class="mono">format, prologues, internals, files, jobName</td><td>run</td><td>outputs; <code>prologues</code> (3 for SVG outlines); <code>-s name=value</code> internals; extra files placed next to the job</td></tr>
-<tr><td class="mono">engine, fonts, pages, bbox, dvisvgmArgs, snapshot, files</td><td>latex</td><td><code>latex</code> | <code>plain</code> | <code>tex</code>; outlines or woff2; page selection; dvisvgm's bbox; extra arguments; the pre-warmed format</td></tr>
+<tr><td class="mono">engine, fonts, pages, bbox, dvisvgmArgs, snapshot, files</td><td>latex</td><td><code>latex</code> | <code>lualatex</code> | <code>luatex</code> | <code>plain</code> | <code>tex</code> | <code>auto</code>; outlines or woff2; page selection; dvisvgm's bbox; extra arguments; the pre-warmed format</td></tr>
 </tbody></table></div>
 <p>Also exported: <code>MetaPostPool</code> for batch work across several workers, <code>sanitizeSvg</code> for <code>innerHTML</code> use (MetaPost's <code>special</code> can inject arbitrary text), <code>postProcessSvg</code> (numeric compaction, id namespacing), <code>scanTexBlocks</code>, <code>splitMpx</code>, <code>parseMetaPostLog</code>.</p>
 <h3>Node</h3>
@@ -232,7 +238,8 @@ t.stats             // texMs, dvisvgmMs, format ('latex' or 'tikz')</code></pre>
 npx mpost-wasm -s 'outputformat="svg"' -s prologues=3 figure.mp
 npx mpost-wasm -tex=latex -numbersystem=double -jobname=out figure.mp
 npx mpost-wasm --latex figure.tex                         # figure-1.svg, figure-2.svg …
-npx mpost-wasm --latex --plain --fonts=woff2 figure.tex</code></pre>
+npx mpost-wasm --latex --plain --fonts=woff2 figure.tex
+npx mpost-wasm --latex --engine=lualatex graph.tex                # or --engine=auto (the default)</code></pre>
 <p><code>mpost-wasm</code> accepts the usual <code>mpost</code> flags (<code>-interaction</code>, <code>-jobname</code>, <code>-tex</code>, <code>-s</code>, <code>-halt-on-error</code>, <code>-recorder</code>; <code>-troff</code> with a warning), writes output files with <code>mpost</code>'s <code>outputtemplate</code> naming, prints the transcript, and exits 1 on error.</p>
 
 <h2 id="metapost">What it does — MetaPost</h2>
@@ -248,7 +255,7 @@ npx mpost-wasm --latex --plain --fonts=woff2 figure.tex</code></pre>
   <path d="M161.52 62.322C171.52 12.322,211.52 12.322,221.52 62.322" style="stroke:rgb(0%,0%,0%); stroke-width: 0.5;stroke-linecap: round;stroke-dasharray: 3 3 ;stroke-linejoin: round;stroke-miterlimit: 10;fill: none;"></path>
 </svg>
 </div>
-  <figcaption><b>Paths, tension and curl</b> — MetaPost's path syntax: <code>..</code> for smooth curves solved by Hobby's algorithm, <code>--</code> for straight lines, tension and curl control, explicit controls, cycles. <span class="ms">17 ms MetaPost</span></figcaption>
+  <figcaption><b>Paths, tension and curl</b> — MetaPost's path syntax: <code>..</code> for smooth curves solved by Hobby's algorithm, <code>--</code> for straight lines, tension and curl control, explicit controls, cycles. <span class="ms">16 ms MetaPost</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>beginfig(1);
   draw (0,0)..(30,40)..(60,0) withcolor (0.1,0.3,0.8);
   draw (0,50)..tension 2..(30,90)..(60,50);
@@ -619,7 +626,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>Labels typeset by plain TeX</b> — <code>btex … etex</code> blocks are typeset by a real pdfTeX (DVI mode) in one batched run per document, converted by MetaPost's own <code>dvitomp</code>, and cached by content hash. <span class="ms">3 ms MetaPost, 54 ms TeX</span></figcaption>
+  <figcaption><b>Labels typeset by plain TeX</b> — <code>btex … etex</code> blocks are typeset by a real pdfTeX (DVI mode) in one batched run per document, converted by MetaPost's own <code>dvitomp</code>, and cached by content hash. <span class="ms">3 ms MetaPost, 52 ms TeX</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>prologues := 3;
 beginfig(1);
   numeric a; a := 60;
@@ -884,7 +891,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>Labels typeset by LaTeX</b> — A <code>verbatimtex</code> preamble with <code>\documentclass</code> switches the label engine to LaTeX automatically. amsmath, amssymb, tabular, any package in the bundles. <span class="ms">2 ms MetaPost, 144 ms TeX</span></figcaption>
+  <figcaption><b>Labels typeset by LaTeX</b> — A <code>verbatimtex</code> preamble with <code>\documentclass</code> switches the label engine to LaTeX automatically. amsmath, amssymb, tabular, any package in the bundles. <span class="ms">2 ms MetaPost, 134 ms TeX</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>verbatimtex
 \documentclass{article}
 \usepackage{amsmath,amssymb}
@@ -1022,7 +1029,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>boxes.mp</b> — The standard macro packages ship in the core bundle: boxes, rboxes, graph, format, sarith, string, metaobj, featpost, metauml and more. <span class="ms">3 ms MetaPost, 55 ms TeX</span></figcaption>
+  <figcaption><b>boxes.mp</b> — The standard macro packages ship in the core bundle: boxes, rboxes, graph, format, sarith, string, metaobj, featpost, metauml and more. <span class="ms">3 ms MetaPost, 47 ms TeX</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>input boxes;
 prologues := 3;
 beginfig(1);
@@ -1195,7 +1202,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>graph.mp</b> — John Hobby's graph package with TeX-typeset tick labels; MetaPost chooses the ticks. <span class="ms">6 ms MetaPost, 55 ms TeX</span></figcaption>
+  <figcaption><b>graph.mp</b> — John Hobby's graph package with TeX-typeset tick labels; MetaPost chooses the ticks. <span class="ms">6 ms MetaPost, 49 ms TeX</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>input graph;
 prologues := 3;
 beginfig(1);
@@ -1214,7 +1221,7 @@ endfig; end.</code></pre></details>
   <path d="M0.329 130.3L2.18 130.3L3.106 131.904L4.032 130.3L5.884 130.3L6.81 131.904L5.884 133.508L7.736 133.507L8.662 135.111L9.588 133.507L11.439 133.507L10.513 131.904L11.439 130.3L13.291 130.3L14.217 131.904L15.143 130.3L16.995 130.3L17.921 131.904L16.995 133.508L18.847 133.507L19.772 135.111L18.847 136.715L16.995 136.715L17.921 138.319L16.995 139.923L18.847 139.923L19.773 141.526L20.698 139.923L22.55 139.923L23.476 141.526L22.55 143.13L24.402 143.13L25.328 144.734L26.254 143.13L28.106 143.13L27.18 141.526L28.106 139.923L29.958 139.923L30.884 141.526L31.81 139.923L33.662 139.923L32.736 138.319L33.662 136.715L31.81 136.715L30.884 135.111L31.81 133.507L33.662 133.507L32.736 131.904L33.662 130.3L35.513 130.3L36.439 131.904L37.365 130.3L39.217 130.3L40.143 131.904L39.217 133.508L41.069 133.507L41.995 135.111L42.921 133.507L44.772 133.507L43.847 131.904L44.772 130.3L46.624 130.3L47.55 131.904L48.476 130.3L50.328 130.3L51.254 131.904L50.328 133.508L52.18 133.507L53.106 135.111L52.18 136.715L50.328 136.715L51.254 138.319L50.328 139.923L52.18 139.923L53.106 141.526L54.032 139.923L55.883 139.923L56.809 141.526L55.883 143.13L57.735 143.13L58.661 144.734L57.735 146.338L55.883 146.338L56.809 147.941L55.883 149.545L54.031 149.545L53.105 147.941L52.179 149.545L50.327 149.545L51.253 151.149L50.327 152.753L52.179 152.753L53.105 154.357L52.18 155.961L50.328 155.961L51.254 157.565L50.328 159.168L52.18 159.168L53.106 160.772L54.031 159.168L55.883 159.168L56.809 160.772L55.883 162.376L57.735 162.376L58.661 163.98L59.587 162.376L61.439 162.376L60.513 160.772L61.439 159.168L63.291 159.168L64.217 160.772L65.143 159.168L66.995 159.168L67.921 160.772L66.995 162.376L68.847 162.376L69.773 163.98L68.847 165.583L66.995 165.583L67.921 167.187L66.995 168.791L68.847 168.791L69.773 170.395L70.699 168.791L72.551 168.791L73.477 170.395L72.551 171.998L74.403 171.998L75.329 173.602L76.254 171.998L78.106 171.998L77.18 170.395L78.106 168.791L79.958 168.791L80.884 170.395L81.81 168.791L83.662 168.791L82.736 167.187L83.662 165.583L81.81 165.583L80.884 163.98L81.81 162.376L83.662 162.376L82.736 160.772L83.662 159.168L85.514 159.168L86.44 160.772L87.366 159.168L89.218 159.168L90.144 160.772L89.218 162.376L91.07 162.376L91.996 163.98L92.922 162.376L94.774 162.376L93.848 160.772L94.774 159.168L96.626 159.168L97.552 160.772L98.478 159.168L100.329 159.168L99.404 157.565L100.329 155.961L98.478 155.961L97.552 154.357L98.478 152.753L100.33 152.753L99.404 151.149L100.33 149.545L98.478 149.545L97.552 147.941L96.626 149.545L94.774 149.545L93.848 147.941L94.774 146.338L92.922 146.338L91.996 144.734L92.922 143.13L94.774 143.13L93.848 141.526L94.774 139.923L96.626 139.923L97.551 141.526L98.477 139.923L100.329 139.923L99.403 138.319L100.329 136.715L98.477 136.715L97.552 135.111L98.477 133.507L100.329 133.507L99.403 131.904L100.329 130.3L102.181 130.3L103.107 131.904L104.033 130.3L105.885 130.3L106.811 131.904L105.885 133.508L107.736 133.507L108.662 135.111L109.588 133.507L111.44 133.507L110.514 131.904L111.44 130.3L113.292 130.3L114.218 131.904L115.144 130.3L116.995 130.3L117.921 131.904L116.995 133.508L118.847 133.507L119.773 135.111L118.847 136.715L116.995 136.715L117.921 138.319L116.995 139.923L118.847 139.923L119.773 141.526L120.699 139.923L122.551 139.923L123.477 141.526L122.551 143.13L124.403 143.13L125.329 144.734L126.255 143.13L128.107 143.13L127.181 141.526L128.107 139.923L129.959 139.923L130.885 141.526L131.811 139.923L133.662 139.923L132.736 138.319L133.662 136.715L131.811 136.715L130.885 135.111L131.811 133.507L133.662 133.507L132.736 131.904L133.662 130.3L135.514 130.3L136.44 131.904L137.366 130.3L139.218 130.3L140.144 131.904L139.218 133.508L141.07 133.507L141.995 135.111L142.921 133.507L144.773 133.507L143.847 131.904L144.773 130.3L146.625 130.3L147.551 131.904L148.477 130.3L150.329 130.3L149.403 128.695L150.33 127.091L148.477 127.09L147.551 125.485L148.478 123.881L150.331 123.882L149.405 122.277L150.332 120.672L148.479 120.672L147.553 119.067L146.626 120.671L144.773 120.671L143.847 119.066L144.774 117.461L142.921 117.461L141.995 115.856L142.922 114.252L144.775 114.252L143.849 112.647L144.776 111.043L146.629 111.044L147.555 112.649L148.482 111.044L150.335 111.045L149.409 109.44L150.336 107.835L148.483 107.835L147.557 106.23L148.484 104.625L150.337 104.626L149.411 103.021L150.338 101.417L148.485 101.416L147.559 99.811L146.632 101.416L144.779 101.415L143.853 99.81L144.78 98.206L142.928 98.205L142.002 96.6L141.075 98.204L139.222 98.204L140.148 99.809L139.221 101.413L137.368 101.413L136.442 99.808L135.515 101.412L133.662 101.411L132.736 99.806L133.663 98.202L131.81 98.202L130.884 96.597L131.811 94.992L133.664 94.993L132.738 93.388L133.665 91.784L131.812 91.783L130.886 90.178L129.959 91.783L128.107 91.782L127.181 90.177L128.108 88.573L126.255 88.572L125.329 86.967L126.256 85.363L128.109 85.364L127.183 83.759L128.11 82.154L129.963 82.155L130.889 83.76L131.816 82.155L133.669 82.156L132.743 80.551L133.67 78.947L131.817 78.946L130.891 77.341L131.818 75.737L133.671 75.737L132.745 74.132L133.672 72.528L135.524 72.529L136.45 74.134L137.377 72.529L139.23 72.53L140.156 74.135L139.229 75.739L141.082 75.74L142.008 77.345L142.935 75.74L144.788 75.741L143.862 74.136L144.789 72.532L146.642 72.532L147.568 74.137L148.495 72.533L150.348 72.533L149.422 70.928L150.349 69.324L148.496 69.323L147.57 67.718L148.497 66.114L150.35 66.114L149.424 64.509L150.351 62.905L148.498 62.904L147.572 61.299L146.645 62.904L144.792 62.903L143.866 61.298L144.793 59.694L142.94 59.693L142.014 58.088L142.941 56.484L144.794 56.484L143.868 54.879L144.795 53.275L146.648 53.276L147.574 54.881L148.501 53.276L150.354 53.277L149.428 51.672L150.355 50.068L148.502 50.067L147.576 48.462L148.503 46.858L150.356 46.858L149.43 45.253L150.357 43.649L148.504 43.648L147.578 42.043L146.651 43.648L144.798 43.647L143.873 42.042L144.8 40.438L142.947 40.437L142.021 38.832L141.094 40.437L139.241 40.436L140.167 42.041L139.24 43.645L137.387 43.645L136.461 42.04L135.534 43.644L133.681 43.644L132.755 42.039L133.682 40.434L131.829 40.434L130.903 38.829L131.83 37.224L133.683 37.225L132.757 35.62L133.684 34.015L131.831 34.015L130.905 32.409L129.978 34.014L128.125 34.013L127.199 32.408L128.126 30.804L126.273 30.803L125.347 29.198L124.42 30.803L122.567 30.802L123.493 32.407L122.566 34.012L120.713 34.011L119.787 32.406L118.86 34.01L117.007 34.01L117.933 35.615L117.006 37.219L118.859 37.22L119.785 38.825L118.858 40.429L117.005 40.429L117.931 42.034L117.004 43.638L115.151 43.637L114.225 42.033L113.298 43.637L111.446 43.636L110.52 42.031L111.447 40.427L109.594 40.426L108.668 38.821L107.741 40.426L105.888 40.425L106.814 42.03L105.887 43.634L104.034 43.634L103.108 42.029L102.181 43.633L100.328 43.633L99.402 42.028L100.329 40.424L98.476 40.423L97.551 38.818L98.477 37.214L100.33 37.214L99.404 35.609L100.331 34.005L98.478 34.004L97.553 32.4L96.626 34.004L94.773 34.003L93.847 32.398L94.774 30.794L92.921 30.794L91.995 29.189L92.922 27.584L94.775 27.585L93.849 25.98L94.776 24.376L96.629 24.376L97.555 25.981L98.482 24.377L100.335 24.377L99.409 22.772L100.336 21.168L98.483 21.167L97.557 19.562L98.484 17.958L100.337 17.959L99.411 16.354L100.338 14.749L98.485 14.749L97.559 13.144L96.632 14.748L94.779 14.748L93.853 13.143L94.78 11.538L92.927 11.538L92.001 9.933L91.074 11.537L89.221 11.536L90.147 13.141L89.22 14.746L87.367 14.745L86.441 13.14L85.514 14.745L83.662 14.744L82.736 13.139L83.663 11.535L81.81 11.534L80.884 9.929L81.811 8.325L83.664 8.326L82.738 6.721L83.665 5.116L81.812 5.116L80.886 3.511L79.959 5.115L78.106 5.115L77.18 3.51L78.107 1.905L76.254 1.905L75.329 0.3L74.403 1.905L72.55 1.905L73.477 3.51L72.551 5.115L70.698 5.115L69.771 3.511L68.845 5.116L66.992 5.116L67.919 6.721L66.993 8.326L68.846 8.325L69.773 9.929L68.847 11.534L66.994 11.535L67.921 13.139L66.995 14.744L65.143 14.745L64.216 13.14L63.29 14.745L61.437 14.746L60.51 13.141L61.436 11.536L59.583 11.537L58.656 9.933L57.73 11.538L55.877 11.538L56.804 13.143L55.878 14.748L54.025 14.748L53.098 13.144L52.172 14.749L50.319 14.749L51.246 16.354L50.32 17.959L52.173 17.958L53.1 19.562L52.174 21.167L50.321 21.168L51.248 22.772L50.322 24.377L52.175 24.377L53.102 25.981L54.028 24.376L55.881 24.376L56.808 25.98L55.882 27.585L57.735 27.584L58.662 29.189L57.736 30.794L55.883 30.794L56.81 32.398L55.884 34.003L54.032 34.004L53.105 32.4L52.179 34.004L50.326 34.005L51.253 35.609L50.327 37.214L52.18 37.214L53.107 38.818L52.181 40.423L50.328 40.424L51.255 42.028L50.329 43.633L48.476 43.633L47.549 42.029L46.623 43.634L44.77 43.634L43.843 42.03L44.769 40.425L42.916 40.426L41.989 38.821L41.063 40.426L39.21 40.427L40.137 42.031L39.211 43.636L37.359 43.637L36.432 42.033L35.506 43.637L33.653 43.638L32.726 42.034L33.652 40.429L31.799 40.429L30.872 38.825L31.798 37.22L33.651 37.219L32.724 35.615L33.65 34.01L31.797 34.01L30.87 32.406L29.944 34.011L28.091 34.012L27.164 32.407L28.09 30.802L26.237 30.803L25.31 29.198L24.384 30.803L22.531 30.804L23.458 32.408L22.532 34.013L20.679 34.014L19.752 32.41L18.826 34.015L16.973 34.015L17.9 35.62L16.974 37.225L18.827 37.224L19.754 38.829L18.828 40.434L16.975 40.434L17.902 42.039L16.976 43.644L15.123 43.644L14.196 42.04L13.27 43.645L11.417 43.645L10.49 42.041L11.416 40.436L9.563 40.437L8.636 38.832L7.711 40.437L5.858 40.438L6.785 42.042L5.859 43.647L4.006 43.648L3.079 42.043L2.153 43.648L0.3 43.649L1.227 45.253L0.301 46.858L2.154 46.858L3.081 48.462L2.155 50.067L0.302 50.068L1.229 51.672L0.303 53.277L2.156 53.276L3.083 54.881L4.009 53.276L5.862 53.275L6.789 54.879L5.863 56.484L7.716 56.484L8.643 58.088L7.717 59.693L5.864 59.694L6.791 61.298L5.865 62.903L4.012 62.904L3.085 61.299L2.159 62.904L0.306 62.905L1.233 64.509L0.307 66.114L2.16 66.114L3.087 67.718L2.161 69.323L0.308 69.324L1.235 70.928L0.309 72.533L2.162 72.533L3.089 74.137L4.015 72.532L5.868 72.532L6.795 74.136L5.869 75.741L7.722 75.74L8.649 77.345L9.575 75.74L11.428 75.739L10.501 74.135L11.427 72.53L13.28 72.529L14.207 74.134L15.133 72.529L16.986 72.528L17.912 74.132L16.987 75.737L18.839 75.737L19.766 77.341L18.84 78.946L16.987 78.947L17.914 80.551L16.989 82.156L18.841 82.155L19.768 83.76L20.694 82.155L22.547 82.154L23.474 83.759L22.548 85.364L24.401 85.363L25.328 86.967L24.402 88.572L22.549 88.573L23.476 90.177L22.551 91.782L20.698 91.783L19.771 90.178L18.845 91.783L16.992 91.784L17.919 93.388L16.993 94.993L18.846 94.992L19.773 96.597L18.847 98.202L16.994 98.202L17.921 99.806L16.995 101.411L15.142 101.412L14.215 99.808L13.289 101.413L11.436 101.413L10.509 99.809L11.435 98.204L9.582 98.204L8.655 96.6L7.73 98.205L5.877 98.206L6.804 99.81L5.878 101.415L4.025 101.416L3.098 99.811L2.172 101.416L0.319 101.417L1.246 103.021L0.32 104.626L2.173 104.625L3.1 106.23L2.174 107.835L0.321 107.835L1.248 109.44L0.322 111.045L2.175 111.044L3.102 112.649L4.028 111.044L5.881 111.043L6.808 112.647L5.882 114.252L7.735 114.252L8.662 115.856L7.736 117.461L5.883 117.461L6.81 119.066L5.884 120.671L4.031 120.671L3.104 119.067L2.178 120.672L0.325 120.672L1.252 122.277L0.326 123.882L2.179 123.881L3.106 125.485L2.18 127.09L0.327 127.091L1.254 128.695Z" style="stroke:rgb(10.001%,30%,70%); stroke-width: 0.6;stroke-linecap: round;stroke-linejoin: round;stroke-miterlimit: 10;fill: none;"></path>
 </svg>
 </div>
-  <figcaption><b>A real programming language</b> — Recursive <code>vardef</code>s, paths as first-class values joined with <code>&amp;</code>, loops, and linear equations solved for you. <span class="ms">5 ms MetaPost</span></figcaption>
+  <figcaption><b>A real programming language</b> — Recursive <code>vardef</code>s, paths as first-class values joined with <code>&amp;</code>, loops, and linear equations solved for you. <span class="ms">4 ms MetaPost</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>vardef koch(expr a, b, n) =
   if n = 0: a--b
   else:
@@ -1318,7 +1325,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Shadings</b> — Axis, radial and ball shadings become SVG gradients, through PGF's own dvisvgm driver. This is where a JavaScript DVI reader gives up. <span class="ms">91 ms TeX, 30 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Shadings</b> — Axis, radial and ball shadings become SVG gradients, through PGF's own dvisvgm driver. This is where a JavaScript DVI reader gives up. <span class="ms">77 ms TeX, 28 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{shadings}
 \begin{document}
@@ -1393,7 +1400,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Patterns, opacity, clipping, decorations</b> — Fill patterns become SVG patterns; opacity, clipping scopes and path decorations all survive intact. <span class="ms">121 ms TeX, 15 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Patterns, opacity, clipping, decorations</b> — Fill patterns become SVG patterns; opacity, clipping scopes and path decorations all survive intact. <span class="ms">116 ms TeX, 26 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{patterns,decorations.pathmorphing,decorations.markings}
 \begin{document}
@@ -1552,7 +1559,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Nodes, shapes, arrows</b> — positioning, shapes.geometric and arrows.meta; bent and curved edges; every library that ships with PGF in TeX Live 2025 is available. <span class="ms">139 ms TeX, 22 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Nodes, shapes, arrows</b> — positioning, shapes.geometric and arrows.meta; bent and curved edges; every library that ships with PGF in TeX Live 2025 is available. <span class="ms">132 ms TeX, 33 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{positioning,shapes.geometric,arrows.meta}
 \begin{document}
@@ -1572,10 +1579,10 @@ endfig; end.</code></pre></details>
   <div class="fig"><svg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' style="width:min(100%,220px)" viewBox='-69.011212 -69.011218 72.569584 63.305305'>
 <defs>
 <path id='tz-cd-g0-121' d='M4.41345-3.307597C4.41345-3.476961 4.41345-3.646326 4.214197-3.646326S4.014944-3.437111 4.014944-3.267746V-.179328H.9066C.727273-.179328 .557908-.179328 .557908 .019925S.737235 .219178 .9066 .219178H4.064757C4.383562 .219178 4.41345 .18929 4.41345-.119552V-3.307597Z'/>
+<path id='tz-cd-g1-48' d='M1.793275-2.316314C1.798257-2.321295 1.843088-2.41594 1.843088-2.49066C1.843088-2.669988 1.683686-2.784558 1.534247-2.784558C1.330012-2.784558 1.275218-2.630137 1.250311-2.555417L.483188-.398506C.463263-.33873 .463263-.323786 .463263-.318804C.463263-.239103 .672478-.18929 .67746-.18929C.722291-.18929 .732254-.214197 .762142-.273973L1.793275-2.316314Z'/>
 <path id='tz-cd-g3-102' d='M2.838356-2.75467H3.521793C3.66127-2.75467 3.75193-2.75467 3.75193-2.908095C3.75193-3.005729 3.66127-3.005729 3.535741-3.005729H2.887173C3.047572-3.891407 3.103362-4.212204 3.159153-4.414446C3.194022-4.56787 3.347447-4.714321 3.514819-4.714321C3.521793-4.714321 3.710087-4.714321 3.84259-4.630635C3.556663-4.539975 3.535741-4.288917 3.535741-4.247073C3.535741-4.093649 3.654296-3.989041 3.814695-3.989041C4.002989-3.989041 4.212204-4.14944 4.212204-4.414446C4.212204-4.735243 3.870486-4.909589 3.514819-4.909589C3.20797-4.909589 2.866252-4.735243 2.677958-4.38655C2.538481-4.128518 2.48269-3.814695 2.336239-3.005729H1.785305C1.645828-3.005729 1.555168-3.005729 1.555168-2.852304C1.555168-2.75467 1.645828-2.75467 1.771357-2.75467H2.287422C2.280448-2.712827 1.841096-.202242 1.673724 .54396C1.638854 .697385 1.520299 1.227397 1.185554 1.227397C1.17858 1.227397 1.011208 1.227397 .878705 1.143711C1.164633 1.053051 1.185554 .801993 1.185554 .760149C1.185554 .606725 1.066999 .502117 .9066 .502117C.718306 .502117 .509091 .662516 .509091 .927522C.509091 1.241345 .836862 1.422665 1.185554 1.422665C1.63188 1.422665 1.93873 .962391 2.022416 .808966C2.273474 .341719 2.433873-.516065 2.447821-.599751L2.838356-2.75467Z'/>
 <path id='tz-cd-g3-103' d='M3.710087-2.57335C3.737983-2.677958 3.737983-2.712827 3.737983-2.719801C3.737983-2.873225 3.612453-2.942964 3.500872-2.942964C3.340473-2.942964 3.20797-2.810461 3.180075-2.677958C3.061519-2.866252 2.824408-3.075467 2.461768-3.075467C1.590037-3.075467 .676463-2.140971 .676463-1.143711C.676463-.425405 1.164633 0 1.736488 0C2.057285 0 2.364134-.160399 2.608219-.376588L2.454795 .251059C2.378082 .54396 2.329265 .732254 2.064259 .969365C1.75741 1.227397 1.457534 1.227397 1.283188 1.227397C.962391 1.227397 .871731 1.206476 .746202 1.17858C.920548 1.094894 .969365 .927522 .969365 .829888C.969365 .662516 .836862 .571856 .697385 .571856C.502117 .571856 .299875 .732254 .299875 .99726C.299875 1.415691 .899626 1.422665 1.290162 1.422665C2.385056 1.422665 2.852304 .864757 2.949938 .467248L3.710087-2.57335ZM2.747696-.927522C2.719801-.822914 2.719801-.808966 2.601245-.669489C2.357161-.376588 2.022416-.195268 1.75741-.195268C1.401743-.195268 1.234371-.495143 1.234371-.857783C1.234371-1.164633 1.422665-1.945704 1.603985-2.252553C1.896887-2.740722 2.224658-2.880199 2.461768-2.880199C2.949938-2.880199 3.082441-2.357161 3.082441-2.287422C3.082441-2.273474 3.082441-2.259527 3.061519-2.182814L2.747696-.927522Z'/>
 <path id='tz-cd-g3-104' d='M2.182814-4.630635C2.189788-4.644583 2.21071-4.735243 2.21071-4.742217C2.21071-4.777086 2.182814-4.839851 2.099128-4.839851C1.959651-4.839851 1.380822-4.78406 1.206476-4.770112C1.150685-4.763138 1.053051-4.756164 1.053051-4.609714C1.053051-4.51208 1.150685-4.51208 1.234371-4.51208C1.569116-4.51208 1.569116-4.463263 1.569116-4.407472C1.569116-4.358655 1.555168-4.316812 1.54122-4.254047L.557908-.306849C.523039-.18132 .523039-.167372 .523039-.153425C.523039-.048817 .606725 .069738 .760149 .069738C.836862 .069738 .969365 .034869 1.046077-.111582C1.066999-.153425 1.129763-.404483 1.164633-.550934L1.325031-1.171606C1.345953-1.276214 1.415691-1.54122 1.436613-1.645828C1.506351-1.910834 1.506351-1.917808 1.645828-2.140971C1.868991-2.48269 2.217684-2.880199 2.761644-2.880199C3.152179-2.880199 3.173101-2.559402 3.173101-2.39203C3.173101-1.973599 2.873225-1.199502 2.761644-.9066C2.684932-.711333 2.657036-.648568 2.657036-.530012C2.657036-.160399 2.963885 .069738 3.319552 .069738C4.016936 .069738 4.323786-.892653 4.323786-.99726C4.323786-1.08792 4.233126-1.08792 4.212204-1.08792C4.11457-1.08792 4.107597-1.046077 4.079701-.969365C3.919303-.411457 3.612453-.125529 3.340473-.125529C3.194022-.125529 3.166127-.223163 3.166127-.369614C3.166127-.530012 3.200996-.620672 3.326526-.934496C3.410212-1.150685 3.696139-1.889913 3.696139-2.280448C3.696139-2.39203 3.696139-2.684932 3.438107-2.887173C3.319552-2.977833 3.11731-3.075467 2.789539-3.075467C2.280448-3.075467 1.910834-2.796513 1.652802-2.496638L2.182814-4.630635Z'/>
-<path id='tz-cd-g1-48' d='M1.793275-2.316314C1.798257-2.321295 1.843088-2.41594 1.843088-2.49066C1.843088-2.669988 1.683686-2.784558 1.534247-2.784558C1.330012-2.784558 1.275218-2.630137 1.250311-2.555417L.483188-.398506C.463263-.33873 .463263-.323786 .463263-.318804C.463263-.239103 .672478-.18929 .67746-.18929C.722291-.18929 .732254-.214197 .762142-.273973L1.793275-2.316314Z'/>
 <path id='tz-cd-g2-65' d='M1.783313-1.145704C1.384807-.478207 .996264-.33873 .557908-.308842C.438356-.298879 .348692-.298879 .348692-.109589C.348692-.049813 .398506 0 .478207 0C.747198 0 1.05604-.029888 1.334994-.029888C1.663761-.029888 2.012453 0 2.331258 0C2.391034 0 2.520548 0 2.520548-.18929C2.520548-.298879 2.430884-.308842 2.361146-.308842C2.132005-.328767 1.892902-.408468 1.892902-.657534C1.892902-.777086 1.952677-.886675 2.032379-1.026152L2.789539-2.30137H5.290162C5.310087-2.092154 5.449564-.737235 5.449564-.637609C5.449564-.33873 4.931507-.308842 4.732254-.308842C4.592777-.308842 4.493151-.308842 4.493151-.109589C4.493151 0 4.612702 0 4.632628 0C5.041096 0 5.469489-.029888 5.877958-.029888C6.127024-.029888 6.75467 0 7.003736 0C7.063512 0 7.183064 0 7.183064-.199253C7.183064-.308842 7.083437-.308842 6.953923-.308842C6.336239-.308842 6.336239-.37858 6.306351-.667497L5.69863-6.894147C5.678705-7.0934 5.678705-7.13325 5.50934-7.13325C5.349938-7.13325 5.310087-7.063512 5.250311-6.963885L1.783313-1.145704ZM2.978829-2.610212L4.941469-5.897883L5.260274-2.610212H2.978829Z'/>
 <path id='tz-cd-g2-66' d='M1.594022-.777086C1.494396-.388543 1.474471-.308842 .687422-.308842C.518057-.308842 .418431-.308842 .418431-.109589C.418431 0 .508095 0 .687422 0H4.244085C5.818182 0 6.993773-1.175592 6.993773-2.15193C6.993773-2.86924 6.41594-3.447073 5.449564-3.556663C6.485679-3.745953 7.531756-4.483188 7.531756-5.429639C7.531756-6.166874 6.874222-6.804483 5.678705-6.804483H2.331258C2.141968-6.804483 2.042341-6.804483 2.042341-6.60523C2.042341-6.495641 2.132005-6.495641 2.321295-6.495641C2.34122-6.495641 2.530511-6.495641 2.699875-6.475716C2.879203-6.455791 2.968867-6.445828 2.968867-6.316314C2.968867-6.276463 2.958904-6.246575 2.929016-6.127024L1.594022-.777086ZM3.098381-3.646326L3.716065-6.117061C3.805729-6.465753 3.825654-6.495641 4.254047-6.495641H5.539228C6.41594-6.495641 6.625156-5.907846 6.625156-5.469489C6.625156-4.592777 5.768369-3.646326 4.552927-3.646326H3.098381ZM2.650062-.308842C2.510585-.308842 2.49066-.308842 2.430884-.318804C2.331258-.328767 2.30137-.33873 2.30137-.418431C2.30137-.448319 2.30137-.468244 2.351183-.647572L3.038605-3.427148H4.921544C5.877958-3.427148 6.067248-2.689913 6.067248-2.261519C6.067248-1.275218 5.180573-.308842 4.004981-.308842H2.650062Z'/>
 <path id='tz-cd-g2-67' d='M7.571606-6.924035C7.571606-6.953923 7.551681-7.023661 7.462017-7.023661C7.43213-7.023661 7.422167-7.013699 7.312578-6.90411L6.615193-6.136986C6.525529-6.276463 6.067248-7.023661 4.961395-7.023661C2.739726-7.023661 .498132-4.821918 .498132-2.510585C.498132-.86675 1.673724 .219178 3.198007 .219178C4.064757 .219178 4.821918-.179328 5.349938-.637609C6.276463-1.454545 6.445828-2.361146 6.445828-2.391034C6.445828-2.49066 6.346202-2.49066 6.326276-2.49066C6.266501-2.49066 6.216687-2.470735 6.196762-2.391034C6.107098-2.102117 5.877958-1.39477 5.190535-.816936C4.503113-.259029 3.875467-.089664 3.35741-.089664C2.460772-.089664 1.404732-.607721 1.404732-2.161893C1.404732-2.729763 1.613948-4.343711 2.610212-5.50934C3.217933-6.216687 4.154421-6.714819 5.041096-6.714819C6.057285-6.714819 6.645081-5.947696 6.645081-4.79203C6.645081-4.393524 6.615193-4.383562 6.615193-4.283935S6.724782-4.184309 6.764633-4.184309C6.894147-4.184309 6.894147-4.204234 6.94396-4.383562L7.571606-6.924035Z'/>
@@ -1758,7 +1765,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Commutative diagrams (tikz-cd)</b> <span class="ms">111 ms TeX, 41 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Commutative diagrams (tikz-cd)</b> <span class="ms">140 ms TeX, 36 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[border=3pt]{standalone}
 \usepackage{tikz-cd,amssymb}
 \begin{document}
@@ -1771,10 +1778,10 @@ endfig; end.</code></pre></details>
 <figure class="ex" id="tz-pgfplots">
   <div class="fig"><svg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' style="width:min(100%,640px)" viewBox='-69.011212 -69.011212 309.899098 123.608687'>
 <defs>
-<path id='tz-pgfplots-g0-0' d='M5.188543-1.57609C5.300125-1.57609 5.467497-1.57609 5.467497-1.743462C5.467497-1.917808 5.307098-1.917808 5.188543-1.917808H1.03213C.920548-1.917808 .753176-1.917808 .753176-1.750436C.753176-1.57609 .913574-1.57609 1.03213-1.57609H5.188543Z'/>
 <path id='tz-pgfplots-g2-120' d='M1.736488-.739228C1.66675-.502117 1.436613-.125529 1.080946-.125529C1.060025-.125529 .850809-.125529 .704359-.223163C.990286-.313823 1.011208-.564882 1.011208-.606725C1.011208-.760149 .892653-.864757 .732254-.864757C.536986-.864757 .334745-.697385 .334745-.439352C.334745-.09066 .72528 .069738 1.066999 .069738C1.387796 .069738 1.673724-.132503 1.84807-.425405C2.015442-.055791 2.399004 .069738 2.677958 .069738C3.47995 .069738 3.905355-.801993 3.905355-.99726C3.905355-1.08792 3.814695-1.08792 3.793773-1.08792C3.696139-1.08792 3.689166-1.053051 3.66127-.969365C3.514819-.488169 3.096389-.125529 2.705853-.125529C2.426899-.125529 2.280448-.313823 2.280448-.578829C2.280448-.760149 2.447821-1.39477 2.643088-2.168867C2.782565-2.705853 3.096389-2.880199 3.326526-2.880199C3.340473-2.880199 3.556663-2.880199 3.703113-2.782565C3.47995-2.719801 3.396264-2.524533 3.396264-2.399004C3.396264-2.245579 3.514819-2.140971 3.675218-2.140971S4.065753-2.273474 4.065753-2.566376C4.065753-2.956912 3.619427-3.075467 3.340473-3.075467C2.991781-3.075467 2.712827-2.84533 2.559402-2.580324C2.433873-2.866252 2.113076-3.075467 1.72254-3.075467C.941469-3.075467 .495143-2.217684 .495143-2.008468C.495143-1.917808 .592777-1.917808 .613699-1.917808C.704359-1.917808 .711333-1.945704 .746202-2.036364C.920548-2.580324 1.3599-2.880199 1.701619-2.880199C1.931756-2.880199 2.12005-2.75467 2.12005-2.419925C2.12005-2.280448 2.036364-1.931756 1.973599-1.694645L1.736488-.739228Z'/>
 <path id='tz-pgfplots-g4-49' d='M2.336239-4.435367C2.336239-4.623661 2.322291-4.630635 2.127024-4.630635C1.680697-4.191283 1.046077-4.184309 .760149-4.184309V-3.93325C.927522-3.93325 1.387796-3.93325 1.771357-4.128518V-.571856C1.771357-.341719 1.771357-.251059 1.073973-.251059H.808966V0C.934496-.006974 1.792279-.027895 2.050311-.027895C2.266501-.027895 3.145205-.006974 3.29863 0V-.251059H3.033624C2.336239-.251059 2.336239-.341719 2.336239-.571856V-4.435367Z'/>
 <path id='tz-pgfplots-g4-50' d='M3.521793-1.26924H3.284682C3.263761-1.115816 3.194022-.704359 3.103362-.63462C3.047572-.592777 2.510585-.592777 2.412951-.592777H1.129763C1.862017-1.241345 2.106102-1.436613 2.524533-1.764384C3.040598-2.175841 3.521793-2.608219 3.521793-3.270735C3.521793-4.11457 2.782565-4.630635 1.889913-4.630635C1.025156-4.630635 .439352-4.02391 .439352-3.382316C.439352-3.02665 .739228-2.991781 .808966-2.991781C.976339-2.991781 1.17858-3.110336 1.17858-3.361395C1.17858-3.486924 1.129763-3.731009 .767123-3.731009C.983313-4.226152 1.457534-4.379577 1.785305-4.379577C2.48269-4.379577 2.84533-3.835616 2.84533-3.270735C2.84533-2.66401 2.412951-2.182814 2.189788-1.931756L.509091-.27198C.439352-.209215 .439352-.195268 .439352 0H3.312578L3.521793-1.26924Z'/>
+<path id='tz-pgfplots-g0-0' d='M5.188543-1.57609C5.300125-1.57609 5.467497-1.57609 5.467497-1.743462C5.467497-1.917808 5.307098-1.917808 5.188543-1.917808H1.03213C.920548-1.917808 .753176-1.917808 .753176-1.750436C.753176-1.57609 .913574-1.57609 1.03213-1.57609H5.188543Z'/>
 <path id='tz-pgfplots-g1-58' d='M1.912827-.52802C1.912827-.816936 1.673724-1.05604 1.384807-1.05604S.856787-.816936 .856787-.52802S1.09589 0 1.384807 0S1.912827-.239103 1.912827-.52802Z'/>
 <path id='tz-pgfplots-g1-101' d='M1.863014-2.30137C2.15193-2.30137 2.889166-2.321295 3.387298-2.530511C4.084682-2.82939 4.134496-3.417186 4.134496-3.556663C4.134496-3.995019 3.755915-4.403487 3.068493-4.403487C1.96264-4.403487 .458281-3.437111 .458281-1.693649C.458281-.67746 1.046077 .109589 2.022416 .109589C3.447073 .109589 4.283935-.946451 4.283935-1.066002C4.283935-1.125778 4.224159-1.195517 4.164384-1.195517C4.11457-1.195517 4.094645-1.175592 4.034869-1.09589C3.247821-.109589 2.161893-.109589 2.042341-.109589C1.265255-.109589 1.175592-.946451 1.175592-1.265255C1.175592-1.384807 1.185554-1.693649 1.334994-2.30137H1.863014ZM1.39477-2.520548C1.783313-4.034869 2.809465-4.184309 3.068493-4.184309C3.536737-4.184309 3.805729-3.895392 3.805729-3.556663C3.805729-2.520548 2.211706-2.520548 1.803238-2.520548H1.39477Z'/>
 <path id='tz-pgfplots-g1-102' d='M3.656289-3.985056H4.513076C4.712329-3.985056 4.811955-3.985056 4.811955-4.184309C4.811955-4.293898 4.712329-4.293898 4.542964-4.293898H3.716065L3.92528-5.429639C3.965131-5.638854 4.104608-6.346202 4.164384-6.465753C4.254047-6.655044 4.423412-6.804483 4.632628-6.804483C4.672478-6.804483 4.931507-6.804483 5.120797-6.625156C4.682441-6.585305 4.582814-6.236613 4.582814-6.087173C4.582814-5.858032 4.762142-5.738481 4.951432-5.738481C5.210461-5.738481 5.499377-5.957659 5.499377-6.336239C5.499377-6.794521 5.041096-7.023661 4.632628-7.023661C4.293898-7.023661 3.666252-6.844334 3.367372-5.858032C3.307597-5.648817 3.277709-5.549191 3.038605-4.293898H2.351183C2.161893-4.293898 2.052304-4.293898 2.052304-4.104608C2.052304-3.985056 2.141968-3.985056 2.331258-3.985056H2.988792L2.241594-.049813C2.062267 .916563 1.892902 1.823163 1.374844 1.823163C1.334994 1.823163 1.085928 1.823163 .896638 1.643836C1.354919 1.613948 1.444583 1.255293 1.444583 1.105853C1.444583 .876712 1.265255 .757161 1.075965 .757161C.816936 .757161 .52802 .976339 .52802 1.354919C.52802 1.803238 .966376 2.042341 1.374844 2.042341C1.92279 2.042341 2.321295 1.454545 2.500623 1.075965C2.819427 .448319 3.048568-.757161 3.058531-.826899L3.656289-3.985056Z'/>
@@ -2073,7 +2080,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>pgfplots</b> — The real pgfplots package: axes, grids, legends, sampled functions, data coordinates, filled areas. <span class="ms">258 ms TeX, 54 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>pgfplots</b> — The real pgfplots package: axes, grids, legends, sampled functions, data coordinates, filled areas. <span class="ms">245 ms TeX, 45 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[border=3pt]{standalone}
 \usepackage{amsmath,pgfplots}
 \pgfplotsset{compat=1.18}
@@ -2092,18 +2099,23 @@ endfig; end.</code></pre></details>
 <div class="grid2"><figure class="ex" id="tz-text">
   <div class="fig"><svg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' style="width:min(100%,435px)" viewBox='-69.011212 -69.011216 192.086655 69.298879'>
 <defs>
+<path id='tz-text-g3-110' d='M4.41345 2.291407C4.41345 2.291407 4.41345 2.241594 4.363636 2.11208L.976339-7.252802C.936488-7.362391 .896638-7.47198 .757161-7.47198C.647572-7.47198 .557908-7.382316 .557908-7.272727C.557908-7.272727 .557908-7.222914 .607721-7.0934L3.995019 2.271482C4.034869 2.381071 4.07472 2.49066 4.214197 2.49066C4.323786 2.49066 4.41345 2.400996 4.41345 2.291407Z'/>
+<path id='tz-text-g5-25' d='M5.648817-4.054795C5.648817-4.293898 5.439601-4.293898 5.250311-4.293898H1.912827C1.693649-4.293898 1.315068-4.293898 .876712-3.825654C.52802-3.437111 .268991-2.978829 .268991-2.929016C.268991-2.929016 .268991-2.82939 .388543-2.82939C.468244-2.82939 .488169-2.86924 .547945-2.948941C1.036115-3.716065 1.613948-3.716065 1.8132-3.716065H2.381071C2.062267-2.510585 1.524284-1.305106 1.105853-.398506C1.026152-.249066 1.026152-.229141 1.026152-.159402C1.026152 .029888 1.185554 .109589 1.315068 .109589C1.613948 .109589 1.693649-.169365 1.8132-.537983C1.952677-.996264 1.952677-1.016189 2.082192-1.514321L2.6401-3.716065H3.765878C3.437111-2.241594 3.347447-1.8132 3.347447-1.145704C3.347447-.996264 3.347447-.727273 3.427148-.388543C3.526775 .049813 3.636364 .109589 3.785803 .109589C3.985056 .109589 4.194271-.069738 4.194271-.268991C4.194271-.328767 4.194271-.348692 4.134496-.488169C3.845579-1.205479 3.845579-1.853051 3.845579-2.132005C3.845579-2.660025 3.915318-3.198007 4.024907-3.716065H5.160648C5.290162-3.716065 5.648817-3.716065 5.648817-4.054795Z'/>
+<path id='tz-text-g5-59' d='M2.022416-.009963C2.022416-.667497 1.77335-1.05604 1.384807-1.05604C1.05604-1.05604 .856787-.806974 .856787-.52802C.856787-.259029 1.05604 0 1.384807 0C1.504359 0 1.633873-.039851 1.733499-.129514C1.763387-.14944 1.783313-.159402 1.783313-.159402S1.803238-.14944 1.803238-.009963C1.803238 .727273 1.454545 1.325031 1.125778 1.653798C1.016189 1.763387 1.016189 1.783313 1.016189 1.8132C1.016189 1.882939 1.066002 1.92279 1.115816 1.92279C1.225405 1.92279 2.022416 1.155666 2.022416-.009963Z'/>
+<path id='tz-text-g5-110' d='M5.688667-1.424658C5.688667-1.524284 5.599004-1.524284 5.569116-1.524284C5.469489-1.524284 5.469489-1.494396 5.419676-1.344956C5.220423-.667497 4.891656-.109589 4.403487-.109589C4.234122-.109589 4.164384-.209215 4.164384-.438356C4.164384-.687422 4.254047-.926526 4.343711-1.145704C4.533001-1.673724 4.951432-2.769614 4.951432-3.337484C4.951432-4.004981 4.523039-4.403487 3.805729-4.403487C2.909091-4.403487 2.420922-3.765878 2.251557-3.536737C2.201743-4.094645 1.793275-4.403487 1.334994-4.403487S.687422-4.014944 .587796-3.835616C.428394-3.496887 .288917-2.909091 .288917-2.86924C.288917-2.769614 .408468-2.769614 .408468-2.769614C.508095-2.769614 .518057-2.779577 .577833-2.998755C.747198-3.706102 .946451-4.184309 1.305106-4.184309C1.504359-4.184309 1.613948-4.054795 1.613948-3.726027C1.613948-3.516812 1.58406-3.407223 1.454545-2.889166L.876712-.587796C.846824-.438356 .787049-.209215 .787049-.159402C.787049 .019925 .926526 .109589 1.075965 .109589C1.195517 .109589 1.374844 .029888 1.444583-.169365C1.454545-.18929 1.574097-.657534 1.633873-.9066L1.853051-1.803238C1.912827-2.022416 1.972603-2.241594 2.022416-2.470735L2.15193-2.968867C2.30137-3.277709 2.82939-4.184309 3.775841-4.184309C4.224159-4.184309 4.313823-3.815691 4.313823-3.486924C4.313823-2.86924 3.825654-1.594022 3.666252-1.165629C3.576588-.936488 3.566625-.816936 3.566625-.707347C3.566625-.239103 3.915318 .109589 4.383562 .109589C5.32005 .109589 5.688667-1.344956 5.688667-1.424658Z'/>
+<path id='tz-text-g6-49' d='M3.29863 0V-.251059H3.033624C2.336239-.251059 2.336239-.341719 2.336239-.571856V-4.435367C2.336239-4.623661 2.322291-4.630635 2.127024-4.630635C1.680697-4.191283 1.046077-4.184309 .760149-4.184309V-3.93325C.927522-3.93325 1.387796-3.93325 1.771357-4.128518V-.571856C1.771357-.341719 1.771357-.251059 1.073973-.251059H.808966V0L2.050311-.027895L3.29863 0Z'/>
+<path id='tz-text-g6-50' d='M3.521793-1.26924H3.284682C3.263761-1.115816 3.194022-.704359 3.103362-.63462C3.047572-.592777 2.510585-.592777 2.412951-.592777H1.129763C1.862017-1.241345 2.106102-1.436613 2.524533-1.764384C3.040598-2.175841 3.521793-2.608219 3.521793-3.270735C3.521793-4.11457 2.782565-4.630635 1.889913-4.630635C1.025156-4.630635 .439352-4.02391 .439352-3.382316C.439352-3.02665 .739228-2.991781 .808966-2.991781C.976339-2.991781 1.17858-3.110336 1.17858-3.361395C1.17858-3.486924 1.129763-3.731009 .767123-3.731009C.983313-4.226152 1.457534-4.379577 1.785305-4.379577C2.48269-4.379577 2.84533-3.835616 2.84533-3.270735C2.84533-2.66401 2.412951-2.182814 2.189788-1.931756L.509091-.27198C.439352-.209215 .439352-.195268 .439352 0H3.312578L3.521793-1.26924Z'/>
+<path id='tz-text-g7-49' d='M4.174346 0V-.308842H3.855542C2.958904-.308842 2.929016-.418431 2.929016-.787049V-6.37609C2.929016-6.615193 2.929016-6.635118 2.699875-6.635118C2.082192-5.997509 1.205479-5.997509 .886675-5.997509V-5.688667C1.085928-5.688667 1.673724-5.688667 2.191781-5.947696V-.787049C2.191781-.428394 2.161893-.308842 1.265255-.308842H.946451V0C1.295143-.029888 2.161893-.029888 2.560399-.029888S3.825654-.029888 4.174346 0Z'/>
+<path id='tz-text-g7-54' d='M4.552927-2.032379C4.552927-3.297634 3.666252-4.254047 2.560399-4.254047C1.882939-4.254047 1.514321-3.745953 1.315068-3.267746V-3.506849C1.315068-6.027397 2.550436-6.386052 3.058531-6.386052C3.297634-6.386052 3.716065-6.326276 3.935243-5.987547C3.785803-5.987547 3.387298-5.987547 3.387298-5.539228C3.387298-5.230386 3.626401-5.080946 3.845579-5.080946C4.004981-5.080946 4.303861-5.17061 4.303861-5.559153C4.303861-6.156912 3.865504-6.635118 3.038605-6.635118C1.763387-6.635118 .418431-5.349938 .418431-3.148194C.418431-.488169 1.574097 .219178 2.500623 .219178C3.606476 .219178 4.552927-.71731 4.552927-2.032379ZM3.656289-2.042341C3.656289-1.564134 3.656289-1.066002 3.486924-.707347C3.188045-.109589 2.729763-.059776 2.500623-.059776C1.872976-.059776 1.574097-.657534 1.514321-.806974C1.334994-1.275218 1.334994-2.072229 1.334994-2.251557C1.334994-3.028643 1.653798-4.024907 2.550436-4.024907C2.709838-4.024907 3.16812-4.024907 3.476961-3.407223C3.656289-3.038605 3.656289-2.530511 3.656289-2.042341Z'/>
+<path id='tz-text-g7-61' d='M7.183064-3.457036C7.183064-3.656289 6.993773-3.656289 6.854296-3.656289H.886675C.747198-3.656289 .557908-3.656289 .557908-3.457036S.747198-3.257783 .896638-3.257783H6.844334C6.993773-3.257783 7.183064-3.257783 7.183064-3.457036ZM7.183064-1.524284C7.183064-1.723537 6.993773-1.723537 6.844334-1.723537H.896638C.747198-1.723537 .557908-1.723537 .557908-1.524284S.747198-1.325031 .886675-1.325031H6.854296C6.993773-1.325031 7.183064-1.325031 7.183064-1.524284Z'/>
 <path id='tz-text-g11-97' d='M5.230386-1.424658C5.230386-1.524284 5.150685-1.524284 5.080946-1.524284C4.961395-1.524284 4.951432-1.514321 4.891656-1.295143C4.752179-.737235 4.562889-.109589 4.224159-.109589C3.965131-.109589 3.965131-.37858 3.965131-.518057C3.965131-.587796 3.965131-.747198 4.034869-1.026152L4.712329-3.73599C4.752179-3.875467 4.752179-3.895392 4.752179-3.945205C4.752179-4.154421 4.582814-4.204234 4.483188-4.204234C4.164384-4.204234 4.094645-3.865504 4.084682-3.815691C3.895392-4.244085 3.576588-4.403487 3.257783-4.403487C2.15193-4.403487 .976339-2.889166 .976339-1.43462C.976339-.587796 1.43462 .109589 2.181818 .109589C2.540473 .109589 2.978829-.099626 3.377335-.587796C3.486924-.099626 3.855542 .109589 4.204234 .109589C4.572852 .109589 4.782067-.139477 4.931507-.448319C5.110834-.826899 5.230386-1.424658 5.230386-1.424658ZM3.447073-1.235367C3.367372-.916563 2.749689-.109589 2.201743-.109589C1.733499-.109589 1.653798-.697385 1.653798-.996264C1.653798-1.494396 1.96264-2.660025 2.141968-3.078456C2.391034-3.686177 2.849315-4.184309 3.257783-4.184309C3.696139-4.184309 3.945205-3.666252 3.945205-3.247821C3.945205-3.247821 3.935243-3.178082 3.915318-3.118306L3.447073-1.235367Z'/>
 <path id='tz-text-g11-99' d='M4.662516-1.036115C4.662516-1.085928 4.582814-1.195517 4.503113-1.195517C4.463263-1.195517 4.4533-1.185554 4.373599-1.085928C3.636364-.14944 2.749689-.109589 2.580324-.109589C2.042341-.109589 1.793275-.557908 1.793275-1.135741C1.793275-1.663761 2.062267-2.709838 2.321295-3.188045C2.67995-3.835616 3.178082-4.184309 3.626401-4.184309C3.73599-4.184309 4.184309-4.164384 4.333748-3.755915C3.835616-3.696139 3.835616-3.267746 3.835616-3.267746C3.835616-3.108344 3.945205-2.948941 4.174346-2.948941C4.443337-2.948941 4.682441-3.16812 4.682441-3.5467C4.682441-4.034869 4.254047-4.403487 3.616438-4.403487C2.381071-4.403487 1.09589-2.988792 1.09589-1.534247C1.09589-.547945 1.683686 .109589 2.560399 .109589C3.835616 .109589 4.662516-.886675 4.662516-1.036115Z'/>
 <path id='tz-text-g11-105' d='M3.297634-1.424658C3.297634-1.524284 3.217933-1.524284 3.148194-1.524284C3.01868-1.524284 3.01868-1.504359 2.978829-1.354919C2.899128-1.066002 2.630137-.109589 2.052304-.109589C1.972603-.109589 1.833126-.119552 1.833126-.388543C1.833126-.647572 1.96264-.976339 2.092154-1.344956L2.729763-3.048568C2.82939-3.337484 2.849315-3.417186 2.849315-3.606476C2.849315-4.154421 2.470735-4.403487 2.102117-4.403487C1.165629-4.403487 .826899-2.919054 .826899-2.86924C.826899-2.769614 .926526-2.769614 .976339-2.769614C1.105853-2.769614 1.115816-2.789539 1.155666-2.929016C1.24533-3.257783 1.504359-4.184309 2.082192-4.184309C2.191781-4.184309 2.30137-4.134496 2.30137-3.905355C2.30137-3.666252 2.191781-3.377335 2.122042-3.188045L1.823163-2.361146L1.454545-1.374844C1.315068-.996264 1.275218-.886675 1.275218-.687422C1.275218-.298879 1.514321 .109589 2.032379 .109589C2.968867 .109589 3.297634-1.384807 3.297634-1.424658ZM3.566625-6.087173C3.566625-6.296389 3.417186-6.515567 3.118306-6.515567C2.799502-6.515567 2.480697-6.206725 2.480697-5.88792C2.480697-5.668742 2.6401-5.459527 2.929016-5.459527C3.247821-5.459527 3.566625-5.768369 3.566625-6.087173Z'/>
 <path id='tz-text-g11-108' d='M2.789539-1.424658C2.789539-1.524284 2.709838-1.524284 2.6401-1.524284C2.590286-1.524284 2.530511-1.524284 2.500623-1.474471L2.430884-1.225405C2.261519-.52802 2.072229-.109589 1.793275-.109589C1.534247-.109589 1.534247-.37858 1.534247-.518057C1.534247-.587796 1.534247-.737235 1.594022-.976339L3.01868-6.665006C3.028643-6.694894 3.048568-6.794521 3.048568-6.794521C3.048568-6.884184 2.988792-6.914072 2.909091-6.914072C2.879203-6.914072 2.779577-6.90411 2.749689-6.894147L1.763387-6.814446C1.643836-6.804483 1.534247-6.794521 1.534247-6.60523C1.534247-6.495641 1.633873-6.495641 1.77335-6.495641C2.251557-6.495641 2.271482-6.425903 2.271482-6.326276C2.271482-6.296389 2.241594-6.156912 2.241594-6.156912L.996264-1.175592C.986301-1.135741 .936488-.936488 .936488-.787049C.936488-.259029 1.295143 .109589 1.77335 .109589C2.15193 .109589 2.351183-.159402 2.480697-.408468C2.650062-.757161 2.789539-1.39477 2.789539-1.424658Z'/>
 <path id='tz-text-g11-116' d='M3.5467-1.424658C3.5467-1.524284 3.466999-1.524284 3.39726-1.524284C3.277709-1.524284 3.277709-1.514321 3.198007-1.334994C3.01868-.856787 2.620174-.109589 2.052304-.109589C1.783313-.109589 1.783313-.358655 1.783313-.518057C1.783313-.587796 1.783313-.747198 1.853051-1.026152L2.590286-3.985056H3.437111C3.606476-3.985056 3.716065-3.985056 3.716065-4.174346C3.716065-4.293898 3.626401-4.293898 3.466999-4.293898H2.669988L3.038605-5.768369C3.078456-5.907846 3.078456-5.927771 3.078456-5.977584C3.078456-6.1868 2.909091-6.236613 2.809465-6.236613C2.560399-6.236613 2.460772-6.027397 2.420922-5.877958L2.032379-4.293898H1.185554C1.016189-4.293898 .9066-4.293898 .9066-4.104608C.9066-3.985056 .996264-3.985056 1.155666-3.985056H1.952677L1.235367-1.125778C1.225405-1.085928 1.185554-.926526 1.185554-.787049C1.185554-.288917 1.514321 .109589 2.032379 .109589C3.038605 .109589 3.5467-1.374844 3.5467-1.424658Z'/>
-<path id='tz-text-g7-49' d='M4.174346 0V-.308842H3.855542C2.958904-.308842 2.929016-.418431 2.929016-.787049V-6.37609C2.929016-6.615193 2.929016-6.635118 2.699875-6.635118C2.082192-5.997509 1.205479-5.997509 .886675-5.997509V-5.688667C1.085928-5.688667 1.673724-5.688667 2.191781-5.947696V-.787049C2.191781-.428394 2.161893-.308842 1.265255-.308842H.946451V0C1.295143-.029888 2.161893-.029888 2.560399-.029888S3.825654-.029888 4.174346 0Z'/>
-<path id='tz-text-g7-54' d='M4.552927-2.032379C4.552927-3.297634 3.666252-4.254047 2.560399-4.254047C1.882939-4.254047 1.514321-3.745953 1.315068-3.267746V-3.506849C1.315068-6.027397 2.550436-6.386052 3.058531-6.386052C3.297634-6.386052 3.716065-6.326276 3.935243-5.987547C3.785803-5.987547 3.387298-5.987547 3.387298-5.539228C3.387298-5.230386 3.626401-5.080946 3.845579-5.080946C4.004981-5.080946 4.303861-5.17061 4.303861-5.559153C4.303861-6.156912 3.865504-6.635118 3.038605-6.635118C1.763387-6.635118 .418431-5.349938 .418431-3.148194C.418431-.488169 1.574097 .219178 2.500623 .219178C3.606476 .219178 4.552927-.71731 4.552927-2.032379ZM3.656289-2.042341C3.656289-1.564134 3.656289-1.066002 3.486924-.707347C3.188045-.109589 2.729763-.059776 2.500623-.059776C1.872976-.059776 1.574097-.657534 1.514321-.806974C1.334994-1.275218 1.334994-2.072229 1.334994-2.251557C1.334994-3.028643 1.653798-4.024907 2.550436-4.024907C2.709838-4.024907 3.16812-4.024907 3.476961-3.407223C3.656289-3.038605 3.656289-2.530511 3.656289-2.042341Z'/>
-<path id='tz-text-g7-61' d='M7.183064-3.457036C7.183064-3.656289 6.993773-3.656289 6.854296-3.656289H.886675C.747198-3.656289 .557908-3.656289 .557908-3.457036S.747198-3.257783 .896638-3.257783H6.844334C6.993773-3.257783 7.183064-3.257783 7.183064-3.457036ZM7.183064-1.524284C7.183064-1.723537 6.993773-1.723537 6.844334-1.723537H.896638C.747198-1.723537 .557908-1.723537 .557908-1.524284S.747198-1.325031 .886675-1.325031H6.854296C6.993773-1.325031 7.183064-1.325031 7.183064-1.524284Z'/>
-<path id='tz-text-g6-49' d='M3.29863 0V-.251059H3.033624C2.336239-.251059 2.336239-.341719 2.336239-.571856V-4.435367C2.336239-4.623661 2.322291-4.630635 2.127024-4.630635C1.680697-4.191283 1.046077-4.184309 .760149-4.184309V-3.93325C.927522-3.93325 1.387796-3.93325 1.771357-4.128518V-.571856C1.771357-.341719 1.771357-.251059 1.073973-.251059H.808966V0L2.050311-.027895L3.29863 0Z'/>
-<path id='tz-text-g6-50' d='M3.521793-1.26924H3.284682C3.263761-1.115816 3.194022-.704359 3.103362-.63462C3.047572-.592777 2.510585-.592777 2.412951-.592777H1.129763C1.862017-1.241345 2.106102-1.436613 2.524533-1.764384C3.040598-2.175841 3.521793-2.608219 3.521793-3.270735C3.521793-4.11457 2.782565-4.630635 1.889913-4.630635C1.025156-4.630635 .439352-4.02391 .439352-3.382316C.439352-3.02665 .739228-2.991781 .808966-2.991781C.976339-2.991781 1.17858-3.110336 1.17858-3.361395C1.17858-3.486924 1.129763-3.731009 .767123-3.731009C.983313-4.226152 1.457534-4.379577 1.785305-4.379577C2.48269-4.379577 2.84533-3.835616 2.84533-3.270735C2.84533-2.66401 2.412951-2.182814 2.189788-1.931756L.509091-.27198C.439352-.209215 .439352-.195268 .439352 0H3.312578L3.521793-1.26924Z'/>
-<path id='tz-text-g4-110' d='M4.588792-.99726C4.588792-1.08792 4.498132-1.08792 4.47721-1.08792C4.379577-1.08792 4.372603-1.046077 4.344707-.969365C4.184309-.411457 3.884433-.125529 3.605479-.125529C3.459029-.125529 3.431133-.223163 3.431133-.369614C3.431133-.530012 3.466002-.620672 3.591532-.934496C3.675218-1.150685 3.961146-1.889913 3.961146-2.280448C3.961146-2.956912 3.424159-3.075467 3.054545-3.075467C2.475716-3.075467 2.085181-2.719801 1.875965-2.440847C1.827148-2.922042 1.415691-3.075467 1.129763-3.075467C.829888-3.075467 .669489-2.859278 .578829-2.698879C.425405-2.440847 .327771-2.043337 .327771-2.008468C.327771-1.917808 .425405-1.917808 .446326-1.917808C.54396-1.917808 .550934-1.93873 .599751-2.127024C.704359-2.538481 .836862-2.880199 1.108842-2.880199C1.290162-2.880199 1.338979-2.726775 1.338979-2.538481C1.338979-2.405978 1.276214-2.147945 1.227397-1.959651L1.073973-1.332005L.850809-.439352C.822914-.348692 .781071-.174346 .781071-.153425C.781071 0 .9066 .069738 1.018182 .069738C1.143711 .069738 1.255293-.020922 1.290162-.083686S1.380822-.369614 1.415691-.516065L1.569116-1.143711C1.610959-1.297136 1.652802-1.45056 1.687671-1.610959C1.764384-1.896887 1.778331-1.952677 1.980573-2.238605C2.175841-2.517559 2.503611-2.880199 3.02665-2.880199C3.431133-2.880199 3.438107-2.524533 3.438107-2.39203C3.438107-1.973599 3.138232-1.199502 3.02665-.9066C2.949938-.711333 2.922042-.648568 2.922042-.530012C2.922042-.160399 3.228892 .069738 3.584558 .069738C4.281943 .069738 4.588792-.892653 4.588792-.99726Z'/>
-<path id='tz-text-g1-88' d='M13.818182 10.759651H13.569116C13.180573 11.795766 12.124533 12.473225 10.978829 12.772105C10.769614 12.821918 9.793275 13.080946 7.880448 13.080946H1.872976L6.94396 7.13325C7.013699 7.053549 7.033624 7.023661 7.033624 6.973848C7.033624 6.973848 7.033624 6.924035 6.963885 6.824408L2.321295 .478207H7.780822C9.115816 .478207 10.022416 .617684 10.11208 .637609C10.650062 .71731 11.516812 .886675 12.303861 1.384807C12.552927 1.544209 13.230386 1.992528 13.569116 2.799502H13.818182L12.612702 0H.836862C.607721 0 .597758 .009963 .56787 .069738C.557908 .099626 .557908 .288917 .557908 .398506L5.828144 7.611457L.667497 13.65878C.56787 13.778331 .56787 13.838107 .56787 13.838107C.56787 13.947696 .657534 13.947696 .836862 13.947696H12.612702L13.818182 10.759651Z'/>
+<path id='tz-text-g2-21' d='M5.467497-2.503611C5.467497-2.615193 5.390785-2.650062 5.32802-2.677958L1.060025-4.728269C.969365-4.777086 .955417-4.777086 .920548-4.777086C.850809-4.777086 .753176-4.721295 .753176-4.60274C.753176-4.505106 .822914-4.470237 .892653-4.435367L4.902615-2.503611L.9066-.585803C.795019-.530012 .753176-.481196 .753176-.404483C.753176-.299875 .836862-.230137 .927522-.230137C.955417-.230137 .969365-.230137 1.046077-.27198L5.314072-2.322291C5.390785-2.364134 5.467497-2.39203 5.467497-2.503611ZM5.467497 1.136737C5.467497 .962391 5.307098 .962391 5.202491 .962391H1.018182C.913574 .962391 .753176 .962391 .753176 1.136737C.753176 1.30411 .920548 1.30411 1.011208 1.30411H5.209465C5.300125 1.30411 5.467497 1.30411 5.467497 1.136737Z'/>
+<path id='tz-text-g12-49' d='M4.921544 0V-.468244H3.526775V-6.206725C3.526775-6.425903 3.526775-6.525529 3.267746-6.525529C3.158157-6.525529 3.138232-6.525529 3.048568-6.455791C2.281445-5.88792 1.255293-5.88792 1.046077-5.88792H.846824V-5.419676H1.046077C1.205479-5.419676 1.753425-5.429639 2.34122-5.618929V-.468244H.956413V0C1.39477-.029888 2.450809-.029888 2.938979-.029888S4.483188-.029888 4.921544 0Z'/>
+<path id='tz-text-g12-84' d='M7.541719-4.323786L7.332503-6.724782H.627646L.418431-4.323786H.886675C.976339-5.449564 1.075965-6.256538 2.510585-6.256538H3.277709V-.468244H1.753425V0C2.291407-.029888 3.39726-.029888 3.985056-.029888S5.678705-.029888 6.216687 0V-.468244H4.692403V-6.256538H5.449564C6.874222-6.256538 6.973848-5.459527 7.073474-4.323786H7.541719Z'/>
 <path id='tz-text-g8-67' d='M7.103362-2.321295C7.103362-2.420922 7.103362-2.49066 6.973848-2.49066C6.864259-2.49066 6.864259-2.430884 6.854296-2.331258C6.774595-.886675 5.608966-.089664 4.493151-.089664C3.616438-.089664 1.743462-.607721 1.743462-3.39726C1.743462-6.336239 3.785803-6.714819 4.473225-6.714819C5.539228-6.714819 6.555417-5.88792 6.784558-4.353674C6.804483-4.214197 6.814446-4.184309 6.94396-4.184309C7.103362-4.184309 7.103362-4.214197 7.103362-4.423412V-6.784558C7.103362-6.953923 7.103362-7.023661 6.993773-7.023661C6.953923-7.023661 6.914072-7.023661 6.834371-6.90411L6.316314-6.136986C5.987547-6.475716 5.379826-7.023661 4.353674-7.023661C2.391034-7.023661 .71731-5.429639 .71731-3.407223C.71731-1.374844 2.391034 .219178 4.363636 .219178C6.047323 .219178 7.103362-1.135741 7.103362-2.321295Z'/>
 <path id='tz-text-g8-83' d='M5.3599-1.843088C5.3599-2.6401 4.881694-3.58655 3.785803-3.855542L2.430884-4.184309C1.564134-4.393524 1.354919-5.080946 1.354919-5.439601C1.354919-6.117061 1.92279-6.744707 2.769614-6.744707C4.144458-6.744707 4.672478-5.738481 4.811955-4.722291C4.83188-4.592777 4.83188-4.542964 4.941469-4.542964C5.070984-4.542964 5.070984-4.592777 5.070984-4.782067V-6.784558C5.070984-6.953923 5.070984-7.023661 4.961395-7.023661C4.891656-7.023661 4.891656-7.013699 4.811955-6.894147L4.443337-6.306351C4.174346-6.575342 3.716065-7.023661 2.759651-7.023661C1.603985-7.023661 .71731-6.146949 .71731-5.090909C.71731-4.4533 1.05604-4.004981 1.185554-3.855542C1.653798-3.367372 1.952677-3.297634 2.779577-3.098381C2.938979-3.058531 3.108344-3.028643 3.267746-2.988792C3.855542-2.849315 4.054795-2.799502 4.363636-2.460772C4.423412-2.391034 4.722291-2.052304 4.722291-1.514321C4.722291-.806974 4.194271-.089664 3.287671-.089664C2.86924-.089664 2.201743-.169365 1.653798-.597758C1.006227-1.105853 .976339-1.833126 .966376-2.171856C.956413-2.241594 .896638-2.261519 .846824-2.261519C.71731-2.261519 .71731-2.191781 .71731-2.012453V-.019925C.71731 .14944 .71731 .219178 .826899 .219178C.896638 .219178 .916563 .18929 .976339 .099626L1.344956-.498132C1.62391-.209215 2.271482 .219178 3.297634 .219178C4.542964 .219178 5.3599-.787049 5.3599-1.843088Z'/>
 <path id='tz-text-g8-97' d='M5.768369 0V-.249066C5.210461-.249066 5.120797-.298879 4.991283-.647572L3.277709-5.070984C3.217933-5.230386 3.16812-5.290162 3.058531-5.290162C2.919054-5.290162 2.899128-5.230386 2.849315-5.100872L1.24533-.986301C1.135741-.71731 .966376-.268991 .33873-.249066V0C.557908-.019925 .846824-.029888 1.066002-.029888L1.892902 0V-.249066C1.474471-.268991 1.444583-.607721 1.444583-.697385C1.444583-.777086 1.444583-.797011 1.783313-1.683686H3.845579L4.064757-1.125778C4.144458-.926526 4.273973-.587796 4.273973-.52802C4.273973-.249066 3.915318-.249066 3.745953-.249066V0L4.801993-.029888C5.140722-.029888 5.529265-.009963 5.768369 0ZM3.745953-1.932752H1.882939L2.819427-4.333748L3.745953-1.932752Z'/>
@@ -2111,21 +2123,16 @@ endfig; end.</code></pre></details>
 <path id='tz-text-g8-109' d='M6.973848 0V-.249066C6.306351-.249066 6.256538-.308842 6.256538-.71731V-4.403487C6.256538-4.811955 6.306351-4.871731 6.973848-4.871731V-5.120797H5.768369C5.539228-5.120797 5.50934-5.120797 5.429639-4.931507L3.726027-.747198L2.012453-4.941469C1.942715-5.120797 1.882939-5.120797 1.673724-5.120797H.468244V-4.871731C1.135741-4.871731 1.185554-4.811955 1.185554-4.403487V-1.006227C1.185554-.777086 1.185554-.249066 .468244-.249066V0L1.325031-.029888C1.474471-.029888 1.932752-.019925 2.181818 0V-.249066C1.464508-.249066 1.464508-.777086 1.464508-1.006227V-4.752179L1.474471-4.762142L3.337484-.179328C3.377335-.089664 3.427148 0 3.526775 0S3.676214-.089664 3.716065-.179328L5.608966-4.83188L5.618929-4.821918V-.71731C5.618929-.308842 5.569116-.249066 4.901619-.249066V0L5.937733-.029888C6.286426-.029888 6.645081-.009963 6.973848 0Z'/>
 <path id='tz-text-g8-112' d='M5.051059-3.716065C5.051059-4.433375 4.293898-5.120797 3.148194-5.120797H.448319V-4.871731C1.115816-4.871731 1.165629-4.811955 1.165629-4.403487V-.71731C1.165629-.308842 1.115816-.249066 .448319-.249066V0L1.524284-.029888L2.600249 0V-.249066C1.932752-.249066 1.882939-.308842 1.882939-.71731V-2.331258H3.217933C4.214197-2.331258 5.051059-2.958904 5.051059-3.716065ZM4.194271-3.716065C4.194271-3.327522 4.194271-2.560399 2.938979-2.560399H1.853051V-4.443337C1.853051-4.841843 1.902864-4.871731 2.251557-4.871731H2.938979C4.194271-4.871731 4.194271-4.11457 4.194271-3.716065Z'/>
 <path id='tz-text-g8-115' d='M4.054795-1.414695C4.054795-2.042341 3.666252-2.450809 3.666252-2.450809C3.297634-2.82939 3.138232-2.859278 2.291407-3.058531C2.082192-3.108344 1.733499-3.188045 1.673724-3.20797C1.175592-3.407223 1.016189-3.795766 1.016189-4.094645C1.016189-4.552927 1.414695-5.041096 2.082192-5.041096C3.347447-5.041096 3.526775-3.875467 3.566625-3.556663C3.58655-3.486924 3.58655-3.427148 3.696139-3.427148C3.825654-3.427148 3.825654-3.476961 3.825654-3.666252V-5.021171C3.825654-5.180573 3.825654-5.260274 3.726027-5.260274C3.666252-5.260274 3.656289-5.250311 3.506849-5.031133C3.457036-4.98132 3.35741-4.83188 3.317559-4.772105C2.938979-5.140722 2.480697-5.260274 2.072229-5.260274C1.165629-5.260274 .508095-4.582814 .508095-3.805729C.508095-3.247821 .826899-2.919054 .946451-2.799502C1.24533-2.500623 1.444583-2.460772 2.361146-2.251557C2.899128-2.122042 2.998755-2.102117 3.227895-1.892902C3.277709-1.853051 3.5467-1.58406 3.5467-1.145704C3.5467-.647572 3.158157-.109589 2.470735-.109589C2.211706-.109589 1.673724-.14944 1.24533-.498132C.797011-.846824 .767123-1.334994 .757161-1.603985C.747198-1.683686 .667497-1.693649 .637609-1.693649C.508095-1.693649 .508095-1.62391 .508095-1.444583V-.099626C.508095 .059776 .508095 .139477 .607721 .139477C.667497 .139477 .67746 .129514 .826899-.089664C.876712-.139477 .976339-.288917 1.016189-.348692C1.305106-.089664 1.823163 .139477 2.470735 .139477C3.437111 .139477 4.054795-.627646 4.054795-1.414695Z'/>
-<path id='tz-text-g5-25' d='M5.648817-4.054795C5.648817-4.293898 5.439601-4.293898 5.250311-4.293898H1.912827C1.693649-4.293898 1.315068-4.293898 .876712-3.825654C.52802-3.437111 .268991-2.978829 .268991-2.929016C.268991-2.929016 .268991-2.82939 .388543-2.82939C.468244-2.82939 .488169-2.86924 .547945-2.948941C1.036115-3.716065 1.613948-3.716065 1.8132-3.716065H2.381071C2.062267-2.510585 1.524284-1.305106 1.105853-.398506C1.026152-.249066 1.026152-.229141 1.026152-.159402C1.026152 .029888 1.185554 .109589 1.315068 .109589C1.613948 .109589 1.693649-.169365 1.8132-.537983C1.952677-.996264 1.952677-1.016189 2.082192-1.514321L2.6401-3.716065H3.765878C3.437111-2.241594 3.347447-1.8132 3.347447-1.145704C3.347447-.996264 3.347447-.727273 3.427148-.388543C3.526775 .049813 3.636364 .109589 3.785803 .109589C3.985056 .109589 4.194271-.069738 4.194271-.268991C4.194271-.328767 4.194271-.348692 4.134496-.488169C3.845579-1.205479 3.845579-1.853051 3.845579-2.132005C3.845579-2.660025 3.915318-3.198007 4.024907-3.716065H5.160648C5.290162-3.716065 5.648817-3.716065 5.648817-4.054795Z'/>
-<path id='tz-text-g5-59' d='M2.022416-.009963C2.022416-.667497 1.77335-1.05604 1.384807-1.05604C1.05604-1.05604 .856787-.806974 .856787-.52802C.856787-.259029 1.05604 0 1.384807 0C1.504359 0 1.633873-.039851 1.733499-.129514C1.763387-.14944 1.783313-.159402 1.783313-.159402S1.803238-.14944 1.803238-.009963C1.803238 .727273 1.454545 1.325031 1.125778 1.653798C1.016189 1.763387 1.016189 1.783313 1.016189 1.8132C1.016189 1.882939 1.066002 1.92279 1.115816 1.92279C1.225405 1.92279 2.022416 1.155666 2.022416-.009963Z'/>
-<path id='tz-text-g5-110' d='M5.688667-1.424658C5.688667-1.524284 5.599004-1.524284 5.569116-1.524284C5.469489-1.524284 5.469489-1.494396 5.419676-1.344956C5.220423-.667497 4.891656-.109589 4.403487-.109589C4.234122-.109589 4.164384-.209215 4.164384-.438356C4.164384-.687422 4.254047-.926526 4.343711-1.145704C4.533001-1.673724 4.951432-2.769614 4.951432-3.337484C4.951432-4.004981 4.523039-4.403487 3.805729-4.403487C2.909091-4.403487 2.420922-3.765878 2.251557-3.536737C2.201743-4.094645 1.793275-4.403487 1.334994-4.403487S.687422-4.014944 .587796-3.835616C.428394-3.496887 .288917-2.909091 .288917-2.86924C.288917-2.769614 .408468-2.769614 .408468-2.769614C.508095-2.769614 .518057-2.779577 .577833-2.998755C.747198-3.706102 .946451-4.184309 1.305106-4.184309C1.504359-4.184309 1.613948-4.054795 1.613948-3.726027C1.613948-3.516812 1.58406-3.407223 1.454545-2.889166L.876712-.587796C.846824-.438356 .787049-.209215 .787049-.159402C.787049 .019925 .926526 .109589 1.075965 .109589C1.195517 .109589 1.374844 .029888 1.444583-.169365C1.454545-.18929 1.574097-.657534 1.633873-.9066L1.853051-1.803238C1.912827-2.022416 1.972603-2.241594 2.022416-2.470735L2.15193-2.968867C2.30137-3.277709 2.82939-4.184309 3.775841-4.184309C4.224159-4.184309 4.313823-3.815691 4.313823-3.486924C4.313823-2.86924 3.825654-1.594022 3.666252-1.165629C3.576588-.936488 3.566625-.816936 3.566625-.707347C3.566625-.239103 3.915318 .109589 4.383562 .109589C5.32005 .109589 5.688667-1.344956 5.688667-1.424658Z'/>
-<path id='tz-text-g10-109' d='M5.140722-.298879C5.140722-.607721 4.931507-.607721 4.572852-.607721V-3.01868C4.572852-3.217933 4.572852-4.353674 3.686177-4.353674C3.387298-4.353674 2.978829-4.224159 2.699875-3.835616C2.550436-4.174346 2.271482-4.353674 1.942715-4.353674C1.62391-4.353674 1.325031-4.214197 1.085928-3.995019C1.066002-4.293898 .86675-4.293898 .687422-4.293898H.368618C.219178-4.293898-.039851-4.293898-.039851-3.995019C-.039851-3.686177 .169365-3.686177 .52802-3.686177V-.607721C.169365-.607721-.039851-.607721-.039851-.298879C-.039851 0 .229141 0 .368618 0H1.24533C1.39477 0 1.653798 0 1.653798-.298879C1.653798-.607721 1.444583-.607721 1.085928-.607721V-2.391034C1.085928-3.277709 1.494396-3.745953 1.902864-3.745953C2.132005-3.745953 2.271482-3.576588 2.271482-2.929016V-.607721C2.082192-.607721 1.833126-.607721 1.833126-.298879C1.833126 0 2.102117 0 2.241594 0H2.988792C3.138232 0 3.39726 0 3.39726-.298879C3.39726-.607721 3.188045-.607721 2.82939-.607721V-2.391034C2.82939-3.277709 3.237858-3.745953 3.646326-3.745953C3.875467-3.745953 4.014944-3.576588 4.014944-2.929016V-.607721C3.825654-.607721 3.576588-.607721 3.576588-.298879C3.576588 0 3.845579 0 3.985056 0H4.732254C4.881694 0 5.140722 0 5.140722-.298879Z'/>
-<path id='tz-text-g10-110' d='M5.100872-.298879C5.100872-.607721 4.851806-.607721 4.692403-.607721H4.254047V-2.919054C4.254047-3.92528 3.745953-4.353674 2.958904-4.353674C2.291407-4.353674 1.843088-4.014944 1.653798-3.825654C1.653798-4.144458 1.653798-4.293898 1.255293-4.293898H.52802C.368618-4.293898 .119552-4.293898 .119552-3.985056C.119552-3.686177 .37858-3.686177 .518057-3.686177H.966376V-.607721H.52802C.368618-.607721 .119552-.607721 .119552-.298879C.119552 0 .37858 0 .518057 0H2.102117C2.241594 0 2.500623 0 2.500623-.298879C2.500623-.607721 2.251557-.607721 2.092154-.607721H1.653798V-2.371108C1.653798-3.367372 2.391034-3.745953 2.899128-3.745953C3.427148-3.745953 3.566625-3.466999 3.566625-2.86924V-.607721H3.178082C3.01868-.607721 2.769614-.607721 2.769614-.298879C2.769614 0 3.038605 0 3.178082 0H4.702366C4.841843 0 5.100872 0 5.100872-.298879Z'/>
-<path id='tz-text-g10-111' d='M4.652553-2.15193C4.652553-3.39726 3.726027-4.383562 2.610212-4.383562S.56787-3.39726 .56787-2.15193C.56787-.886675 1.514321 .059776 2.610212 .059776S4.652553-.896638 4.652553-2.15193ZM3.965131-2.221669C3.965131-1.295143 3.347447-.547945 2.610212-.547945S1.255293-1.295143 1.255293-2.221669C1.255293-3.128269 1.902864-3.775841 2.610212-3.775841C3.327522-3.775841 3.965131-3.128269 3.965131-2.221669Z'/>
-<path id='tz-text-g12-49' d='M4.921544 0V-.468244H3.526775V-6.206725C3.526775-6.425903 3.526775-6.525529 3.267746-6.525529C3.158157-6.525529 3.138232-6.525529 3.048568-6.455791C2.281445-5.88792 1.255293-5.88792 1.046077-5.88792H.846824V-5.419676H1.046077C1.205479-5.419676 1.753425-5.429639 2.34122-5.618929V-.468244H.956413V0C1.39477-.029888 2.450809-.029888 2.938979-.029888S4.483188-.029888 4.921544 0Z'/>
-<path id='tz-text-g12-84' d='M7.541719-4.323786L7.332503-6.724782H.627646L.418431-4.323786H.886675C.976339-5.449564 1.075965-6.256538 2.510585-6.256538H3.277709V-.468244H1.753425V0C2.291407-.029888 3.39726-.029888 3.985056-.029888S5.678705-.029888 6.216687 0V-.468244H4.692403V-6.256538H5.449564C6.874222-6.256538 6.973848-5.459527 7.073474-4.323786H7.541719Z'/>
-<path id='tz-text-g3-110' d='M4.41345 2.291407C4.41345 2.291407 4.41345 2.241594 4.363636 2.11208L.976339-7.252802C.936488-7.362391 .896638-7.47198 .757161-7.47198C.647572-7.47198 .557908-7.382316 .557908-7.272727C.557908-7.272727 .557908-7.222914 .607721-7.0934L3.995019 2.271482C4.034869 2.381071 4.07472 2.49066 4.214197 2.49066C4.323786 2.49066 4.41345 2.400996 4.41345 2.291407Z'/>
 <path id='tz-text-g0-81' d='M4.762142 .089664C6.166874-.199253 7.422167-1.315068 7.422167-3.407223C7.422167-5.917808 5.65878-7.013699 3.875467-7.013699C2.052304-7.013699 .328767-5.867995 .328767-3.417186C.328767-1.285181 1.603985-.268991 2.779577 .039851C3.227895 1.066002 4.214197 1.783313 5.449564 1.783313C5.947696 1.783313 6.495641 1.683686 7.013699 1.484433C7.193026 1.414695 7.292653 1.374844 7.292653 1.255293S7.202989 1.075965 7.123288 1.075965C7.103362 1.075965 7.0934 1.075965 7.023661 1.09589C6.744707 1.165629 6.635118 1.165629 6.475716 1.165629C5.559153 1.165629 4.991283 .587796 4.762142 .089664ZM2.500623-6.386052C1.892902-5.678705 1.733499-4.513076 1.733499-3.417186C1.733499-2.440847 1.853051-1.195517 2.510585-.418431C1.823163-.67746 .67746-1.474471 .67746-3.407223C.67746-5.439601 1.912827-6.176837 2.49066-6.396015L2.500623-6.386052ZM5.260274-6.396015C5.927771-6.146949 7.073474-5.349938 7.073474-3.417186C7.073474-1.384807 5.838107-.647572 5.240349-.418431C5.858032-1.145704 6.017435-2.311333 6.017435-3.407223C6.017435-4.383562 5.897883-5.628892 5.250311-6.386052L5.260274-6.396015ZM3.875467-.159402C2.261519-.159402 2.082192-2.271482 2.082192-3.407223C2.082192-4.60274 2.281445-6.665006 3.875467-6.665006C5.489415-6.665006 5.668742-4.552927 5.668742-3.417186C5.668742-2.221669 5.469489-.159402 3.875467-.159402ZM3.217933 .139477C3.496887 .18929 3.865504 .18929 3.875467 .18929C3.92528 .18929 4.134496 .18929 4.41345 .159402C4.682441 .787049 5.150685 1.165629 5.648817 1.364882C5.748443 1.404732 5.758406 1.404732 5.758406 1.414695C5.758406 1.43462 5.579078 1.43462 5.449564 1.43462C4.60274 1.43462 3.73599 1.036115 3.217933 .139477Z'/>
 <path id='tz-text-g0-82' d='M2.669988-3.128269H3.028643L4.523039-.816936C4.622665-.657534 4.861768-.268991 4.971357-.119552C5.041096 0 5.070984 0 5.300125 0H6.674969C6.854296 0 7.003736 0 7.003736-.179328C7.003736-.259029 6.94396-.328767 6.854296-.348692C6.485679-.428394 5.997509-1.085928 5.758406-1.404732C5.688667-1.504359 5.190535-2.161893 4.523039-3.237858C5.409714-3.39726 6.266501-3.775841 6.266501-4.961395C6.266501-6.346202 4.801993-6.824408 3.626401-6.824408H.498132C.318804-6.824408 .159402-6.824408 .159402-6.645081C.159402-6.475716 .348692-6.475716 .428394-6.475716C.996264-6.475716 1.046077-6.405978 1.046077-5.907846V-.916563C1.046077-.418431 .996264-.348692 .428394-.348692C.348692-.348692 .159402-.348692 .159402-.179328C.159402 0 .318804 0 .498132 0H3.227895C3.407223 0 3.556663 0 3.556663-.179328C3.556663-.348692 3.387298-.348692 3.277709-.348692C2.709838-.348692 2.669988-.428394 2.669988-.916563V-3.128269ZM4.592777-3.616438C4.871731-3.985056 4.901619-4.513076 4.901619-4.951432C4.901619-5.429639 4.841843-5.957659 4.523039-6.366127C4.931507-6.276463 5.917808-5.967621 5.917808-4.961395C5.917808-4.313823 5.618929-3.805729 4.592777-3.616438ZM2.669988-5.937733C2.669988-6.146949 2.669988-6.475716 3.287671-6.475716C4.134496-6.475716 4.552927-6.127024 4.552927-4.951432C4.552927-3.666252 4.244085-3.476961 2.669988-3.476961V-5.937733ZM1.315068-.348692C1.39477-.52802 1.39477-.806974 1.39477-.896638V-5.927771C1.39477-6.027397 1.39477-6.296389 1.315068-6.475716H2.450809C2.321295-6.316314 2.321295-6.117061 2.321295-5.967621V-.896638C2.321295-.797011 2.321295-.52802 2.400996-.348692H1.315068ZM3.437111-3.128269C3.506849-3.138232 3.5467-3.148194 3.626401-3.148194C3.775841-3.148194 3.995019-3.16812 4.144458-3.188045C4.293898-2.948941 5.369863-1.175592 6.196762-.348692H5.230386L3.437111-3.128269Z'/>
 <path id='tz-text-g9-97' d='M4.07472 0V-2.879203C4.07472-3.895392 3.347447-4.592777 2.430884-4.592777C1.783313-4.592777 1.334994-4.433375 .86675-4.164384L.926526-3.506849C1.444583-3.875467 1.942715-4.004981 2.430884-4.004981C2.899128-4.004981 3.297634-3.606476 3.297634-2.86924V-2.440847C1.803238-2.420922 .537983-2.002491 .537983-1.125778C.537983-.697385 .806974 .109589 1.673724 .109589C1.8132 .109589 2.749689 .089664 3.327522-.358655V0H4.07472ZM3.297634-1.315068C3.297634-1.125778 3.297634-.876712 2.958904-.687422C2.669988-.508095 2.291407-.498132 2.181818-.498132C1.703611-.498132 1.255293-.727273 1.255293-1.145704C1.255293-1.843088 2.86924-1.912827 3.297634-1.932752V-1.315068Z'/>
 <path id='tz-text-g9-110' d='M4.333748 0V-2.968867C4.333748-3.626401 4.184309-4.533001 2.968867-4.533001C2.072229-4.533001 1.58406-3.855542 1.524284-3.775841V-4.483188H.806974V0H1.58406V-2.440847C1.58406-3.098381 1.833126-3.92528 2.590286-3.92528C3.5467-3.92528 3.556663-3.217933 3.556663-2.899128V0H4.333748Z'/>
 <path id='tz-text-g9-115' d='M3.58655-1.275218C3.58655-1.823163 3.217933-2.161893 3.198007-2.191781C2.809465-2.540473 2.540473-2.600249 2.042341-2.689913C1.494396-2.799502 1.036115-2.899128 1.036115-3.387298C1.036115-4.004981 1.753425-4.004981 1.882939-4.004981C2.201743-4.004981 2.729763-3.965131 3.297634-3.626401L3.417186-4.273973C2.899128-4.513076 2.49066-4.592777 1.982565-4.592777C1.733499-4.592777 .328767-4.592777 .328767-3.287671C.328767-2.799502 .617684-2.480697 .86675-2.291407C1.175592-2.072229 1.39477-2.032379 1.942715-1.92279C2.30137-1.853051 2.879203-1.733499 2.879203-1.205479C2.879203-.518057 2.092154-.518057 1.942715-.518057C1.135741-.518057 .577833-.886675 .398506-1.006227L.278954-.328767C.597758-.169365 1.145704 .109589 1.952677 .109589C2.132005 .109589 2.67995 .109589 3.108344-.209215C3.417186-.448319 3.58655-.846824 3.58655-1.275218Z'/>
-<path id='tz-text-g2-21' d='M5.467497-2.503611C5.467497-2.615193 5.390785-2.650062 5.32802-2.677958L1.060025-4.728269C.969365-4.777086 .955417-4.777086 .920548-4.777086C.850809-4.777086 .753176-4.721295 .753176-4.60274C.753176-4.505106 .822914-4.470237 .892653-4.435367L4.902615-2.503611L.9066-.585803C.795019-.530012 .753176-.481196 .753176-.404483C.753176-.299875 .836862-.230137 .927522-.230137C.955417-.230137 .969365-.230137 1.046077-.27198L5.314072-2.322291C5.390785-2.364134 5.467497-2.39203 5.467497-2.503611ZM5.467497 1.136737C5.467497 .962391 5.307098 .962391 5.202491 .962391H1.018182C.913574 .962391 .753176 .962391 .753176 1.136737C.753176 1.30411 .920548 1.30411 1.011208 1.30411H5.209465C5.300125 1.30411 5.467497 1.30411 5.467497 1.136737Z'/>
+<path id='tz-text-g10-109' d='M5.140722-.298879C5.140722-.607721 4.931507-.607721 4.572852-.607721V-3.01868C4.572852-3.217933 4.572852-4.353674 3.686177-4.353674C3.387298-4.353674 2.978829-4.224159 2.699875-3.835616C2.550436-4.174346 2.271482-4.353674 1.942715-4.353674C1.62391-4.353674 1.325031-4.214197 1.085928-3.995019C1.066002-4.293898 .86675-4.293898 .687422-4.293898H.368618C.219178-4.293898-.039851-4.293898-.039851-3.995019C-.039851-3.686177 .169365-3.686177 .52802-3.686177V-.607721C.169365-.607721-.039851-.607721-.039851-.298879C-.039851 0 .229141 0 .368618 0H1.24533C1.39477 0 1.653798 0 1.653798-.298879C1.653798-.607721 1.444583-.607721 1.085928-.607721V-2.391034C1.085928-3.277709 1.494396-3.745953 1.902864-3.745953C2.132005-3.745953 2.271482-3.576588 2.271482-2.929016V-.607721C2.082192-.607721 1.833126-.607721 1.833126-.298879C1.833126 0 2.102117 0 2.241594 0H2.988792C3.138232 0 3.39726 0 3.39726-.298879C3.39726-.607721 3.188045-.607721 2.82939-.607721V-2.391034C2.82939-3.277709 3.237858-3.745953 3.646326-3.745953C3.875467-3.745953 4.014944-3.576588 4.014944-2.929016V-.607721C3.825654-.607721 3.576588-.607721 3.576588-.298879C3.576588 0 3.845579 0 3.985056 0H4.732254C4.881694 0 5.140722 0 5.140722-.298879Z'/>
+<path id='tz-text-g10-110' d='M5.100872-.298879C5.100872-.607721 4.851806-.607721 4.692403-.607721H4.254047V-2.919054C4.254047-3.92528 3.745953-4.353674 2.958904-4.353674C2.291407-4.353674 1.843088-4.014944 1.653798-3.825654C1.653798-4.144458 1.653798-4.293898 1.255293-4.293898H.52802C.368618-4.293898 .119552-4.293898 .119552-3.985056C.119552-3.686177 .37858-3.686177 .518057-3.686177H.966376V-.607721H.52802C.368618-.607721 .119552-.607721 .119552-.298879C.119552 0 .37858 0 .518057 0H2.102117C2.241594 0 2.500623 0 2.500623-.298879C2.500623-.607721 2.251557-.607721 2.092154-.607721H1.653798V-2.371108C1.653798-3.367372 2.391034-3.745953 2.899128-3.745953C3.427148-3.745953 3.566625-3.466999 3.566625-2.86924V-.607721H3.178082C3.01868-.607721 2.769614-.607721 2.769614-.298879C2.769614 0 3.038605 0 3.178082 0H4.702366C4.841843 0 5.100872 0 5.100872-.298879Z'/>
+<path id='tz-text-g10-111' d='M4.652553-2.15193C4.652553-3.39726 3.726027-4.383562 2.610212-4.383562S.56787-3.39726 .56787-2.15193C.56787-.886675 1.514321 .059776 2.610212 .059776S4.652553-.896638 4.652553-2.15193ZM3.965131-2.221669C3.965131-1.295143 3.347447-.547945 2.610212-.547945S1.255293-1.295143 1.255293-2.221669C1.255293-3.128269 1.902864-3.775841 2.610212-3.775841C3.327522-3.775841 3.965131-3.128269 3.965131-2.221669Z'/>
+<path id='tz-text-g4-110' d='M4.588792-.99726C4.588792-1.08792 4.498132-1.08792 4.47721-1.08792C4.379577-1.08792 4.372603-1.046077 4.344707-.969365C4.184309-.411457 3.884433-.125529 3.605479-.125529C3.459029-.125529 3.431133-.223163 3.431133-.369614C3.431133-.530012 3.466002-.620672 3.591532-.934496C3.675218-1.150685 3.961146-1.889913 3.961146-2.280448C3.961146-2.956912 3.424159-3.075467 3.054545-3.075467C2.475716-3.075467 2.085181-2.719801 1.875965-2.440847C1.827148-2.922042 1.415691-3.075467 1.129763-3.075467C.829888-3.075467 .669489-2.859278 .578829-2.698879C.425405-2.440847 .327771-2.043337 .327771-2.008468C.327771-1.917808 .425405-1.917808 .446326-1.917808C.54396-1.917808 .550934-1.93873 .599751-2.127024C.704359-2.538481 .836862-2.880199 1.108842-2.880199C1.290162-2.880199 1.338979-2.726775 1.338979-2.538481C1.338979-2.405978 1.276214-2.147945 1.227397-1.959651L1.073973-1.332005L.850809-.439352C.822914-.348692 .781071-.174346 .781071-.153425C.781071 0 .9066 .069738 1.018182 .069738C1.143711 .069738 1.255293-.020922 1.290162-.083686S1.380822-.369614 1.415691-.516065L1.569116-1.143711C1.610959-1.297136 1.652802-1.45056 1.687671-1.610959C1.764384-1.896887 1.778331-1.952677 1.980573-2.238605C2.175841-2.517559 2.503611-2.880199 3.02665-2.880199C3.431133-2.880199 3.438107-2.524533 3.438107-2.39203C3.438107-1.973599 3.138232-1.199502 3.02665-.9066C2.949938-.711333 2.922042-.648568 2.922042-.530012C2.922042-.160399 3.228892 .069738 3.584558 .069738C4.281943 .069738 4.588792-.892653 4.588792-.99726Z'/>
+<path id='tz-text-g1-88' d='M13.818182 10.759651H13.569116C13.180573 11.795766 12.124533 12.473225 10.978829 12.772105C10.769614 12.821918 9.793275 13.080946 7.880448 13.080946H1.872976L6.94396 7.13325C7.013699 7.053549 7.033624 7.023661 7.033624 6.973848C7.033624 6.973848 7.033624 6.924035 6.963885 6.824408L2.321295 .478207H7.780822C9.115816 .478207 10.022416 .617684 10.11208 .637609C10.650062 .71731 11.516812 .886675 12.303861 1.384807C12.552927 1.544209 13.230386 1.992528 13.569116 2.799502H13.818182L12.612702 0H.836862C.607721 0 .597758 .009963 .56787 .069738C.557908 .099626 .557908 .288917 .557908 .398506L5.828144 7.611457L.667497 13.65878C.56787 13.778331 .56787 13.838107 .56787 13.838107C.56787 13.947696 .657534 13.947696 .836862 13.947696H12.612702L13.818182 10.759651Z'/>
 <path id='tz-text-g13-28' d='M5.250311 0V-.308842C4.582814-.308842 4.473225-.308842 4.473225-.757161V-4.41345L3.217933-4.323786C3.058531-4.313823 3.038605-4.303861 3.038605-4.303861C3.01868-4.293898 2.998755-4.293898 2.859278-4.293898H1.683686V-5.419676C1.683686-6.405978 2.540473-6.804483 3.158157-6.804483C3.457036-6.804483 3.815691-6.704857 4.014944-6.475716C3.606476-6.455791 3.5467-6.176837 3.5467-6.017435C3.5467-5.688667 3.805729-5.559153 3.995019-5.559153C4.224159-5.559153 4.4533-5.718555 4.4533-6.017435C4.4533-6.60523 3.905355-7.023661 3.16812-7.023661C2.241594-7.023661 1.05604-6.515567 1.05604-5.429639V-4.293898H.268991V-3.985056H1.05604V-.757161C1.05604-.308842 .946451-.308842 .278954-.308842V0L1.384807-.029888L2.49066 0V-.308842C1.823163-.308842 1.713574-.308842 1.713574-.757161V-3.985056H3.287671C3.745953-3.985056 3.815691-3.855542 3.815691-3.447073V-.757161C3.815691-.308842 3.706102-.308842 3.038605-.308842V0L4.144458-.029888L5.250311 0Z'/>
 <path id='tz-text-g13-29' d='M5.250311 0V-.308842C4.582814-.308842 4.473225-.308842 4.473225-.757161V-6.914072L4.11457-6.854296C4.07472-6.854296 4.064757-6.864259 4.024907-6.884184C3.706102-7.023661 3.297634-7.023661 3.188045-7.023661C2.141968-7.023661 1.05604-6.465753 1.05604-5.429639V-4.293898H.268991V-3.985056H1.05604V-.757161C1.05604-.308842 .946451-.308842 .278954-.308842V0L1.384807-.029888L2.49066 0V-.308842C1.823163-.308842 1.713574-.308842 1.713574-.757161V-3.985056H3.815691V-.757161C3.815691-.308842 3.706102-.308842 3.038605-.308842V0L4.144458-.029888L5.250311 0ZM3.815691-4.293898H1.683686V-5.419676C1.683686-6.346202 2.440847-6.804483 3.178082-6.804483C3.267746-6.804483 3.536737-6.804483 3.815691-6.714819C3.726027-6.674969 3.566625-6.575342 3.566625-6.316314C3.566625-6.136986 3.646326-5.987547 3.815691-5.927771V-4.293898Z'/>
 <path id='tz-text-g13-30' d='M8.009963 0V-.308842C7.342466-.308842 7.232877-.308842 7.232877-.757161V-4.41345L6.844334-4.383562L5.798257-4.303861C5.778331-4.293898 5.758406-4.293898 5.618929-4.293898H4.443337V-5.419676C4.443337-6.405978 5.300125-6.804483 5.917808-6.804483C6.216687-6.804483 6.575342-6.704857 6.774595-6.475716C6.366127-6.455791 6.306351-6.176837 6.306351-6.017435C6.306351-5.688667 6.56538-5.559153 6.75467-5.559153C6.983811-5.559153 7.212951-5.718555 7.212951-6.017435C7.212951-6.60523 6.665006-7.023661 5.927771-7.023661C5.051059-7.023661 4.483188-6.625156 4.303861-6.475716C4.07472-6.824408 3.656289-7.023661 3.158157-7.023661C2.221669-7.023661 1.05604-6.515567 1.05604-5.429639V-4.293898H.268991V-3.985056H1.05604V-.757161C1.05604-.308842 .946451-.308842 .278954-.308842V0L1.384807-.029888L2.49066 0V-.308842C1.823163-.308842 1.713574-.308842 1.713574-.757161V-3.985056H3.815691V-.757161C3.815691-.308842 3.706102-.308842 3.038605-.308842V0L4.144458-.029888L5.250311 0V-.308842C4.582814-.308842 4.473225-.308842 4.473225-.757161V-3.985056H6.047323C6.505604-3.985056 6.575342-3.855542 6.575342-3.447073V-.757161C6.575342-.308842 6.465753-.308842 5.798257-.308842V0L6.90411-.029888L8.009963 0ZM3.995019-6.475716C3.606476-6.455791 3.516812-6.216687 3.516812-6.017435C3.516812-5.798257 3.636364-5.638854 3.815691-5.589041V-4.293898H1.683686V-5.419676C1.683686-6.41594 2.550436-6.804483 3.138232-6.804483C3.377335-6.804483 3.726027-6.75467 3.995019-6.475716Z'/>
@@ -2232,7 +2239,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Latin Modern, T1 encoding, amsmath</b> — Text is glyph outlines in the SVG, so it renders identically everywhere; <code>fonts: 'woff2'</code> embeds web fonts instead if you prefer selectable text. <span class="ms">144 ms TeX, 72 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Latin Modern, T1 encoding, amsmath</b> — Text is glyph outlines in the SVG, so it renders identically everywhere; <code>fonts: 'woff2'</code> embeds web fonts instead if you prefer selectable text. <span class="ms">134 ms TeX, 67 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usepackage{lmodern}
 \usepackage[T1]{fontenc}
@@ -2506,7 +2513,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Trees, matrices, decorations</b> <span class="ms">147 ms TeX, 39 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Trees, matrices, decorations</b> <span class="ms">145 ms TeX, 38 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{trees,decorations.pathreplacing}
 \begin{document}
@@ -2519,7 +2526,7 @@ endfig; end.</code></pre></details>
 \end{tikzpicture}
 \end{document}</code></pre></details>
 </figure></div>
-<figure class="ex" id="tz-plain">
+<div class="grid2"><figure class="ex" id="tz-plain">
   <div class="fig"><svg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' style="width:min(100%,221px)" viewBox='19.92528 .000002 97.411597 77.996832'>
 <defs>
 <path id='tz-plain-g0-69' d='M1.354919-.777086C1.354919-.418431 1.334994-.308842 .56787-.308842H.328767V0H6.07721L6.495641-2.570361H6.246575C5.997509-1.036115 5.768369-.308842 4.054795-.308842H2.729763C2.261519-.308842 2.241594-.37858 2.241594-.707347V-3.367372H3.138232C4.104608-3.367372 4.214197-3.048568 4.214197-2.201743H4.463263V-4.841843H4.214197C4.214197-3.985056 4.104608-3.676214 3.138232-3.676214H2.241594V-6.067248C2.241594-6.396015 2.261519-6.465753 2.729763-6.465753H4.014944C5.539228-6.465753 5.808219-5.917808 5.967621-4.533001H6.216687L5.937733-6.774595H.328767V-6.465753H.56787C1.334994-6.465753 1.354919-6.356164 1.354919-5.997509V-.777086Z'/>
@@ -2678,7 +2685,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Plain TeX too</b> — <code>engine: 'plain'</code> runs plain TeX with e-TeX (TeX Live's <code>etex</code>), which is what PGF needs. <span class="ms">105 ms TeX, 43 ms dvisvgm</span></figcaption>
+  <figcaption><b>Plain TeX too</b> — <code>engine: 'plain'</code> runs plain TeX with e-TeX (TeX Live's <code>etex</code>), which is what PGF needs. <span class="ms">91 ms TeX, 56 ms dvisvgm</span></figcaption>
   <details><summary>source (plain TeX)</summary><pre><code>\input tikz
 \nopagenumbers
 \tikzpicture
@@ -2687,6 +2694,622 @@ endfig; end.</code></pre></details>
   \node at (0,-1.4) {plain \TeX\ with TikZ};
 \endtikzpicture
 \bye</code></pre></details>
+</figure></div>
+<h3>LuaTeX</h3>
+<p>A second engine, <code>luatex.wasm</code>, runs the same DVI pipeline with LuaTeX 1.21 in DVI mode (TeX Live's <code>dvilualatex</code> and <code>dviluatex</code>). It exists for the parts of TikZ that are written in Lua, above all the <code>graphdrawing</code> library with its layered, force-directed, tree, circular and phylogenetic layouts, plus <code>\directlua</code>, <code>luacode</code> and pgfplots' Lua backends. <code>engine: 'auto'</code> and the drop-in tags choose it whenever a document uses any of these; nothing else changes, and the 4.4 MB module and its 6.5 MB format are only fetched then. Text is set in the Type 1 fonts: no OpenType font loader is bundled, so <code>fontspec</code> is not available, and LaTeX's own fallback message about luaotfload is filtered from the diagnostics.</p>
+<figure class="ex" id="tz-graphdrawing">
+  <div class="fig"><svg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' style="width:min(100%,640px)" viewBox='-69.011212 -69.011216 318.256219 88.8479'>
+<defs>
+<path id='tz-graphdrawing-g0-49' d='M3.873474 0V-.277958H3.58655C2.752677-.277958 2.725778-.385554 2.725778-.71731V-5.729514C2.725778-5.953674 2.716812-5.971606 2.492653-5.971606C1.936737-5.397758 1.111831-5.397758 .833873-5.397758V-5.119801C1.004234-5.119801 1.551183-5.119801 2.035367-5.352927V-.71731C2.035367-.385554 2.008468-.277958 1.174595-.277958H.887671V0C1.210461-.026899 2.008468-.026899 2.37609-.026899S3.550685-.026899 3.873474 0Z'/>
+<path id='tz-graphdrawing-g0-50' d='M4.142466-1.587049H3.891407C3.873474-1.470486 3.801743-.941469 3.685181-.798007C3.631382-.71731 3.012702-.71731 2.833375-.71731H1.23736L2.125031-1.560149C3.595517-2.833375 4.142466-3.308593 4.142466-4.223163C4.142466-5.254296 3.29066-5.971606 2.187796-5.971606C1.156663-5.971606 .457285-5.155666 .457285-4.339726C.457285-3.891407 .842839-3.846575 .923537-3.846575C1.120797-3.846575 1.389788-3.990037 1.389788-4.312827C1.389788-4.581818 1.201494-4.779078 .923537-4.779078C.878705-4.779078 .851806-4.779078 .81594-4.770112C1.031133-5.406725 1.604981-5.693649 2.089166-5.693649C3.003736-5.693649 3.317559-4.841843 3.317559-4.223163C3.317559-3.308593 2.627148-2.564384 2.196762-2.098132L.555915-.32279C.457285-.224159 .457285-.206227 .457285 0H3.891407L4.142466-1.587049Z'/>
+<path id='tz-graphdrawing-g0-51' d='M4.214197-1.524284C4.214197-2.304359 3.595517-2.96787 2.734745-3.156164C3.568618-3.469988 3.963138-4.124533 3.963138-4.743213C3.963138-5.433624 3.200996-5.971606 2.268493-5.971606S.636613-5.44259 .636613-4.761146C.636613-4.465255 .833873-4.294894 1.093898-4.294894S1.542217-4.483188 1.542217-4.743213C1.542217-5.057036 1.327024-5.191532 1.022167-5.191532C1.255293-5.56812 1.802242-5.747447 2.241594-5.747447C2.985803-5.747447 3.129265-5.155666 3.129265-4.734247C3.129265-4.465255 3.075467-4.034869 2.851308-3.694147C2.57335-3.29066 2.259527-3.272727 1.999502-3.254795C1.775342-3.236862 1.75741-3.236862 1.685679-3.236862C1.604981-3.227895 1.53325-3.218929 1.53325-3.120299C1.53325-3.003736 1.604981-3.003736 1.75741-3.003736H2.178829C2.958904-3.003736 3.299626-2.37609 3.299626-1.524284C3.299626-.376588 2.689913-.053798 2.232628-.053798C2.062267-.053798 1.192528-.09863 .789041-.762142C1.111831-.71731 1.362889-.941469 1.362889-1.246326C1.362889-1.542217 1.13873-1.730511 .878705-1.730511C.654545-1.730511 .385554-1.596015 .385554-1.219427C.385554-.42142 1.219427 .19726 2.259527 .19726C3.380324 .19726 4.214197-.609714 4.214197-1.524284Z'/>
+<path id='tz-graphdrawing-g0-52' d='M4.339726-1.479452V-1.75741H3.425156V-5.828144C3.425156-6.007472 3.425156-6.070237 3.254795-6.070237C3.147198-6.070237 3.138232-6.06127 3.057534-5.935741L.260025-1.75741V-1.479452H2.707846V-.708344C2.707846-.376588 2.680946-.277958 2.008468-.277958H1.811208V0C2.37609-.026899 3.003736-.026899 3.066501-.026899C3.111333-.026899 3.756912-.026899 4.321793 0V-.277958H4.124533C3.452055-.277958 3.425156-.376588 3.425156-.708344V-1.479452H4.339726ZM2.761644-1.75741H.546949L2.761644-5.074969V-1.75741Z'/>
+<path id='tz-graphdrawing-g0-53' d='M4.142466-1.793275C4.142466-2.878207 3.371357-3.765878 2.394022-3.765878C1.963636-3.765878 1.524284-3.622416 1.210461-3.299626V-5.066002C1.479452-4.985305 1.75741-4.940473 2.035367-4.940473C3.138232-4.940473 3.783811-5.738481 3.783811-5.855044C3.783811-5.935741 3.730012-5.971606 3.685181-5.971606C3.685181-5.971606 3.649315-5.971606 3.568618-5.926775C3.147198-5.756413 2.734745-5.684682 2.358157-5.684682C1.972603-5.684682 1.569116-5.756413 1.156663-5.926775C1.066999-5.971606 1.0401-5.971606 1.0401-5.971606C.932503-5.971606 .932503-5.881943 .932503-5.729514V-3.0934C.932503-2.932005 .932503-2.833375 1.058032-2.833375C1.129763-2.833375 1.156663-2.86924 1.210461-2.949938C1.479452-3.326526 1.909838-3.541719 2.37609-3.541719C3.335492-3.541719 3.335492-2.160897 3.335492-1.838107C3.335492-1.560149 3.335492-1.004234 3.084433-.600747C2.842341-.224159 2.465753-.053798 2.116065-.053798C1.587049-.053798 .986301-.385554 .771108-1.049066C.771108-1.049066 .833873-1.031133 .896638-1.031133C1.075965-1.031133 1.33599-1.147696 1.33599-1.470486C1.33599-1.748443 1.13873-1.909838 .896638-1.909838C.708344-1.909838 .457285-1.802242 .457285-1.443587C.457285-.627646 1.13873 .19726 2.133998 .19726C3.218929 .19726 4.142466-.681445 4.142466-1.793275Z'/>
+<path id='tz-graphdrawing-g0-54' d='M4.214197-1.820174C4.214197-2.958904 3.38929-3.819676 2.37609-3.819676C1.838107-3.819676 1.452553-3.505853 1.201494-2.96787C1.201494-3.882441 1.300125-4.393524 1.542217-4.859776C1.721544-5.227397 2.160897-5.747447 2.824408-5.747447C3.003736-5.747447 3.416189-5.711582 3.622416-5.388792C3.29066-5.388792 3.147198-5.218431 3.147198-4.976339C3.147198-4.743213 3.308593-4.563885 3.559651-4.563885S3.981071-4.72528 3.981071-4.994271C3.981071-5.496389 3.622416-5.971606 2.806476-5.971606C1.649813-5.971606 .385554-4.832877 .385554-2.833375C.385554-.403487 1.479452 .19726 2.322291 .19726C3.317559 .19726 4.214197-.636613 4.214197-1.820174ZM3.398257-1.829141C3.398257-1.398755 3.398257-.959402 3.227895-.627646C2.949938-.116563 2.555417-.053798 2.313325-.053798C1.802242-.053798 1.506351-.475218 1.398755-.735243C1.228394-1.13873 1.219427-1.882939 1.219427-2.026401C1.219427-2.627148 1.497385-3.595517 2.358157-3.595517C2.501619-3.595517 2.940971-3.595517 3.227895-3.039601C3.398257-2.698879 3.398257-2.259527 3.398257-1.829141Z'/>
+<path id='tz-graphdrawing-g0-55' d='M4.474222-5.774346H2.241594C1.111831-5.774346 1.084932-5.890909 1.058032-6.06127H.806974L.511083-4.187298H.762142C.798007-4.393524 .869738-4.895641 .986301-5.003238C1.049066-5.057036 1.75741-5.057036 1.882939-5.057036H3.765878L2.905106-3.882441C1.739477-2.27746 1.63188-.81594 1.63188-.304857C1.63188-.206227 1.63188 .19726 2.044334 .19726C2.465753 .19726 2.465753-.19726 2.465753-.313823V-.753176C2.465753-2.071233 2.663014-3.111333 3.138232-3.756912L4.393524-5.469489C4.474222-5.56812 4.474222-5.586052 4.474222-5.774346Z'/>
+<path id='tz-graphdrawing-g0-97' d='M4.456289-.798007V-1.300125H4.20523V-.806974C4.20523-.708344 4.20523-.260025 3.882441-.260025S3.559651-.690411 3.559651-.833873V-2.402989C3.559651-2.914072 3.559651-3.218929 3.156164-3.58655C2.824408-3.882441 2.394022-4.016936 1.945704-4.016936C1.192528-4.016936 .564882-3.640349 .564882-3.066501C.564882-2.788543 .753176-2.636115 .986301-2.636115C1.228394-2.636115 1.398755-2.815442 1.398755-3.048568C1.398755-3.434122 .995268-3.478954 .995268-3.478954C1.23736-3.71208 1.667746-3.792777 1.927771-3.792777C2.385056-3.792777 2.896139-3.452055 2.896139-2.663014V-2.367123C2.411955-2.349191 1.739477-2.304359 1.13873-2.017435C.493151-1.703611 .29589-1.23736 .29589-.878705C.29589-.143462 1.165629 .09863 1.766376 .09863C2.510585 .09863 2.851308-.394521 2.976837-.645579C3.021669-.268991 3.281694 .053798 3.667248 .053798C3.891407 .053798 4.456289-.080697 4.456289-.798007ZM2.896139-1.264259C2.896139-.394521 2.223661-.125529 1.829141-.125529C1.407721-.125529 1.0132-.430386 1.0132-.878705C1.0132-1.470486 1.524284-2.098132 2.896139-2.15193V-1.264259Z'/>
+<path id='tz-graphdrawing-g0-98' d='M4.805978-1.936737C4.805978-3.057534 3.918306-3.963138 2.842341-3.963138C2.232628-3.963138 1.811208-3.649315 1.596015-3.407223V-6.222665L.268991-6.124035V-5.846077C.878705-5.846077 .959402-5.783313 .959402-5.34396V0H1.210461L1.542217-.546949C1.820174-.152428 2.268493 .09863 2.752677 .09863C3.819676 .09863 4.805978-.762142 4.805978-1.936737ZM4.034869-1.945704C4.034869-1.524284 3.981071-1.049066 3.747945-.690411C3.550685-.403487 3.183064-.125529 2.707846-.125529C2.304359-.125529 1.963636-.340722 1.748443-.672478C1.622914-.860772 1.622914-.869738 1.622914-1.0401V-2.860274C1.622914-3.030635 1.622914-3.039601 1.721544-3.183064C2.026401-3.595517 2.465753-3.738979 2.806476-3.738979C3.19203-3.738979 3.550685-3.523786 3.783811-3.147198C4.016936-2.761644 4.034869-2.232628 4.034869-1.945704Z'/>
+<path id='tz-graphdrawing-g0-99' d='M3.828643-1.066999C3.828643-1.174595 3.730012-1.174595 3.703113-1.174595C3.604483-1.174595 3.604483-1.156663 3.550685-1.004234C3.344458-.385554 2.842341-.152428 2.385056-.152428C1.811208-.152428 1.075965-.61868 1.075965-1.945704C1.075965-3.344458 1.793275-3.765878 2.331258-3.765878C2.447821-3.765878 2.932005-3.747945 3.263761-3.523786C3.075467-3.48792 2.896139-3.362391 2.896139-3.102366C2.896139-2.86924 3.075467-2.689913 3.308593-2.689913S3.730012-2.842341 3.730012-3.120299C3.730012-3.676214 3.102366-4.016936 2.313325-4.016936C1.165629-4.016936 .304857-3.057534 .304857-1.936737C.304857-.780075 1.23736 .09863 2.295392 .09863C3.541719 .09863 3.828643-.986301 3.828643-1.066999Z'/>
+<path id='tz-graphdrawing-g0-100' d='M4.841843 0V-.277958C4.23213-.277958 4.151432-.340722 4.151432-.780075V-6.222665L2.824408-6.124035V-5.846077C3.434122-5.846077 3.514819-5.783313 3.514819-5.34396V-3.434122C3.469988-3.48792 3.066501-3.963138 2.367123-3.963138C1.264259-3.963138 .304857-3.084433 .304857-1.927771C.304857-.806974 1.201494 .09863 2.268493 .09863C2.923039 .09863 3.326526-.286924 3.48792-.475218V.09863L4.841843 0ZM3.48792-1.075965C3.48792-.91457 3.48792-.887671 3.353425-.699377C3.075467-.29589 2.663014-.125529 2.304359-.125529C1.918804-.125529 1.560149-.340722 1.327024-.71731C1.093898-1.102864 1.075965-1.63188 1.075965-1.918804C1.075965-2.340224 1.129763-2.815442 1.362889-3.174097C1.560149-3.461021 1.927771-3.738979 2.402989-3.738979C2.779577-3.738979 3.138232-3.550685 3.380324-3.209963C3.48792-3.066501 3.48792-3.057534 3.48792-2.887173V-1.075965Z'/>
+<path id='tz-graphdrawing-g0-101' d='M3.828643-1.066999C3.828643-1.129763 3.783811-1.183562 3.703113-1.183562C3.61345-1.183562 3.58655-1.120797 3.577584-1.084932C3.272727-.170361 2.47472-.152428 2.340224-.152428C1.909838-.152428 1.542217-.394521 1.33599-.699377C1.0401-1.13873 1.031133-1.676712 1.031133-2.0533H3.58655C3.783811-2.0533 3.828643-2.0533 3.828643-2.241594C3.828643-3.165131 3.326526-4.016936 2.178829-4.016936C1.102864-4.016936 .260025-3.084433 .260025-1.972603C.260025-.798007 1.201494 .09863 2.295392 .09863S3.828643-.860772 3.828643-1.066999ZM3.218929-2.268493H1.0401C1.120797-3.649315 1.927771-3.792777 2.178829-3.792777C2.67198-3.792777 3.209963-3.416189 3.218929-2.268493Z'/>
+<path id='tz-graphdrawing-g0-102' d='M3.281694-5.684682C3.281694-6.025405 2.940971-6.321295 2.447821-6.321295C1.748443-6.321295 1.0132-5.792279 1.0132-4.895641V-3.864508H.304857V-3.58655H1.0132V-.690411C1.0132-.277958 .91457-.277958 .32279-.277958V0C.798007-.017933 .91457-.026899 1.371856-.026899L2.510585 0V-.277958H2.331258C1.676712-.277958 1.649813-.376588 1.649813-.708344V-3.58655H2.689913V-3.864508H1.622914V-4.877709C1.622914-5.693649 2.062267-6.097136 2.447821-6.097136C2.537484-6.097136 2.627148-6.079203 2.716812-6.043337C2.627148-6.007472 2.483686-5.899875 2.483686-5.675716C2.483686-5.44259 2.654047-5.281196 2.878207-5.281196C3.120299-5.281196 3.281694-5.451557 3.281694-5.684682Z'/>
+<path id='tz-graphdrawing-g0-103' d='M4.474222-3.61345C4.474222-3.783811 4.348692-4.061768 3.990037-4.061768C3.730012-4.061768 3.326526-3.963138 3.012702-3.640349C2.77061-3.837609 2.420922-3.963138 2.044334-3.963138C1.192528-3.963138 .546949-3.353425 .546949-2.645081C.546949-2.187796 .81594-1.865006 .959402-1.730511C.941469-1.712578 .690411-1.398755 .690411-.986301C.690411-.681445 .833873-.358655 1.075965-.19726C.61868-.053798 .260025 .277958 .260025 .699377C.260025 1.33599 1.147696 1.847073 2.295392 1.847073C3.398257 1.847073 4.339726 1.371856 4.339726 .681445C4.339726 .313823 4.169365-.080697 3.837609-.29589C3.335492-.609714 2.815442-.609714 1.963636-.609714C1.784309-.609714 1.497385-.609714 1.425654-.627646C1.165629-.681445 .995268-.923537 .995268-1.210461C.995268-1.353923 1.0401-1.488418 1.120797-1.604981C1.344956-1.461519 1.622914-1.327024 2.035367-1.327024C2.887173-1.327024 3.532752-1.936737 3.532752-2.645081C3.532752-3.084433 3.281694-3.38929 3.165131-3.514819C3.523786-3.837609 3.945205-3.837609 4.052802-3.837609C4.00797-3.81071 3.936239-3.765878 3.936239-3.604483C3.936239-3.505853 3.999004-3.335492 4.20523-3.335492C4.33076-3.335492 4.474222-3.425156 4.474222-3.61345ZM2.842341-2.645081C2.842341-2.438854 2.842341-1.569116 2.035367-1.569116C1.23736-1.569116 1.23736-2.447821 1.23736-2.645081C1.23736-2.887173 1.255293-3.19203 1.407721-3.407223C1.542217-3.58655 1.784309-3.721046 2.035367-3.721046C2.842341-3.721046 2.842341-2.851308 2.842341-2.645081ZM3.837609 .690411C3.837609 1.201494 3.147198 1.604981 2.304359 1.604981C1.425654 1.604981 .762142 1.183562 .762142 .690411C.762142 .546949 .851806-.044832 1.622914-.044832H2.447821C2.734745-.044832 3.837609-.035866 3.837609 .690411Z'/>
+<path id='tz-graphdrawing-g0-104' d='M4.904608 0V-.277958C4.447323-.277958 4.223163-.277958 4.214197-.555915V-2.27746C4.214197-3.021669 4.214197-3.281694 3.963138-3.595517C3.756912-3.846575 3.416189-3.963138 2.96787-3.963138C2.367123-3.963138 1.927771-3.649315 1.649813-3.147198H1.640847V-6.222665L.313823-6.124035V-5.846077C.923537-5.846077 1.004234-5.783313 1.004234-5.34396V-.690411C1.004234-.277958 .905604-.277958 .313823-.277958V0C.735243-.017933 .905604-.026899 1.33599-.026899S1.882939-.017933 2.358157 0V-.277958C1.766376-.277958 1.667746-.277958 1.667746-.690411V-2.322291C1.667746-3.272727 2.340224-3.738979 2.905106-3.738979C3.434122-3.738979 3.550685-3.299626 3.550685-2.761644V-.690411C3.550685-.277958 3.452055-.277958 2.860274-.277958V0C3.281694-.017933 3.452055-.026899 3.882441-.026899S4.42939-.017933 4.904608 0Z'/>
+</defs>
+<g id='tz-graphdrawing-page1'>
+<g stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#000' stroke='#000'>
+<g stroke-width='0.4'>
+<g fill='#e6e6ff'>
+</g>
+<g fill='#e6e6ff'>
+</g>
+<g fill='#e6e6ff'>
+</g>
+<g fill='#e6e6ff'>
+</g>
+<g fill='#e6e6ff'>
+</g>
+<g fill='#e6e6ff'>
+</g>
+<g fill='#e6e6ff'>
+</g>
+<g fill='#e6e6ff'>
+</g>
+<path d='' fill='none'/>
+<path d='M-17.82649-29.93382L-27.59317-40.11363' fill='none'/>
+<g transform='matrix(-0.69229,-0.72157,0.72157,-0.69229,-27.59317,-40.11362)'>
+<path d='M1.99997 0L-1.19998 1.59998L0 0L-1.19998-1.59998' stroke='none'/>
+</g>
+<path d='' fill='none'/>
+<path d='M-5.548-29.99396L4.70699-40.89445' fill='none'/>
+<g transform='matrix(0.68518,-0.7283,0.7283,0.68518,4.70697,-40.89445)'>
+<path d='M1.99997 0L-1.19998 1.59998L0 0L-1.19998-1.59998' stroke='none'/>
+</g>
+<path d='' fill='none'/>
+<path d='M-7.88089-55.39969L-4.49515-62.56834' fill='none'/>
+<g transform='matrix(0.42703,-0.90417,0.90417,0.42703,-4.49515,-62.56834)'>
+<path d='M1.99997 0L-1.19998 1.59998L0 0L-1.19998-1.59998' stroke='none'/>
+</g>
+<path d='' fill='none'/>
+<path d='M6.3535-29.13776L-4.39597-40.56389' fill='none'/>
+<g transform='matrix(-0.6852,-0.7283,0.7283,-0.6852,-4.39597,-40.56389)'>
+<path d='M1.99997 0L-1.19998 1.59998L0 0L-1.19998-1.59998' stroke='none'/>
+</g>
+<path d='' fill='none'/>
+<path d='M16.95802-29.13748L27.21638-40.04042' fill='none'/>
+<g transform='matrix(0.68523,-0.72827,0.72827,0.68523,27.21637,-40.0404)'>
+<path d='M1.99997 0L-1.19998 1.59998L0 0L-1.19998-1.59998' stroke='none'/>
+</g>
+<path d='' fill='none'/>
+<path d='M-3.52344-7.1045L-6.806-13.72325' fill='none'/>
+<g transform='matrix(-0.44426,-0.89583,0.89583,-0.44426,-6.806,-13.72325)'>
+<path d='M1.99997 0L-1.19998 1.59998L0 0L-1.19998-1.59998' stroke='none'/>
+</g>
+<path d='' fill='none'/>
+<path d='M3.52344-7.1045L7.32841-14.77663' fill='none'/>
+<g transform='matrix(0.44426,-0.89583,0.89583,0.44426,7.32841,-14.77663)'>
+<path d='M1.99997 0L-1.19998 1.59998L0 0L-1.19998-1.59998' stroke='none'/>
+</g>
+<path d='' fill='none'/>
+<path d='M8.07477-54.9892L4.49515-62.56834' fill='none'/>
+<g transform='matrix(-0.42703,-0.90417,0.90417,-0.42703,4.49515,-62.56834)'>
+<path d='M1.99997 0L-1.19998 1.59998L0 0L-1.19998-1.59998' stroke='none'/>
+</g>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<path d='M7.72852 0C7.72852 4.26839 4.26839 7.72852 0 7.72852S-7.72852 4.26839-7.72852 0S-4.26839-7.72852 0-7.72852S7.72852-4.26839 7.72852 0ZM0 0'/>
+</g>
+<g transform='translate(-2.3125,-1.93748)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-97'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(-11.65561,-23.5019)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<path d='M8.71338 0C8.71338 4.81232 4.81232 8.71338 0 8.71338S-8.71338 4.81232-8.71338 0S-4.81232-8.71338 0-8.71338S8.71338-4.81232 8.71338 0ZM0 0'/>
+</g>
+<g transform='translate(-2.5695,-3.09999)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-98'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(-35.14862,-47.98866)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<path d='M8.71338 0C8.71338 4.81232 4.81232 8.71338 0 8.71338S-8.71338 4.81232-8.71338 0S-4.81232-8.71338 0-8.71338S8.71338-4.81232 8.71338 0ZM0 0'/>
+</g>
+<g transform='translate(-2.5695,-3.09999)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-100'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(11.38109,-47.98866)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<path d='M7.54028 0C7.54028 4.16443 4.16443 7.54028 0 7.54028S-7.54028 4.16443-7.54028 0S-4.16443-7.54028 0-7.54028S7.54028-4.16443 7.54028 0ZM0 0'/>
+</g>
+<g transform='translate(-2.05724,-1.93748)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-101'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(11.65561,-23.5019)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<path d='M7.53784 0C7.53784 4.16309 4.16309 7.53784 0 7.53784S-7.53784 4.16309-7.53784 0S-4.16309-7.53784 0-7.53784S7.53784-4.16309 7.53784 0ZM0 0'/>
+</g>
+<g transform='translate(-2.05548,-1.93748)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-99'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(-11.38109,-47.98866)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<path d='M7.99414 0C7.99414 4.41508 4.41508 7.99414 0 7.99414S-7.99414 4.41508-7.99414 0S-4.41508-7.99414 0-7.99414S7.99414-4.41508 7.99414 0ZM0 0'/>
+</g>
+<g transform='translate(-1.41316,-3.09999)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-102'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(0.0,-72.08601)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<path d='M8.32397 0C8.32397 4.59726 4.59726 8.32397 0 8.32397S-8.32397 4.59726-8.32397 0S-4.59726-8.32397 0-8.32397S8.32397-4.59726 8.32397 0ZM0 0'/>
+</g>
+<g transform='translate(-2.3125,-1.06248)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-103'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(34.69475,-47.98866)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<path d='M8.71338 0C8.71338 4.81232 4.81232 8.71338 0 8.71338S-8.71338 4.81232-8.71338 0S-4.81232-8.71338 0-8.71338S8.71338-4.81232 8.71338 0ZM0 0'/>
+</g>
+<g transform='translate(-2.5695,-3.09999)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-104'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+</g>
+</g>
+<path d='' fill='none'/>
+<path d='M119.50148-8.5711V-32.7318' fill='none'/>
+<path d='' fill='none'/>
+<path d='M113.8825-6.47255L111.72226-8.96097' fill='none'/>
+<path d='' fill='none'/>
+<path d='M127.59846-2.81801L139.03822-6.79942' fill='none'/>
+<path d='' fill='none'/>
+<path d='M115.55885-33.69044L110.04588-23.04597' fill='none'/>
+<path d='' fill='none'/>
+<path d='M114.5905-14.2305L138.64796-10.82045' fill='none'/>
+<path d='' fill='none'/>
+<path d='M148.84354-18.01816L152.32304-35.1286' fill='none'/>
+<path d='' fill='none'/>
+<path d='M145.47778-42.97781L128.05507-41.85442' fill='none'/>
+<path d='' fill='none'/>
+<path d='M162.25237-45.9616L175.3836-49.8466' fill='none'/>
+<path d='' fill='none'/>
+<path d='M178.07686-58.82956L172.93779-64.91965' fill='none'/>
+<path d='' fill='none'/>
+<path d='M163.70766-63.738L157.73376-51.26169' fill='none'/>
+<g transform='translate(119.50148,0.0)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-49'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(119.50148,-41.3029)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-50'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(106.10327,-15.43353)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-51'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(147.13521,-9.61743)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-52'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(154.03137,-43.52934)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-53'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(183.6046,-52.27885)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-54'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(167.41005,-71.47035)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6e6'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-55'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+</g>
+</g>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+</g>
+</g>
+<path d='' fill='none'/>
+<path d='M231.27896-3.7197L224.42223-7.02171' fill='none'/>
+<path d='' fill='none'/>
+<path d='M214.79054-19.09935L213.09702-26.51923' fill='none'/>
+<path d='' fill='none'/>
+<path d='M216.53358-41.5786L221.28053-47.53108' fill='none'/>
+<path d='' fill='none'/>
+<path d='M235.19586-54.23253H242.81009' fill='none'/>
+<path d='' fill='none'/>
+<path d='M256.72542-47.5311L261.47235-41.57861' fill='none'/>
+<path d='' fill='none'/>
+<path d='M264.90894-26.51923L263.21541-19.09935' fill='none'/>
+<path d='' fill='none'/>
+<path d='M253.58374-7.02173L246.727-3.7197' fill='none'/>
+<g transform='translate(239.00298,0.0)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-49'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(216.6982,-10.74142)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-50'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(211.18936,-34.87717)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-51'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(226.62476,-54.23253)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-52'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(251.3812,-54.23253)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-53'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(266.81659,-34.87717)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-54'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g transform='translate(261.30775,-10.74142)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g stroke='#000' stroke-miterlimit='10' transform='translate(-25.113831,-60.472143)scale(0.996264,-0.996264)'>
+<g fill='#e6e6ff'>
+<g fill='#ffe6cc'>
+<path d='M8.3711 0C8.3711 4.62328 4.62328 8.3711 0 8.3711S-8.3711 4.62328-8.3711 0S-4.62328-8.3711 0-8.3711S8.3711-4.62328 8.3711 0ZM0 0'/>
+</g>
+</g>
+<g transform='translate(-2.3125,-2.84724)'>
+<g stroke='none' transform='scale(-1.00375,1.00375)translate(-25.113831,-60.472143)scale(-1,-1)'>
+<g fill='#000'>
+<g stroke='none'>
+<use x='-25.113831' y='-60.472143' xlink:href='#tz-graphdrawing-g0-55'/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</g>
+</svg></div>
+  <figcaption><b>Graph drawing (LuaTeX)</b> — The <code>graphdrawing</code> library computes layouts in Lua, so it needs LuaTeX. <code>engine: 'auto'</code> (and the tags) switch to <code>luatex.wasm</code> when a document uses it; layered, spring, tree, circular and phylogenetic layouts all run. This is the library tikzjax could never offer. <span class="ms">496 ms LuaTeX, 50 ms dvisvgm</span></figcaption>
+  <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
+\usetikzlibrary{graphs,graphs.standard,graphdrawing,quotes}
+\usegdlibrary{trees,layered,force,circular}
+\begin{document}
+\begin{tikzpicture}[&gt;=stealth, nodes={draw,circle,fill=blue!10,font=\small}]
+  \graph[layered layout, sibling distance=8mm, level distance=8mm] {
+    a -&gt; {b -&gt; {d, e}, c -&gt; {f -&gt; g, h}}; e -&gt; g;
+  };
+  \begin{scope}[xshift=4.2cm, nodes={fill=red!10}]
+    \graph[spring layout, node distance=9mm] { 1 -- {2,3,4}; 2 -- 3 -- 4 -- 5 -- 2; 5 -- 6 -- 7 -- 5 };
+  \end{scope}
+  \begin{scope}[xshift=8.4cm, nodes={fill=orange!20}]
+    \graph[simple necklace layout, node distance=9mm] { subgraph C_n [n=7] };
+  \end{scope}
+\end{tikzpicture}
+\end{document}</code></pre></details>
 </figure>
 <p>The bundles contain LaTeX 2025 with expl3, PGF/TikZ with every library, pgfplots, tikz-cd, amsmath, amssymb, amscls, mathtools, tools, graphics, xcolor, geometry, booktabs, standalone, hyperref, url, listings, fp, imakeidx, todonotes, the Latin Modern fonts in T1/TS1 encodings, Computer Modern, the AMS fonts, Euler, and the 35 standard PostScript fonts (Times, Helvetica, Courier, Palatino and the rest, as URW Type 1). Adding a package is one line in <code>scripts/build-texmf.sh</code>; the loader fetches files per file, on demand, so bundle size costs nothing until a document uses a file.</p>
 
@@ -2698,6 +3321,7 @@ endfig; end.</code></pre></details>
 <tr><td class="mono">mplib.wasm</td><td class="n">1.2 MB</td><td>MetaPost 2.11: interpreter, PostScript and SVG backends, Type 1 font machinery, TFM reader, scaled/double/decimal arithmetic, <code>mpto</code> and <code>dvitomp</code></td></tr>
 <tr><td class="mono">tex.wasm</td><td class="n">1.1 MB</td><td>pdfTeX 1.40.27 in DVI mode (= <code>tex</code>, <code>etex</code>, <code>latex</code>) with kpathsea, zlib, libpng</td></tr>
 <tr><td class="mono">dvisvgm.wasm</td><td class="n">2.6 MB</td><td>dvisvgm 3.4.3 with FreeType, potrace, clipper, woff2/brotli; PostScript specials (Ghostscript) compiled out</td></tr>
+<tr><td class="mono">luatex.wasm</td><td class="n">4.2 MB</td><td>LuaTeX 1.21 with Lua 5.3, pplib, zziplib, the fontforge-derived font loader, kpathsea and our patched mplib; loaded on demand for graphdrawing and Lua documents</td></tr>
 </tbody></table></div>
 <h3>Labels without a subprocess</h3>
 <p>Native MetaPost shells out to TeX from the middle of its scanner, which WebAssembly cannot do. The TeX step is lifted out of the run instead:</p>
@@ -2721,6 +3345,7 @@ endfig; end.</code></pre></details>
 <tr><td>a MetaPost figure with LaTeX <code>btex</code></td><td class="n">2.4 MB</td><td class="n">2.2 MB</td></tr>
 <tr><td>a TikZ figure (<code>latex.fmt</code>)</td><td class="n">3.8 MB</td><td class="n">2.5 MB</td></tr>
 <tr><td>a TikZ figure with the snapshot</td><td class="n">5.9 MB</td><td class="n">5.5 MB</td></tr>
+<tr><td>a graph-drawing figure (luatex.wasm + dvilualatex.fmt)</td><td class="n">+ 11.0 MB</td><td class="n">+ 7.9 MB</td></tr>
 </tbody></table></div>
 <p>Everything is fetched once and cached by the browser; rendered figures are cached in IndexedDB as well. The whole bundle tree is 47 MB on the server, and no page downloads all of it.</p>
 
@@ -2728,7 +3353,7 @@ endfig; end.</code></pre></details>
 <ul>
   <li><b>The PGF/TikZ manual:</b> the complete 1181-page manual from TeX Live 2025, which exercises every library it documents, typesets through the API to a DVI byte-identical to native <code>latex</code>, and all 1181 SVG pages match native dvisvgm's. (The one normalisation resolves dvisvgm's own run-to-run choice of which size of a font becomes the base glyph, which makes two native runs of the same DVI differ as well.) <code>node scripts/stress-pgfmanual.mjs</code> reproduces it in about fifteen minutes.</li>
   <li><b>Golden corpus, MetaPost:</b> 15 documents — paths, pens, fills, transforms, clipping, labels, plain-TeX and LaTeX labels, boxes, graph, macros, colours, multiple figures, error recovery — byte-identical in EPS and SVG to <code>mpost</code> from TeX Live 2025 run with the same frozen date.</li>
-  <li><b>Golden corpus, TikZ:</b> 7 documents — plots, graphs, shadings/patterns/clip, pgfplots, Latin Modern text, plain TeX, a two-page article — byte-identical to <code>latex</code> + <code>dvisvgm</code>, with and without the snapshot.</li>
+  <li><b>Golden corpus, TikZ:</b> 8 documents — plots, graphs, shadings/patterns/clip, pgfplots, Latin Modern text, plain TeX, a two-page article, and graph drawing with <code>\directlua</code> under LuaTeX — byte-identical to <code>latex</code> / <code>dvilualatex</code> + <code>dvisvgm</code>, with and without the snapshot.</li>
   <li><b>Conformance:</b> the <code>mtrap</code> half of MetaPost's official trap test produces the same figures as native MetaPost 2.11; <code>tex.wasm</code> reproduces the oracle's DVI byte for byte; the <code>.mpx</code> round trip through our <code>mpto</code> and <code>dvitomp</code> matches the committed sample.</li>
   <li><b>Unit and end-to-end:</b> 200+ tests, including the scanner diffed against the C <code>mpto</code> on a 24-case corpus and 60 fuzz inputs, and a native contract harness of 46 checks that would catch a TeX Live bump changing mplib's API.</li>
   <li><b>Upstream bugs found and patched</b> (nine small, explained patches in <code>patches/</code>): a process-global flag that crashed the second MetaPost instance in a process; two defects in the <code>extensions=1</code> scanner (an <code>etex</code> at the end of a line was never matched, and TeX Live's own <code>texnum.mp</code> writes <code>btex$-$etex</code>); <code>stroke-miterlimit</code> for <code>filldraw</code> read from uninitialised memory; a printf format with a bare <code>%</code> in <code>mpto</code>'s prologue; font subset tags that differed between 32- and 64-bit builds.</li>
@@ -2738,7 +3363,7 @@ endfig; end.</code></pre></details>
 <div class="tablewrap"><table>
 <thead><tr><th></th><th>MetaPost-WASM</th><th>tikzjax</th></tr></thead>
 <tbody>
-<tr><td>Engine</td><td>pdfTeX in DVI mode with a real <code>latex.fmt</code> built by the engine</td><td>Knuth TeX with a plain-TeX memory snapshot; <code>\documentclass</code> and <code>\usepackage</code> shimmed or ignored</td></tr>
+<tr><td>Engine</td><td>pdfTeX in DVI mode with a real <code>latex.fmt</code> built by the engine; LuaTeX for graph drawing and Lua</td><td>Knuth TeX with a plain-TeX memory snapshot; <code>\documentclass</code> and <code>\usepackage</code> shimmed or ignored</td></tr>
 <tr><td>Documents</td><td>any LaTeX document: <code>standalone</code>, <code>article</code>, multi-page, any bundled package</td><td>a TikZ picture body and curated preloaded packages</td></tr>
 <tr><td>DVI to SVG</td><td>dvisvgm itself with PGF's dvisvgm driver: gradients, patterns, opacity, clipping, decorations, markers, pgfplots</td><td>a JavaScript re-implementation of the special language; no shadings or patterns</td></tr>
 <tr><td>Text</td><td>glyph outlines in the SVG (self-contained), or woff2 on request</td><td><code>&lt;text&gt;</code> runs plus a CSS font sheet</td></tr>
@@ -2753,6 +3378,7 @@ endfig; end.</code></pre></details>
 <h2 id="limits">Limits</h2>
 <ul>
   <li>No Ghostscript, so raw PostScript specials (pstricks, or PGF forced onto its dvips driver) are ignored; no external image inclusion.</li>
+  <li>LuaTeX runs without an OpenType font loader: no <code>fontspec</code>, no <code>unicode-math</code>, no system fonts. Text uses the same Type 1 fonts as the pdfTeX route.</li>
   <li>No PNG output and no <code>binary</code>/<code>interval</code> number systems (they need cairo and GMP/MPFR, which are not built).</li>
   <li>Worker mode cannot forward the <code>runScript</code>, <code>makeText</code> and <code>onFindFile</code> callbacks; providing one selects in-process mode.</li>
   <li>MetaPost's <code>mplib</code> library does not write figure files during a run, so a document cannot <code>readfrom</code> its own output; and it exits on a few hard limits (such as an input-stack overflow, which native <code>mpost</code> hits too) rather than raising an error — reported as a fatal diagnostic.</li>
@@ -2768,9 +3394,10 @@ endfig; end.</code></pre></details>
 <tr><td class="mono">make wasm</td><td><code>dist/mplib.mjs</code> + <code>mplib.wasm</code> (<code>-O3 -flto</code>); <code>make wasm-debug</code> for an ASSERTIONS/SAFE_HEAP variant</td></tr>
 <tr><td class="mono">scripts/native-texlive.sh</td><td>the web2c-generated C for pdfTeX and the native config headers (needs autotools' output, once)</td></tr>
 <tr><td class="mono">scripts/build-tex-wasm.sh</td><td><code>dist/tex.mjs</code> + <code>tex.wasm</code> from that C plus kpathsea, with Emscripten's zlib and libpng ports</td></tr>
+<tr><td class="mono">scripts/native-luatex.sh, scripts/build-luatex-wasm.sh</td><td><code>dist/luatex.mjs</code> + <code>luatex.wasm</code>: the native LuaTeX build's compile commands are recorded and replayed with emcc (Lua 5.3, pplib, zziplib compiled from the vendored sources; the C FFI stubbed)</td></tr>
 <tr><td class="mono">scripts/native-dvisvgm.sh, scripts/build-dvisvgm-wasm.sh</td><td><code>dist/dvisvgm.mjs</code> + <code>dvisvgm.wasm</code> (FreeType and zlib ports, <code>-Oz</code>)</td></tr>
 <tr><td class="mono">scripts/build-texmf.sh</td><td><code>build/texmf</code>: the flattened texmf tree copied from the local TeX Live, plus <code>tikz.ini</code></td></tr>
-<tr><td class="mono">node scripts/make-formats.mjs</td><td><code>plain.fmt</code>, <code>etex.fmt</code>, <code>latex.fmt</code>, <code>tikz.fmt</code>, built by <code>tex.wasm</code></td></tr>
+<tr><td class="mono">node scripts/make-formats.mjs</td><td><code>plain.fmt</code>, <code>etex.fmt</code>, <code>latex.fmt</code>, <code>tikz.fmt</code>, built by <code>tex.wasm</code>; <code>dviluatex.fmt</code>, <code>dvilualatex.fmt</code> by <code>luatex.wasm</code></td></tr>
 <tr><td class="mono">node scripts/build-bundles.mjs</td><td><code>dist/bundles/*</code>: manifests and files per bundle</td></tr>
 <tr><td class="mono">npm run build:ts</td><td><code>dist/*.js</code>: the library, the worker, the CLI, <code>auto.js</code></td></tr>
 <tr><td class="mono">npm run package</td><td><code>release/metapost-wasm-0.1.0.tar.gz</code> and <code>.zip</code>: the prebuilt distribution for a GitHub release</td></tr>
@@ -2779,9 +3406,9 @@ endfig; end.</code></pre></details>
 <p>The design documents in <code>docs/</code> record every decision; <code>docs/14-implementation-notes.md</code> records what was learned building it, including the upstream defects.</p>
 
 <h2 id="licence">Licences</h2>
-<p>MetaPost itself is public domain. <code>mplib.wasm</code> also contains <code>avl.c</code> (LGPL-3.0-or-later) and decNumber (ICU), so it is distributed under the LGPL-3.0-or-later with the sources, the patches and a reproducible build in the repository. pdfTeX and kpathsea are GPL, so <code>tex.wasm</code> is GPL; dvisvgm is GPL-3.0-or-later, so <code>dvisvgm.wasm</code> is too (it embeds FreeType, potrace, clipper, woff2, brotli and the URW base-14 fonts). The fonts and macro packages in the bundles keep their own free licences. This project's own code is LGPL-3.0-or-later. See <code>LICENSE.md</code>.</p>
+<p>MetaPost itself is public domain. <code>mplib.wasm</code> also contains <code>avl.c</code> (LGPL-3.0-or-later) and decNumber (ICU), so it is distributed under the LGPL-3.0-or-later with the sources, the patches and a reproducible build in the repository. pdfTeX and kpathsea are GPL, so <code>tex.wasm</code> is GPL; LuaTeX is GPL-2.0-or-later (Lua, pplib and zziplib carry MIT-style licences), so <code>luatex.wasm</code> is GPL; dvisvgm is GPL-3.0-or-later, so <code>dvisvgm.wasm</code> is too (it embeds FreeType, potrace, clipper, woff2, brotli and the URW base-14 fonts). The fonts and macro packages in the bundles keep their own free licences. This project's own code is LGPL-3.0-or-later. See <code>LICENSE.md</code>.</p>
 
-<footer>MetaPost by John Hobby, maintained as <code>mplib</code> by Taco Hoekwater and Luigi Scarso; pdfTeX by Hàn Thế Thành and the pdfTeX team; dvisvgm by Martin Gieseking; all from TeX Live 2025. This page was generated by <code>scripts/build-guide.mjs</code>; every figure on it was rendered by the WebAssembly engines.</footer>
+<footer>MetaPost by John Hobby, maintained as <code>mplib</code> by Taco Hoekwater and Luigi Scarso; pdfTeX by Hàn Thế Thành and the pdfTeX team; LuaTeX by Taco Hoekwater, Hans Hagen, Luigi Scarso and Hartmut Henkel; dvisvgm by Martin Gieseking; all from TeX Live 2025. This page was generated by <code>scripts/build-guide.mjs</code>; every figure on it was rendered by the WebAssembly engines.</footer>
 </div>
 </body>
 </html>

@@ -62,7 +62,7 @@
 </script>
 
 <h2>Custom elements</h2>
-<p><code>&lt;tikz-diagram&gt;</code> and <code>&lt;metapost-diagram&gt;</code> work the same way and render when they enter the page (a <code>MutationObserver</code> catches later additions). Inside a custom element the content is HTML, so write <code>&amp;lt;</code> for <code>&lt;</code>.</p>
+<p><code>&lt;tikz-diagram&gt;</code> and <code>&lt;metapost-diagram&gt;</code> work the same way and render when they enter the page (a <code>MutationObserver</code> catches later additions). Inside a custom element the content is HTML, so write <code>&amp;lt;</code> for <code>&lt;</code>. A <code>data-gdlibraries</code> attribute (or any use of graphdrawing or <code>\directlua</code>) switches that diagram to LuaTeX.</p>
 <div class="row">
 <tikz-diagram data-libraries="positioning,shapes.geometric" alt="two connected nodes">
 \begin{tikzpicture}[node distance=1.4cm]
@@ -70,6 +70,11 @@
   \node[diamond,draw,fill=red!15,right=of a] (b) {$b$};
   \draw[-latex,thick] (a) -- node[above] {$f$} (b);
 \end{tikzpicture}
+</tikz-diagram>
+<tikz-diagram data-gdlibraries="layered" alt="a layered graph drawn by LuaTeX">
+\graph[layered layout, nodes={draw,circle,fill=green!15,font=\small}, sibling distance=7mm, level distance=7mm] {
+  a -> {b -> {d, e}, c -> {f, g}}; e -> g;
+};
 </tikz-diagram>
 <metapost-diagram alt="a MetaPost figure">
   draw fullcircle scaled 60 withpen pencircle scaled 1.2 withcolor (0.1,0.3,0.8);

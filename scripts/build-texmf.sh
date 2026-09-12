@@ -30,17 +30,31 @@ mkdir -p "$OUT/tex/generic/etex" && cp "$TEXMF/tex/luatex/hyph-utf8/etex.src" "$
 cp -R "$TEXMF/tex/plain/etex" "$OUT/tex/plain/etex"
 # a minimal language.def / language.dat: US English only (keeps latex.fmt small)
 mkdir -p "$OUT/tex/generic/config"
-printf '%%%% language.def for tex.wasm: US English only\n\\addlanguage{USenglish}{hyphen}{}{0}{0}\n\\uselanguage{USenglish}\n' > "$OUT/tex/generic/config/language.def"
+# the first line must match etex.src's header check ("%% e-TeX V2.0;2")
+printf '%%%% e-TeX V2.0;2\n%%%% language.def for tex.wasm: US English only\n\\addlanguage{USenglish}{hyphen}{}{0}{0}\n\\uselanguage{USenglish}\n' > "$OUT/tex/generic/config/language.def"
 printf '%%%% language.dat for tex.wasm: US English only\nenglish hyphen.tex\n=usenglish\n=USenglish\n' > "$OUT/tex/generic/config/language.dat"
-for d in hyphen tex-ini-files pdftex unicode-data iftex kvsetkeys kvdefinekeys ltxcmds pdftexcmds infwarerr etexcmds atbegshi atveryend xkeyval gettitlestring bigintcalc bitset intcalc uniquecounter tikz-cd pdfescape stringenc; do
+for d in hyphen tex-ini-files pdftex unicode-data iftex kvsetkeys kvdefinekeys ltxcmds pdftexcmds infwarerr etexcmds atbegshi atveryend xkeyval gettitlestring bigintcalc bitset intcalc uniquecounter tikz-cd pdfescape stringenc luatex85; do
   [ -d "$TEXMF/tex/generic/$d" ] && cp -R "$TEXMF/tex/generic/$d" "$OUT/tex/generic/$d"
 done
 for d in base tex-ini-files l3kernel l3backend l3packages amsmath amsfonts amscls tools graphics graphics-cfg graphics-def latexconfig \
          xcolor pgf tikz-cd pgfplots psnfss kvoptions etoolbox xkeyval geometry booktabs mathtools \
          ec standalone varwidth preview currfile filehook fontenc \
-         hyperref hycolor kvsetkeys refcount rerunfilecheck atveryend letltxmacro auxhook url listings fp imakeidx todonotes; do
+         hyperref hycolor kvsetkeys refcount rerunfilecheck atveryend letltxmacro auxhook url listings fp imakeidx todonotes firstaid; do
   [ -d "$TEXMF/tex/latex/$d" ] && cp -R "$TEXMF/tex/latex/$d" "$OUT/tex/latex/$d"
 done
+# LuaTeX in DVI mode (dviluatex.fmt, dvilualatex.fmt): its etex.src loads
+# hyphenation through Lua, babel's format-time hyphenation config has a
+# LuaTeX variant, and language.dat.lua describes the (single) language.
+mkdir -p "$OUT/tex/luatex/hyph-utf8" "$OUT/tex/generic/babel"
+cp "$TEXMF/tex/luatex/hyph-utf8/etex.src" "$OUT/tex/luatex/hyph-utf8/"
+[ -f "$TEXMF/tex/luatex/hyph-utf8/luatex-hyphen.lua" ] && cp "$TEXMF/tex/luatex/hyph-utf8/luatex-hyphen.lua" "$OUT/tex/luatex/hyph-utf8/"
+cp "$TEXMF/tex/generic/babel/hyphen.cfg" "$TEXMF/tex/generic/babel/luababel.def" "$OUT/tex/generic/babel/"
+cat > "$OUT/tex/generic/config/language.dat.lua" <<'LUA'
+-- language.dat.lua for luatex.wasm: US English only, dumped in the format
+return {
+  ["english"] = { loader = "hyphen.tex", special = "language0", lefthyphenmin = 2, righthyphenmin = 3, synonyms = { "usenglish", "USenglish", "american" } },
+}
+LUA
 # pgf's and pgfplots' generic parts live under tex/generic
 for d in pgf pgfplots; do [ -d "$TEXMF/tex/generic/$d" ] && cp -R "$TEXMF/tex/generic/$d" "$OUT/tex/generic/$d"; done
 # drop documentation-ish files that are never input
@@ -91,6 +105,9 @@ INI
 for d in cm amsfonts/cmextra amsfonts/symbols amsfonts/euler latex-fonts knuth-lib; do
   find "$TEXMF/fonts/tfm/public/$d" -name '*.tfm' -exec cp {} "$OUT/fonts/tfm/" \;
 done
+# EC metrics: \usepackage[T1]{fontenc} loads T1/cmr at once, before lmodern (or
+# anything else) can redirect it; the outlines (cm-super, 60 MB) are not shipped
+find "$TEXMF/fonts/tfm/jknappen/ec" -name '*.tfm' -exec cp {} "$OUT/fonts/tfm/" \;
 for d in cm cmextra symbols euler latxfont; do
   find "$TEXMF/fonts/type1/public/amsfonts/$d" -name '*.pfb' -exec cp {} "$OUT/fonts/type1/" \;
 done

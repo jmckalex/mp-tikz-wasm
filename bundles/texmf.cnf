@@ -21,6 +21,15 @@ TEXINPUTS.pdftex  = $TEXMFDOTDIR;$TEXMF/tex/{plain,generic,latex,}//
 TEXINPUTS.latex   = $TEXMFDOTDIR;$TEXMF/tex/{latex,generic,}//
 TEXINPUTS.pdflatex= $TEXMFDOTDIR;$TEXMF/tex/{latex,generic,}//
 TEXINPUTS         = $TEXMFDOTDIR;$TEXMF/tex/{$progname,generic,}//
+% LuaTeX (DVI mode): TeX and Lua inputs per program name, as in TeX Live
+TEXINPUTS.luatex      = $TEXMFDOTDIR;$TEXMF/tex/{luatex,plain,generic,latex,}//
+TEXINPUTS.dviluatex   = $TEXMFDOTDIR;$TEXMF/tex/{luatex,plain,generic,latex,}//
+TEXINPUTS.lualatex    = $TEXMFDOTDIR;$TEXMF/tex/{lualatex,latex,luatex,generic,}//
+TEXINPUTS.dvilualatex = $TEXMFDOTDIR;$TEXMF/tex/{lualatex,latex,luatex,generic,}//
+LUAINPUTS.lualatex    = $TEXMFDOTDIR;$TEXMF/scripts/{$progname,$engine,}/{lua,}//;$TEXMF/tex/{lualatex,latex,luatex,generic,}//
+LUAINPUTS.dvilualatex = $TEXMFDOTDIR;$TEXMF/scripts/{$progname,$engine,}/{lua,}//;$TEXMF/tex/{lualatex,latex,luatex,generic,}//
+LUAINPUTS             = $TEXMFDOTDIR;$TEXMF/scripts/{$progname,$engine,}/{lua,}//;$TEXMF/tex/{luatex,plain,generic,latex,}//
+CLUAINPUTS            = $TEXMFDOTDIR
 TEXFORMATS = $TEXMFDOTDIR;$TEXMF/web2c
 TEXPOOL    = $TEXMFDOTDIR;$TEXMF/web2c
 TFMFONTS   = $TEXMFDOTDIR;$TEXMF/fonts/tfm//

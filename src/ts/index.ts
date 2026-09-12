@@ -51,8 +51,13 @@ class InProcessBackend implements Backend {
     if (!dvisvgmFactory && texFactory) {
       try { dvisvgmFactory = (await import(/* @vite-ignore */ new URL('./dvisvgm.mjs', here).href)).default; } catch { dvisvgmFactory = undefined; }
     }
+    // luatex.wasm: the factory is cheap to import; the 4 MB module is only fetched on the first lualatex run
+    let luatexFactory = o.modules?.luatex;
+    if (!luatexFactory && texFactory) {
+      try { luatexFactory = (await import(/* @vite-ignore */ new URL('./luatex.mjs', here).href)).default; } catch { luatexFactory = undefined; }
+    }
     this.core = new MetaPostCore({
-      mplibFactory, texFactory, dvisvgmFactory, bundles: this.bundles, texmfDir, options: o,
+      mplibFactory, texFactory, luatexFactory, dvisvgmFactory, bundles: this.bundles, texmfDir, options: o,
       onProgress: (e) => this.emit('progress', e),
       onLog: (l) => { o.log?.(l); this.emit('log', l); },
     });

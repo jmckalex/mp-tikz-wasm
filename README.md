@@ -41,6 +41,13 @@ The output is **byte-identical to native TeX Live 2025** on the golden corpora
 the C output is left untouched, and every deviation from upstream lives in a
 numbered, explained patch in [`patches/`](patches/).
 
+LuaTeX is a second engine, `luatex.wasm` (4.4 MB, fetched on demand): LuaTeX 1.21 in
+DVI mode with TeX Live's `dvilualatex`/`dviluatex` formats, for TikZ's `graphdrawing`
+library, `\directlua` and `luacode`. `engine: 'auto'` (the default in the tags and the
+CLI) picks it whenever a document needs it; a graph-drawing golden case is byte-identical
+to native `dvilualatex` + `dvisvgm`. No OpenType font loader is bundled, so text is set
+in the Type 1 fonts and `fontspec` is not available.
+
 The strongest test is the complete PGF/TikZ manual from TeX Live 2025: all 1181
 pages, every library it documents, typeset through the API to a DVI byte-identical
 to native `latex`, with all 1181 SVG pages matching native dvisvgm (after
@@ -67,7 +74,7 @@ static files and cached by the browser.
 | `dist/tex.wasm` | 1.1 MB | pdfTeX 1.40.27 in DVI mode (= `tex`, `etex`, `latex`) with kpathsea, zlib, libpng |
 | `dist/dvisvgm.wasm` | 2.7 MB | dvisvgm 3.4.3 with FreeType, potrace, clipper, woff2/brotli and PGF's special handlers (no Ghostscript) |
 | `dist/index.js` + friends | ~70 KB | the TypeScript API, the Worker, the TeX bridge, the CLI, `auto.js` (the tag renderer) |
-| `dist/bundles/*` | 47 MB total, fetched per file on demand | `core` (plain.mp, mpost.mp, boxes, graph, format, sarith, metaobj…), `cm-tfm`, `cm-type1`, `ps-fonts` (the 35 standard PostScript fonts as URW Type 1), `lm-fonts` (Latin Modern, T1/TS1), `tex-plain` (+ `plain.fmt`, `etex.fmt`), `latex-core` (+ `latex.fmt`), `latex-extra` (pgf/TikZ with all libraries, pgfplots, amsmath, amsfonts, tools, graphics, xcolor, standalone, geometry, booktabs, mathtools, …) |
+| `dist/bundles/*` | 47 MB total, fetched per file on demand | `core` (plain.mp, mpost.mp, boxes, graph, format, sarith, metaobj…), `cm-tfm`, `cm-type1`, `ps-fonts` (the 35 standard PostScript fonts as URW Type 1), `lm-fonts` (Latin Modern, T1/TS1), `tex-plain` (+ `plain.fmt`, `etex.fmt`), `latex-core` (+ `latex.fmt`), `latex-extra` (pgf/TikZ with all libraries, pgfplots, amsmath, amsfonts, tools, graphics, xcolor, standalone, geometry, booktabs, mathtools, …) `luatex` (the DVI-mode LuaTeX formats) |
 
 The formats (`plain.fmt` 114 KB, `etex.fmt` 128 KB, `latex.fmt` 2.2 MB) are
 built **by the wasm engine itself** (`scripts/make-formats.mjs`), so they match
@@ -249,7 +256,7 @@ scripts/native-dvisvgm.sh       # native configure of dvisvgm: config.h (once)
 npm run build                   # mplib.wasm, tex.wasm, dvisvgm.wasm, texmf tree, formats, bundles, TypeScript
 npm test                        # unit tests (scanner vs the C oracle, mpx, keys, diagnostics) + end-to-end
 npm run test:golden             # golden corpus vs native mpost (byte-identical)
-npm run test:golden:tikz        # TikZ corpus vs native latex + dvisvgm (byte-identical)
+npm run test:golden:tikz        # TikZ corpus vs native latex / dvilualatex + dvisvgm (byte-identical)
 ```
 
 `make tangle` runs `ctangle` (built from the vendored CWEB) on the patched
@@ -289,6 +296,7 @@ Every patch is a unified diff in `patches/`, applied by
 | M7 API, worker, CLI, JSON backend | done (worker mode does not yet support the `runScript`/`makeText` callbacks; they force in-process mode) |
 | M8 conformance | golden corpus 15/15 byte-identical; TikZ corpus 7/7 byte-identical to `latex` + `dvisvgm`; the 1181-page PGF manual identical to native `latex` + `dvisvgm`; `mtrap.mp` output files identical to native MetaPost 2.11 (see [docs/14](docs/14-implementation-notes.md) §4); the interactive `trap.mp` half needs `errorstopmode` terminal input and is not applicable to the library |
 | TikZ/PGF (beyond the plan) | done — `dvisvgm.wasm`, `latex()`, `--latex` CLI mode, Latin Modern and pgfplots bundles |
+| LuaTeX (beyond the plan) | done — `luatex.wasm`, engine `lualatex`/`luatex`/`auto`, graphdrawing golden case byte-identical |
 | M9 hardening | PNG, `binary`/`interval` number systems, IndexedDB cache and JSPI are not done |
 
 Out of scope, as planned: troff mode, XeTeX/LuaTeX as the `btex` engine, PDF

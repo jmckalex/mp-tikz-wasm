@@ -58,7 +58,7 @@ async function run() {
       r = await m.run(src, { format: ['svg', 'eps', 'json'], tex: $('#tex').value });
     } else {
       // LaTeX/TikZ: adapt the result to the same shape the panes expect
-      const l = await m.latex(src, { engine: mode.value === 'plain' ? 'plain' : 'latex' });
+      const l = await m.latex(src, { engine: mode.value === 'plain' ? 'plain' : 'auto' });   // auto: LuaTeX for graphdrawing / \directlua
       r = { status: l.status, history: l.status === 'ok' ? 0 : l.status === 'warning' ? 1 : 3, log: l.log + '\n\n--- dvisvgm ---\n' + l.dvisvgmLog, texLog: l.texLog,
         diagnostics: l.diagnostics, figures: l.pages.map((svg, i) => ({ charcode: i + 1, svg, eps: '(EPS is a MetaPost format; in TikZ mode the output is SVG only)', json: null, bbox: [0, 0, 0, 0] })),
         stats: { metapostMs: 0, metapostRuns: 0, texMs: l.stats.texMs, texRuns: 1, snippetCacheHits: 0, snippetCacheMisses: 0, dvisvgmMs: l.stats.dvisvgmMs } };

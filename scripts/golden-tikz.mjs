@@ -29,13 +29,18 @@ const normalise = (s) => s.replace(/<!--[^>]*-->/g, '').replace(/<defs>\n([\s\S]
 });
 const DVISVGM_ARGS = ['--no-mktexmf', '--exact-bbox', '-v3', '--page=1-', '--no-fonts'];
 
+// LuaTeX cases (graphdrawing, \directlua) run with TeX Live's dvilualatex. Its format loads
+// luaotfload and would set OpenType Latin Modern; ours has no font loader, so such cases must
+// pin the Type 1 fonts with \usepackage[T1]{fontenc}\usepackage{lmodern} to compare equal.
+const needsLua = (src) => /\\usegdlibrary|graphdrawing|\\directlua/.test(src);
 function oracle(caseFile, plain) {
   const dir = fs.mkdtempSync(path.join(OUT, 'oracle-'));
   // the same driver line the library injects (docs/14 §7), same first line
   const src = fs.readFileSync(caseFile, 'utf8');
   fs.writeFileSync(path.join(dir, 'doc.tex'), '\\def\\pgfsysdriver{pgfsys-dvisvgm.def}' + src);
   const env = { ...process.env, SOURCE_DATE_EPOCH: '1735689600', FORCE_SOURCE_DATE: '1' };
-  try { execFileSync(plain ? 'etex' : 'latex', ['-interaction=nonstopmode', 'doc.tex'], { cwd: dir, stdio: 'ignore', env }); } catch { /* errors are part of some cases */ }
+  const prog = needsLua(src) ? 'dvilualatex' : plain ? 'etex' : 'latex';
+  try { execFileSync(prog, ['-interaction=nonstopmode', 'doc.tex'], { cwd: dir, stdio: 'ignore', env }); } catch { /* errors are part of some cases */ }
   const pages = [];
   if (fs.existsSync(path.join(dir, 'doc.dvi'))) {
     try { execFileSync('dvisvgm', [...DVISVGM_ARGS, '-o', 'doc-%p.svg', 'doc.dvi'], { cwd: dir, stdio: 'ignore', env }); } catch { /* keep what was produced */ }
@@ -54,11 +59,12 @@ for (const f of files) {
   const name = path.basename(f, '.tex');
   const src = fs.readFileSync(path.join(CASES, f), 'utf8');
   const plain = /\\bye\s*$/.test(src.trim());
+  const engine = needsLua(src) ? 'lualatex' : plain ? 'plain' : 'latex';
   let r, rs;
   try {
-    r = await mp.latex(src, { engine: plain ? 'plain' : 'latex', snapshot: 'none' });
+    r = await mp.latex(src, { engine, snapshot: 'none' });
     // the pre-warmed tikz.fmt must produce exactly the same pages as plain latex.fmt
-    rs = await mp.latex(src, { engine: plain ? 'plain' : 'latex' });
+    rs = await mp.latex(src, { engine });
   } catch (e) { fail++; console.log(`FAIL ${name}: threw ${e?.message ?? e}`); continue; }
   const ours = r.pages.map(normalise);
   const snapPages = rs.pages.map(normalise);

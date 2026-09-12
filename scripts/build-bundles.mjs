@@ -21,6 +21,8 @@ const RECIPES = [
   ['cm-tfm',     (p) => p.startsWith('fonts/tfm/') || p.startsWith('fonts/vf/')],
   ['cm-type1',   (p) => p.startsWith('fonts/type1/')],
   ['tikz-snapshot', (p) => p === 'web2c/tikz.fmt'],
+  // LuaTeX in DVI mode: its two formats (the Lua libraries it runs, e.g. graphdrawing, ship with pgf in latex-extra)
+  ['luatex',     (p) => p === 'web2c/dviluatex.fmt' || p === 'web2c/dvilualatex.fmt' || p.startsWith('tex/luatex/')],
   ['tex-plain',  (p) => (p.startsWith('tex/plain/') && !p.startsWith('tex/plain/pgf')) || (p.startsWith('tex/generic/') && !/^tex\/generic\/(pgf|tikz-cd)/.test(p)) || p === 'web2c/plain.fmt' || p === 'web2c/etex.fmt'],
   ['latex-core', (p) => /^tex\/latex\/(base|l3kernel|l3backend|latexconfig|tex-ini-files)\//.test(p) || p === 'web2c/latex.fmt'],
   ['latex-extra', (p) => p.startsWith('tex/latex/') || /^tex\/generic\/(pgf|tikz-cd)/.test(p) || p.startsWith('tex/plain/pgf')],

@@ -1,0 +1,28 @@
+% LuaTeX: TikZ graph drawing (layered, spring, tree, circular layouts run in Lua).
+% The Type 1 Latin Modern fonts are pinned because the oracle's dvilualatex
+% format would otherwise pick OpenType Latin Modern through luaotfload.
+\documentclass[tikz,border=3pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usetikzlibrary{graphs,graphs.standard,graphdrawing,quotes}
+\usegdlibrary{trees,layered,force,circular}
+\begin{document}
+\begin{tikzpicture}[>=stealth]
+  \graph[layered layout, nodes={draw,circle,fill=blue!10}, sibling distance=8mm] {
+    a -> {b -> {d, e}, c -> {f -> g, h}};
+    e -> g;
+  };
+\end{tikzpicture}
+\begin{tikzpicture}
+  \graph[spring layout, node distance=1cm, nodes={draw,fill=red!10}] { 1 -- {2,3,4}; 2 -- 3 -- 4 -- 5 -- 2; 5 -- 6 -- 7 -- 5 };
+\end{tikzpicture}
+\begin{tikzpicture}
+  \graph[tree layout, grow=right, fresh nodes, nodes={draw,rounded corners,fill=green!10,font=\small}] { root -> { left -> {ll, lr}, right -> {rl -> {rll, rlr}, rr} } };
+\end{tikzpicture}
+\begin{tikzpicture}
+  \graph[simple necklace layout, node distance=1.2cm, nodes={circle,draw,fill=orange!20}] { subgraph C_n [n=8] };
+\end{tikzpicture}
+\begin{tikzpicture}
+  \node[draw,align=left,font=\small] {\directlua{tex.print("Lua " .. _VERSION .. " inside LuaTeX")}};
+\end{tikzpicture}
+\end{document}

@@ -23,9 +23,9 @@ for (const ex of GUIDE) {
     if (r.status === 'error' || r.status === 'fatal') console.log(`  ! ${ex.id}: ${r.diagnostics.map((d) => d.message).join('; ')}`);
     svg = r.figures[0]?.svg ?? ''; ms = `${r.stats.metapostMs.toFixed(0)} ms MetaPost${r.stats.texRuns ? `, ${r.stats.texMs.toFixed(0)} ms TeX` : ''}`;
   } else {
-    const r = await mp.latex(ex.src, { engine: ex.plain ? 'plain' : 'latex', svg: { idPrefix: `${ex.id}-`, precision: false } });
+    const r = await mp.latex(ex.src, { engine: ex.engine ?? (ex.plain ? 'plain' : 'latex'), svg: { idPrefix: `${ex.id}-`, precision: false } });
     if (r.status !== 'ok') console.log(`  ! ${ex.id}: ${r.diagnostics.map((d) => d.message).join('; ')}`);
-    svg = r.pages[0] ?? ''; ms = `${r.stats.texMs.toFixed(0)} ms TeX, ${r.stats.dvisvgmMs.toFixed(0)} ms dvisvgm${r.format === 'tikz' ? ' (snapshot)' : ''}`;
+    svg = r.pages[0] ?? ''; ms = `${r.stats.texMs.toFixed(0)} ms ${/lua/.test(r.format) ? 'LuaTeX' : 'TeX'}, ${r.stats.dvisvgmMs.toFixed(0)} ms dvisvgm${r.format === 'tikz' ? ' (snapshot)' : ''}`;
   }
   // Both engines emit an XML prolog and a comment before the root element;
   // drop them so the SVG can be inlined, then let CSS size it: the intrinsic
@@ -48,7 +48,7 @@ mp.dispose();
 
 const sz = (f) => fs.statSync(path.join(REPO, 'dist', f)).size;
 const gz = (f) => zlib.gzipSync(fs.readFileSync(path.join(REPO, 'dist', f)), { level: 6 }).length;
-const numbers = { mplib: sz('mplib.wasm'), tex: sz('tex.wasm'), dvisvgm: sz('dvisvgm.wasm'), gz: gz('mplib.wasm') + gz('tex.wasm') + gz('dvisvgm.wasm') };
+const numbers = { mplib: sz('mplib.wasm'), tex: sz('tex.wasm'), dvisvgm: sz('dvisvgm.wasm'), gz: gz('mplib.wasm') + gz('tex.wasm') + gz('dvisvgm.wasm') };  // luatex.wasm is optional and listed separately
 
 let html = fs.readFileSync(path.join(REPO, 'site/guide.template.html'), 'utf8');
 html = html.replace(/__FIG:([a-z0-9-]+)__/g, (_m, id) => figures[id] ?? `<p class="missing">missing figure ${id}</p>`)
@@ -57,6 +57,6 @@ html = html.replace(/__FIG:([a-z0-9-]+)__/g, (_m, id) => figures[id] ?? `<p clas
   .replace(/__VERSION__/g, VERSION)
   .replace(/__WASM_MB__/g, MB(numbers.mplib + numbers.tex + numbers.dvisvgm))
   .replace(/__WASM_GZ_MB__/g, MB(numbers.gz))
-  .replace(/__MPLIB_MB__/g, MB(numbers.mplib)).replace(/__TEX_MB__/g, MB(numbers.tex)).replace(/__DVISVGM_MB__/g, MB(numbers.dvisvgm));
+  .replace(/__MPLIB_MB__/g, MB(numbers.mplib)).replace(/__TEX_MB__/g, MB(numbers.tex)).replace(/__DVISVGM_MB__/g, MB(numbers.dvisvgm)).replace(/__LUATEX_MB__/g, MB(sz('luatex.wasm')));
 fs.writeFileSync(path.join(REPO, 'site/guide.html'), html);
 console.log(`  site/guide.html: ${(html.length / 1024).toFixed(0)} KB`);

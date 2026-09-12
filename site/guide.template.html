@@ -80,17 +80,17 @@
 <header class="masthead">
   <div>
     <div class="wordmark" aria-label="MetaPost">__WORDMARK__</div>
-    <div class="eyebrow">MetaPost-WASM · version __VERSION__ · MetaPost 2.11, pdfTeX 1.40, dvisvgm 3.4.3</div>
+    <div class="eyebrow">MetaPost-WASM · version __VERSION__ · MetaPost 2.11, pdfTeX 1.40, LuaTeX 1.21, dvisvgm 3.4.3</div>
   </div>
   <div class="thesis">
     <div>
-      <p class="lede">MetaPost and TikZ in the browser, with real LaTeX. John Hobby's MetaPost, pdfTeX and dvisvgm are compiled to WebAssembly and wrapped in one TypeScript library: MetaPost source becomes SVG with real glyph outlines, EPS and structured JSON, and whole LaTeX/TikZ documents become one SVG per page — shadings, patterns, opacity, pgfplots and all. No server, no web fonts, and output that is byte-identical to TeX Live's own <code>mpost</code> and <code>latex</code>&nbsp;+&nbsp;<code>dvisvgm</code>.</p>
+      <p class="lede">MetaPost and TikZ in the browser, with real LaTeX. John Hobby's MetaPost, pdfTeX, LuaTeX and dvisvgm are compiled to WebAssembly and wrapped in one TypeScript library: MetaPost source becomes SVG with real glyph outlines, EPS and structured JSON, and whole LaTeX/TikZ documents become one SVG per page — shadings, patterns, opacity, pgfplots and all. No server, no web fonts, and output that is byte-identical to TeX Live's own <code>mpost</code> and <code>latex</code>&nbsp;+&nbsp;<code>dvisvgm</code>.</p>
       <nav class="toc">
         <a href="#get">Get it</a><a href="#tags">Drop-in tags</a><a href="#api">Library API</a><a href="#cli">Command line</a><a href="#metapost">MetaPost features</a><a href="#tikz">TikZ features</a><a href="#how">How it works</a><a href="#fidelity">Fidelity</a><a href="#tikzjax">vs tikzjax</a><a href="#limits">Limits</a><a href="#build">Building</a><a href="#licence">Licences</a>
       </nav>
     </div>
     <div class="facts">
-      <div><b>__WASM_MB__ MB</b><span>of WebAssembly (__WASM_GZ_MB__ MB gzipped), three TeX-family programs</span></div>
+      <div><b>__WASM_MB__ MB</b><span>of WebAssembly (__WASM_GZ_MB__ MB gzipped) for MetaPost, pdfTeX and dvisvgm; LuaTeX adds __LUATEX_MB__ MB on demand</span></div>
       <div><b>1181 / 1181</b><span>pages of the PGF/TikZ manual identical to TeX Live 2025</span></div>
       <div><b>~15 ms</b><span>for a MetaPost figure; ~100 ms for a TikZ figure</span></div>
       <div><b>0 servers</b><span>everything runs in the page or in Node</span></div>
@@ -139,7 +139,7 @@ npm run demo                     # http://localhost:8080/site/</code></pre>
 &lt;metapost-diagram&gt;input boxes; boxit.a("hello"); drawboxed(a);&lt;/metapost-diagram&gt;</code></pre>
 <ul>
   <li>A TikZ body without <code>\documentclass</code> is wrapped in a <code>standalone</code> document; a complete document is compiled as is. A MetaPost body without <code>beginfig</code> becomes one figure; <code>input</code> lines are hoisted above it.</li>
-  <li>Attributes (as <code>data-*</code> on script tags, plain on custom elements): <code>libraries</code>, <code>packages</code>, <code>preamble</code>, <code>border</code> for TikZ; <code>tex</code> (<code>auto</code> | <code>plain</code> | <code>latex</code> | <code>none</code>) and <code>prologues</code> for MetaPost; <code>fonts="woff2"</code> for embedded fonts instead of outlines; <code>cache="off"</code>; <code>show-console</code>; <code>alt</code>.</li>
+  <li>Attributes (as <code>data-*</code> on script tags, plain on custom elements): <code>libraries</code>, <code>packages</code>, <code>preamble</code>, <code>border</code>, <code>gdlibraries</code> (graph drawing, implies LuaTeX) and <code>engine</code> (<code>auto</code> | <code>latex</code> | <code>lualatex</code> | <code>plain</code>) for TikZ; <code>tex</code> (<code>auto</code> | <code>plain</code> | <code>latex</code> | <code>none</code>) and <code>prologues</code> for MetaPost; <code>fonts="woff2"</code> for embedded fonts instead of outlines; <code>cache="off"</code>; <code>show-console</code>; <code>alt</code>.</li>
   <li>Loader attributes: <code>data-base</code> (where <code>bundles/</code> and the wasm files live, default next to the script), <code>data-worker="off"</code>, <code>data-observe="off"</code>, <code>data-snapshot="on"</code>.</li>
   <li>Results are cached in IndexedDB by content hash; a revisited page shows every figure without running TeX. Elements added later are rendered by a <code>MutationObserver</code>. Each render dispatches a <code>metapost-wasm:rendered</code> event; <code>window.metapostWasm.render()</code> renders programmatically.</li>
   <li>Errors show their diagnostics under the figure rather than failing silently. Inside custom elements the content is HTML, so write <code>&amp;lt;</code> for <code>&lt;</code>; script tags are raw.</li>
@@ -172,7 +172,13 @@ const t = await mp.latex(String.raw`
   \end{tikzpicture}\end{document}`);
 t.pages[0]          // SVG
 t.diagnostics       // TeX errors with document line numbers, package warnings
-t.stats             // texMs, dvisvgmMs, format ('latex' or 'tikz')</code></pre>
+t.stats             // texMs, dvisvgmMs, format ('latex', 'tikz', 'dvilualatex' …)
+
+// TikZ graph drawing needs LuaTeX: engine 'auto' switches to luatex.wasm by itself
+const g = await mp.latex(String.raw`
+  \documentclass[tikz]{standalone}
+  \usetikzlibrary{graphs,graphdrawing} \usegdlibrary{layered}
+  \begin{document}\tikz\graph[layered layout]{a -> {b, c} -> d};\end{document}`, { engine: 'auto' });</code></pre>
 <div class="tablewrap"><table class="three">
 <thead><tr><th>Option</th><th>Where</th><th>Meaning</th></tr></thead>
 <tbody>
@@ -183,7 +189,7 @@ t.stats             // texMs, dvisvgmMs, format ('latex' or 'tikz')</code></pre>
 <tr><td class="mono">runScript, makeText, onFindFile</td><td>create</td><td>JavaScript hooks for <code>runscript</code>, for overriding label typesetting, and for last-chance file lookup (in-process mode)</td></tr>
 <tr><td class="mono">worker, timeoutMs, snapshot</td><td>create</td><td>Worker vs in-process; watchdog; default snapshot policy</td></tr>
 <tr><td class="mono">format, prologues, internals, files, jobName</td><td>run</td><td>outputs; <code>prologues</code> (3 for SVG outlines); <code>-s name=value</code> internals; extra files placed next to the job</td></tr>
-<tr><td class="mono">engine, fonts, pages, bbox, dvisvgmArgs, snapshot, files</td><td>latex</td><td><code>latex</code> | <code>plain</code> | <code>tex</code>; outlines or woff2; page selection; dvisvgm's bbox; extra arguments; the pre-warmed format</td></tr>
+<tr><td class="mono">engine, fonts, pages, bbox, dvisvgmArgs, snapshot, files</td><td>latex</td><td><code>latex</code> | <code>lualatex</code> | <code>luatex</code> | <code>plain</code> | <code>tex</code> | <code>auto</code>; outlines or woff2; page selection; dvisvgm's bbox; extra arguments; the pre-warmed format</td></tr>
 </tbody></table></div>
 <p>Also exported: <code>MetaPostPool</code> for batch work across several workers, <code>sanitizeSvg</code> for <code>innerHTML</code> use (MetaPost's <code>special</code> can inject arbitrary text), <code>postProcessSvg</code> (numeric compaction, id namespacing), <code>scanTexBlocks</code>, <code>splitMpx</code>, <code>parseMetaPostLog</code>.</p>
 <h3>Node</h3>
@@ -194,7 +200,8 @@ t.stats             // texMs, dvisvgmMs, format ('latex' or 'tikz')</code></pre>
 npx mpost-wasm -s 'outputformat="svg"' -s prologues=3 figure.mp
 npx mpost-wasm -tex=latex -numbersystem=double -jobname=out figure.mp
 npx mpost-wasm --latex figure.tex                         # figure-1.svg, figure-2.svg …
-npx mpost-wasm --latex --plain --fonts=woff2 figure.tex</code></pre>
+npx mpost-wasm --latex --plain --fonts=woff2 figure.tex
+npx mpost-wasm --latex --engine=lualatex graph.tex                # or --engine=auto (the default)</code></pre>
 <p><code>mpost-wasm</code> accepts the usual <code>mpost</code> flags (<code>-interaction</code>, <code>-jobname</code>, <code>-tex</code>, <code>-s</code>, <code>-halt-on-error</code>, <code>-recorder</code>; <code>-troff</code> with a warning), writes output files with <code>mpost</code>'s <code>outputtemplate</code> naming, prints the transcript, and exits 1 on error.</p>
 
 <h2 id="metapost">What it does — MetaPost</h2>
@@ -214,7 +221,10 @@ __FIG:tz-patterns__
 <div class="grid2">__FIG:tz-graph__ __FIG:tz-cd__</div>
 __FIG:tz-pgfplots__
 <div class="grid2">__FIG:tz-text__ __FIG:tz-tree__</div>
-__FIG:tz-plain__
+<div class="grid2">__FIG:tz-plain__</div>
+<h3>LuaTeX</h3>
+<p>A second engine, <code>luatex.wasm</code>, runs the same DVI pipeline with LuaTeX 1.21 in DVI mode (TeX Live's <code>dvilualatex</code> and <code>dviluatex</code>). It exists for the parts of TikZ that are written in Lua, above all the <code>graphdrawing</code> library with its layered, force-directed, tree, circular and phylogenetic layouts, plus <code>\directlua</code>, <code>luacode</code> and pgfplots' Lua backends. <code>engine: 'auto'</code> and the drop-in tags choose it whenever a document uses any of these; nothing else changes, and the 4.4 MB module and its 6.5 MB format are only fetched then. Text is set in the Type 1 fonts: no OpenType font loader is bundled, so <code>fontspec</code> is not available, and LaTeX's own fallback message about luaotfload is filtered from the diagnostics.</p>
+__FIG:tz-graphdrawing__
 <p>The bundles contain LaTeX 2025 with expl3, PGF/TikZ with every library, pgfplots, tikz-cd, amsmath, amssymb, amscls, mathtools, tools, graphics, xcolor, geometry, booktabs, standalone, hyperref, url, listings, fp, imakeidx, todonotes, the Latin Modern fonts in T1/TS1 encodings, Computer Modern, the AMS fonts, Euler, and the 35 standard PostScript fonts (Times, Helvetica, Courier, Palatino and the rest, as URW Type 1). Adding a package is one line in <code>scripts/build-texmf.sh</code>; the loader fetches files per file, on demand, so bundle size costs nothing until a document uses a file.</p>
 
 <h2 id="how">How it works</h2>
@@ -225,6 +235,7 @@ __FIG:tz-plain__
 <tr><td class="mono">mplib.wasm</td><td class="n">__MPLIB_MB__ MB</td><td>MetaPost 2.11: interpreter, PostScript and SVG backends, Type 1 font machinery, TFM reader, scaled/double/decimal arithmetic, <code>mpto</code> and <code>dvitomp</code></td></tr>
 <tr><td class="mono">tex.wasm</td><td class="n">__TEX_MB__ MB</td><td>pdfTeX 1.40.27 in DVI mode (= <code>tex</code>, <code>etex</code>, <code>latex</code>) with kpathsea, zlib, libpng</td></tr>
 <tr><td class="mono">dvisvgm.wasm</td><td class="n">__DVISVGM_MB__ MB</td><td>dvisvgm 3.4.3 with FreeType, potrace, clipper, woff2/brotli; PostScript specials (Ghostscript) compiled out</td></tr>
+<tr><td class="mono">luatex.wasm</td><td class="n">__LUATEX_MB__ MB</td><td>LuaTeX 1.21 with Lua 5.3, pplib, zziplib, the fontforge-derived font loader, kpathsea and our patched mplib; loaded on demand for graphdrawing and Lua documents</td></tr>
 </tbody></table></div>
 <h3>Labels without a subprocess</h3>
 <p>Native MetaPost shells out to TeX from the middle of its scanner, which WebAssembly cannot do. The TeX step is lifted out of the run instead:</p>
@@ -248,6 +259,7 @@ __FIG:tz-plain__
 <tr><td>a MetaPost figure with LaTeX <code>btex</code></td><td class="n">2.4 MB</td><td class="n">2.2 MB</td></tr>
 <tr><td>a TikZ figure (<code>latex.fmt</code>)</td><td class="n">3.8 MB</td><td class="n">2.5 MB</td></tr>
 <tr><td>a TikZ figure with the snapshot</td><td class="n">5.9 MB</td><td class="n">5.5 MB</td></tr>
+<tr><td>a graph-drawing figure (luatex.wasm + dvilualatex.fmt)</td><td class="n">+ 11.0 MB</td><td class="n">+ 7.9 MB</td></tr>
 </tbody></table></div>
 <p>Everything is fetched once and cached by the browser; rendered figures are cached in IndexedDB as well. The whole bundle tree is 47 MB on the server, and no page downloads all of it.</p>
 
@@ -255,7 +267,7 @@ __FIG:tz-plain__
 <ul>
   <li><b>The PGF/TikZ manual:</b> the complete 1181-page manual from TeX Live 2025, which exercises every library it documents, typesets through the API to a DVI byte-identical to native <code>latex</code>, and all 1181 SVG pages match native dvisvgm's. (The one normalisation resolves dvisvgm's own run-to-run choice of which size of a font becomes the base glyph, which makes two native runs of the same DVI differ as well.) <code>node scripts/stress-pgfmanual.mjs</code> reproduces it in about fifteen minutes.</li>
   <li><b>Golden corpus, MetaPost:</b> 15 documents — paths, pens, fills, transforms, clipping, labels, plain-TeX and LaTeX labels, boxes, graph, macros, colours, multiple figures, error recovery — byte-identical in EPS and SVG to <code>mpost</code> from TeX Live 2025 run with the same frozen date.</li>
-  <li><b>Golden corpus, TikZ:</b> 7 documents — plots, graphs, shadings/patterns/clip, pgfplots, Latin Modern text, plain TeX, a two-page article — byte-identical to <code>latex</code> + <code>dvisvgm</code>, with and without the snapshot.</li>
+  <li><b>Golden corpus, TikZ:</b> 8 documents — plots, graphs, shadings/patterns/clip, pgfplots, Latin Modern text, plain TeX, a two-page article, and graph drawing with <code>\directlua</code> under LuaTeX — byte-identical to <code>latex</code> / <code>dvilualatex</code> + <code>dvisvgm</code>, with and without the snapshot.</li>
   <li><b>Conformance:</b> the <code>mtrap</code> half of MetaPost's official trap test produces the same figures as native MetaPost 2.11; <code>tex.wasm</code> reproduces the oracle's DVI byte for byte; the <code>.mpx</code> round trip through our <code>mpto</code> and <code>dvitomp</code> matches the committed sample.</li>
   <li><b>Unit and end-to-end:</b> 200+ tests, including the scanner diffed against the C <code>mpto</code> on a 24-case corpus and 60 fuzz inputs, and a native contract harness of 46 checks that would catch a TeX Live bump changing mplib's API.</li>
   <li><b>Upstream bugs found and patched</b> (nine small, explained patches in <code>patches/</code>): a process-global flag that crashed the second MetaPost instance in a process; two defects in the <code>extensions=1</code> scanner (an <code>etex</code> at the end of a line was never matched, and TeX Live's own <code>texnum.mp</code> writes <code>btex$-$etex</code>); <code>stroke-miterlimit</code> for <code>filldraw</code> read from uninitialised memory; a printf format with a bare <code>%</code> in <code>mpto</code>'s prologue; font subset tags that differed between 32- and 64-bit builds.</li>
@@ -265,7 +277,7 @@ __FIG:tz-plain__
 <div class="tablewrap"><table>
 <thead><tr><th></th><th>MetaPost-WASM</th><th>tikzjax</th></tr></thead>
 <tbody>
-<tr><td>Engine</td><td>pdfTeX in DVI mode with a real <code>latex.fmt</code> built by the engine</td><td>Knuth TeX with a plain-TeX memory snapshot; <code>\documentclass</code> and <code>\usepackage</code> shimmed or ignored</td></tr>
+<tr><td>Engine</td><td>pdfTeX in DVI mode with a real <code>latex.fmt</code> built by the engine; LuaTeX for graph drawing and Lua</td><td>Knuth TeX with a plain-TeX memory snapshot; <code>\documentclass</code> and <code>\usepackage</code> shimmed or ignored</td></tr>
 <tr><td>Documents</td><td>any LaTeX document: <code>standalone</code>, <code>article</code>, multi-page, any bundled package</td><td>a TikZ picture body and curated preloaded packages</td></tr>
 <tr><td>DVI to SVG</td><td>dvisvgm itself with PGF's dvisvgm driver: gradients, patterns, opacity, clipping, decorations, markers, pgfplots</td><td>a JavaScript re-implementation of the special language; no shadings or patterns</td></tr>
 <tr><td>Text</td><td>glyph outlines in the SVG (self-contained), or woff2 on request</td><td><code>&lt;text&gt;</code> runs plus a CSS font sheet</td></tr>
@@ -280,6 +292,7 @@ __FIG:tz-plain__
 <h2 id="limits">Limits</h2>
 <ul>
   <li>No Ghostscript, so raw PostScript specials (pstricks, or PGF forced onto its dvips driver) are ignored; no external image inclusion.</li>
+  <li>LuaTeX runs without an OpenType font loader: no <code>fontspec</code>, no <code>unicode-math</code>, no system fonts. Text uses the same Type 1 fonts as the pdfTeX route.</li>
   <li>No PNG output and no <code>binary</code>/<code>interval</code> number systems (they need cairo and GMP/MPFR, which are not built).</li>
   <li>Worker mode cannot forward the <code>runScript</code>, <code>makeText</code> and <code>onFindFile</code> callbacks; providing one selects in-process mode.</li>
   <li>MetaPost's <code>mplib</code> library does not write figure files during a run, so a document cannot <code>readfrom</code> its own output; and it exits on a few hard limits (such as an input-stack overflow, which native <code>mpost</code> hits too) rather than raising an error — reported as a fatal diagnostic.</li>
@@ -295,9 +308,10 @@ __FIG:tz-plain__
 <tr><td class="mono">make wasm</td><td><code>dist/mplib.mjs</code> + <code>mplib.wasm</code> (<code>-O3 -flto</code>); <code>make wasm-debug</code> for an ASSERTIONS/SAFE_HEAP variant</td></tr>
 <tr><td class="mono">scripts/native-texlive.sh</td><td>the web2c-generated C for pdfTeX and the native config headers (needs autotools' output, once)</td></tr>
 <tr><td class="mono">scripts/build-tex-wasm.sh</td><td><code>dist/tex.mjs</code> + <code>tex.wasm</code> from that C plus kpathsea, with Emscripten's zlib and libpng ports</td></tr>
+<tr><td class="mono">scripts/native-luatex.sh, scripts/build-luatex-wasm.sh</td><td><code>dist/luatex.mjs</code> + <code>luatex.wasm</code>: the native LuaTeX build's compile commands are recorded and replayed with emcc (Lua 5.3, pplib, zziplib compiled from the vendored sources; the C FFI stubbed)</td></tr>
 <tr><td class="mono">scripts/native-dvisvgm.sh, scripts/build-dvisvgm-wasm.sh</td><td><code>dist/dvisvgm.mjs</code> + <code>dvisvgm.wasm</code> (FreeType and zlib ports, <code>-Oz</code>)</td></tr>
 <tr><td class="mono">scripts/build-texmf.sh</td><td><code>build/texmf</code>: the flattened texmf tree copied from the local TeX Live, plus <code>tikz.ini</code></td></tr>
-<tr><td class="mono">node scripts/make-formats.mjs</td><td><code>plain.fmt</code>, <code>etex.fmt</code>, <code>latex.fmt</code>, <code>tikz.fmt</code>, built by <code>tex.wasm</code></td></tr>
+<tr><td class="mono">node scripts/make-formats.mjs</td><td><code>plain.fmt</code>, <code>etex.fmt</code>, <code>latex.fmt</code>, <code>tikz.fmt</code>, built by <code>tex.wasm</code>; <code>dviluatex.fmt</code>, <code>dvilualatex.fmt</code> by <code>luatex.wasm</code></td></tr>
 <tr><td class="mono">node scripts/build-bundles.mjs</td><td><code>dist/bundles/*</code>: manifests and files per bundle</td></tr>
 <tr><td class="mono">npm run build:ts</td><td><code>dist/*.js</code>: the library, the worker, the CLI, <code>auto.js</code></td></tr>
 <tr><td class="mono">npm run package</td><td><code>release/metapost-wasm-__VERSION__.tar.gz</code> and <code>.zip</code>: the prebuilt distribution for a GitHub release</td></tr>
@@ -306,9 +320,9 @@ __FIG:tz-plain__
 <p>The design documents in <code>docs/</code> record every decision; <code>docs/14-implementation-notes.md</code> records what was learned building it, including the upstream defects.</p>
 
 <h2 id="licence">Licences</h2>
-<p>MetaPost itself is public domain. <code>mplib.wasm</code> also contains <code>avl.c</code> (LGPL-3.0-or-later) and decNumber (ICU), so it is distributed under the LGPL-3.0-or-later with the sources, the patches and a reproducible build in the repository. pdfTeX and kpathsea are GPL, so <code>tex.wasm</code> is GPL; dvisvgm is GPL-3.0-or-later, so <code>dvisvgm.wasm</code> is too (it embeds FreeType, potrace, clipper, woff2, brotli and the URW base-14 fonts). The fonts and macro packages in the bundles keep their own free licences. This project's own code is LGPL-3.0-or-later. See <code>LICENSE.md</code>.</p>
+<p>MetaPost itself is public domain. <code>mplib.wasm</code> also contains <code>avl.c</code> (LGPL-3.0-or-later) and decNumber (ICU), so it is distributed under the LGPL-3.0-or-later with the sources, the patches and a reproducible build in the repository. pdfTeX and kpathsea are GPL, so <code>tex.wasm</code> is GPL; LuaTeX is GPL-2.0-or-later (Lua, pplib and zziplib carry MIT-style licences), so <code>luatex.wasm</code> is GPL; dvisvgm is GPL-3.0-or-later, so <code>dvisvgm.wasm</code> is too (it embeds FreeType, potrace, clipper, woff2, brotli and the URW base-14 fonts). The fonts and macro packages in the bundles keep their own free licences. This project's own code is LGPL-3.0-or-later. See <code>LICENSE.md</code>.</p>
 
-<footer>MetaPost by John Hobby, maintained as <code>mplib</code> by Taco Hoekwater and Luigi Scarso; pdfTeX by Hàn Thế Thành and the pdfTeX team; dvisvgm by Martin Gieseking; all from TeX Live 2025. This page was generated by <code>scripts/build-guide.mjs</code>; every figure on it was rendered by the WebAssembly engines.</footer>
+<footer>MetaPost by John Hobby, maintained as <code>mplib</code> by Taco Hoekwater and Luigi Scarso; pdfTeX by Hàn Thế Thành and the pdfTeX team; LuaTeX by Taco Hoekwater, Hans Hagen, Luigi Scarso and Hartmut Henkel; dvisvgm by Martin Gieseking; all from TeX Live 2025. This page was generated by <code>scripts/build-guide.mjs</code>; every figure on it was rendered by the WebAssembly engines.</footer>
 </div>
 </body>
 </html>

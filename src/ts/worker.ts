@@ -32,13 +32,14 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         await bundles.prefetchEager();
         if (!bundles.canFetchSync) await bundles.prefetchAll();
         const mplibFactory = (await import(/* @vite-ignore */ new URL('./mplib.mjs', baseUrl).href)).default;
-        let texFactory, dvisvgmFactory;
+        let texFactory, luatexFactory, dvisvgmFactory;
         if ((options.tex ?? 'auto') !== 'none') {
           try { texFactory = (await import(/* @vite-ignore */ new URL('./tex.mjs', baseUrl).href)).default; } catch { texFactory = undefined; }
           try { dvisvgmFactory = (await import(/* @vite-ignore */ new URL('./dvisvgm.mjs', baseUrl).href)).default; } catch { dvisvgmFactory = undefined; }
+          try { luatexFactory = (await import(/* @vite-ignore */ new URL('./luatex.mjs', baseUrl).href)).default; } catch { luatexFactory = undefined; }
         }
         core = new MetaPostCore({
-          mplibFactory, texFactory, dvisvgmFactory, bundles, options,
+          mplibFactory, texFactory, luatexFactory, dvisvgmFactory, bundles, options,
           onProgress: (e) => post({ event: 'progress', data: e }),
           onLog: (line) => post({ event: 'log', data: line }),
         });

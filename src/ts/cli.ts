@@ -29,6 +29,8 @@ const HELP = `Usage: mpost-wasm [OPTION]... [MPNAME[.mp]] [COMMANDS]
   --bundles=DIR         directory containing the bundles (default: next to this package)
   --stdout              print the first figure to stdout instead of writing files
   --latex               DOC.tex -> DOC-1.svg, DOC-2.svg ... (LaTeX); --plain for plain TeX
+  --engine=NAME         latex | lualatex | luatex | plain | tex | auto (default auto: lualatex when
+                        the document uses graphdrawing or \directlua)
   --fonts=paths|woff2   how text is emitted in --latex mode (default paths)
   -help, -version
 `;
@@ -40,7 +42,7 @@ function parseArgs(argv: string[]) {
     jobname: '' , tex: 'auto' as TexEngine, internals: {} as Record<string, string | number>,
     halt: false, recorder: false, troff: false, format: '' as '' | OutputFormat, texmf: '', bundles: '',
     stdout: false, file: '', commands: '', help: false, version: false, dvitomp: false,
-    latex: false, plain: false, fonts: 'paths' as 'paths' | 'woff2',
+    latex: false, plain: false, engine: 'auto' as 'auto' | 'latex' | 'lualatex' | 'luatex' | 'plain' | 'tex', fonts: 'paths' as 'paths' | 'woff2',
   };
   const rest: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -69,7 +71,8 @@ function parseArgs(argv: string[]) {
       case 'version': o.version = true; break;
       case 'dvitomp': o.dvitomp = true; break;
       case 'latex': o.latex = true; break;
-      case 'plain': o.plain = true; o.latex = true; break;
+      case 'plain': o.plain = true; o.latex = true; o.engine = 'plain'; break;
+      case 'engine': o.engine = (v ?? next()) as typeof o.engine; o.latex = true; break;
       case 'fonts': o.fonts = (v ?? next()) as 'paths' | 'woff2'; break;
       case 'ini': case 'mem': case 'progname': case 'kpathsea-debug': case 'restricted': case 'debug': case 'translate-file': case '8bit':
         console.error(`mpost-wasm: warning: option -${k} is accepted and ignored`); if (v === undefined && ['mem', 'progname', 'kpathsea-debug', 'translate-file'].includes(k)) next(); break;
@@ -101,7 +104,7 @@ async function main() {
     const job = o.jobname || path.basename(f).replace(/\.tex$/, '');
     const sib: Record<string, string | Uint8Array> = {};
     for (const e of fs.readdirSync(path.dirname(f))) if (e !== path.basename(f) && /\.(tex|sty|cls|def|clo|fd|eps|dat|csv|txt|bib)$/.test(e)) sib[e] = fs.readFileSync(path.join(path.dirname(f), e));
-    const r = await mp.latex(fs.readFileSync(f, 'utf8'), { engine: o.plain ? 'plain' : 'latex', jobName: job, files: sib, fonts: o.fonts });
+    const r = await mp.latex(fs.readFileSync(f, 'utf8'), { engine: o.engine, jobName: job, files: sib, fonts: o.fonts });
     process.stdout.write(r.log.endsWith('\n') ? r.log : r.log + '\n');
     if (o.stdout) { if (r.pages[0]) process.stdout.write(r.pages[0]); }
     else r.pages.forEach((svg, i) => fs.writeFileSync(`${job}-${i + 1}.svg`, svg));

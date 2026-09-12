@@ -56,7 +56,7 @@ export interface MetaPostOptions {
   log?: (line: string) => void;
   wasmUrls?: { mplib?: string; tex?: string };
   /** Pre-loaded Emscripten module factories (e.g. for a single-file build); in-process mode only. */
-  modules?: { mplib?: (opts?: Record<string, unknown>) => Promise<any>; tex?: (opts?: Record<string, unknown>) => Promise<any>; dvisvgm?: (opts?: Record<string, unknown>) => Promise<any> };
+  modules?: { mplib?: (opts?: Record<string, unknown>) => Promise<any>; tex?: (opts?: Record<string, unknown>) => Promise<any>; luatex?: (opts?: Record<string, unknown>) => Promise<any>; dvisvgm?: (opts?: Record<string, unknown>) => Promise<any> };
   /** Custom bundle I/O (e.g. files embedded in the page); in-process mode only. */
   bundleIO?: { fetch(url: string): Promise<Uint8Array>; fetchSync?: (url: string) => Uint8Array; fetchJson(url: string): Promise<unknown> };
   /** Run in-process instead of in a Web Worker (default: worker in browsers, in-process in Node). */
@@ -192,9 +192,13 @@ export interface SpecialObject extends ObjectBase { type: 'special'; script: str
 // ---- LaTeX / TikZ documents (tex.wasm → dvisvgm.wasm) ----------------------
 
 export interface LatexRunOptions {
-  /** Which format runs the document. Default 'latex'. 'plain' is plain TeX with e-TeX extensions
-   *  (TeX Live's etex; PGF needs them); 'tex' is Knuth-compatible plain.fmt. */
-  engine?: 'latex' | 'plain' | 'etex' | 'tex';
+  /** Which engine and format run the document. Default 'latex' (pdfTeX in DVI mode). 'plain' is
+   *  plain TeX with e-TeX extensions (TeX Live's etex; PGF needs them); 'tex' is Knuth-compatible
+   *  plain.fmt. 'lualatex' and 'luatex' run LuaTeX in DVI mode (TeX Live's dvilualatex/dviluatex),
+   *  which is what TikZ's graphdrawing library and \directlua need; text is set in the Type 1
+   *  fonts (no OpenType loader is bundled). 'auto' picks 'lualatex' when the source uses
+   *  graphdrawing, \directlua or luacode, 'plain' for a \bye document, 'latex' otherwise. */
+  engine?: 'latex' | 'plain' | 'etex' | 'tex' | 'lualatex' | 'luatex' | 'auto';
   /** PGF system driver. 'dvisvgm' (default) prepends \def\pgfsysdriver{pgfsys-dvisvgm.def} so TikZ
    *  draws with SVG specials; 'auto' leaves PGF's own choice (dvips, whose PostScript specials need
    *  Ghostscript and are ignored here). */
@@ -227,7 +231,7 @@ export interface LatexResult {
   dvisvgmLog: string;
   diagnostics: Diagnostic[];
   stats: { totalMs: number; texMs: number; dvisvgmMs: number; texSetupMs: number; texMainMs: number; instantiateMs: number };
-  /** The format that ran the document ('latex', 'tikz', 'etex', 'plain'). */
+  /** The format that ran the document ('latex', 'tikz', 'etex', 'plain', 'dvilualatex', 'dviluatex'). */
   format: string;
   artifacts: Record<string, Uint8Array>;
 }

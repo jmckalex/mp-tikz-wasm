@@ -19,6 +19,8 @@
  *   data-packages="amsmath,amssymb"      \usepackage for wrapped TikZ bodies
  *   data-preamble="..."                  extra preamble lines for wrapped bodies
  *   data-border="2pt"                    standalone border (default 2pt)
+ *   data-gdlibraries="trees,layered"     \usegdlibrary (graphdrawing; implies engine lualatex)
+ *   data-engine="auto|latex|lualatex|plain" TikZ: which engine (default auto: lualatex for graphdrawing / \directlua)
  *   data-tex="latex|plain|none"          MetaPost: btex engine (default auto)
  *   data-prologues="3"                   MetaPost: prologues (default 3)
  *   data-fonts="paths|woff2"             TikZ: text as outlines or web fonts
@@ -30,7 +32,7 @@
  * data-snapshot="on" (use the pre-warmed tikz.fmt; see README for the trade-off).
  */
 import { MetaPost } from './index.js';
-import type { MetaPostOptions, RunResult, LatexResult } from './types.js';
+import type { LatexRunOptions, MetaPostOptions, RunResult, LatexResult } from './types.js';
 import { sha256Hex } from './tex/cache-key.js';
 
 type Kind = 'tikz' | 'metapost';
@@ -43,12 +45,16 @@ export interface RenderOutput { svg: string; log: string; diagnostics: { severit
 export function wrapTikz(source: string, attrs: Record<string, string> = {}): string {
   if (/\\documentclass|\\bye\b/.test(source)) return source;
   const libs = (attrs.libraries ?? '').split(/[,\s]+/).filter(Boolean);
+  const gd = (attrs.gdlibraries ?? '').split(/[,\s]+/).filter(Boolean);
+  // graph drawing is used through \graph, which the graphs library provides
+  for (const l of ['graphs', 'graphdrawing']) if (gd.length && !libs.includes(l)) libs.push(l);
   const pkgs = (attrs.packages ?? '').split(/[,\s]+/).filter(Boolean);
   const body = /\\begin\{tikzpicture\}|\\tikz\b|\\begin\{axis\}/.test(source) ? source : `\\begin{tikzpicture}\n${source}\n\\end{tikzpicture}`;
   return [
     `\\documentclass[tikz,border=${attrs.border ?? '2pt'}]{standalone}`,
     ...(pkgs.length ? [`\\usepackage{${pkgs.join(',')}}`] : []),
     ...(libs.length ? [`\\usetikzlibrary{${libs.join(',')}}`] : []),
+    ...(gd.length ? [`\\usegdlibrary{${gd.join(',')}}`] : []),
     ...(attrs.preamble ? [attrs.preamble] : []),
     '\\begin{document}',
     body,
@@ -106,7 +112,7 @@ export class AutoRenderer {
   async render(req: RenderRequest): Promise<RenderOutput> {
     const useCache = this.options.cacheResults !== false && req.attrs.cache !== 'off';
     const doc = req.kind === 'tikz' ? wrapTikz(req.source, req.attrs) : wrapMetaPost(req.source, req.attrs);
-    const key = sha256Hex(`${this.version}\0${req.kind}\0${req.attrs.fonts ?? ''}\0${req.attrs.tex ?? ''}\0${doc}`);
+    const key = sha256Hex(`${this.version}\0${req.kind}\0${req.attrs.fonts ?? ''}\0${req.attrs.tex ?? ''}\0${req.attrs.engine ?? ''}\0${doc}`);
     if (useCache) {
       const hit = await cacheGet(key);
       if (hit) return { svg: hit, log: '', diagnostics: [], ok: true, ms: 0, cached: true };
@@ -114,7 +120,8 @@ export class AutoRenderer {
     const mp = await this.mp;
     let out: RenderOutput;
     if (req.kind === 'tikz') {
-      const r: LatexResult = await mp.latex(doc, { fonts: req.attrs.fonts === 'woff2' ? 'woff2' : 'paths', engine: /\\bye\b/.test(doc) ? 'plain' : 'latex', svg: { idPrefix: `mpw${key.slice(0, 8)}-`, precision: false } });
+      const engine = (req.attrs.engine as LatexRunOptions['engine']) ?? 'auto';
+      const r: LatexResult = await mp.latex(doc, { fonts: req.attrs.fonts === 'woff2' ? 'woff2' : 'paths', engine, svg: { idPrefix: `mpw${key.slice(0, 8)}-`, precision: false } });
       out = { svg: r.pages.join('\n'), log: r.log, diagnostics: r.diagnostics, ok: r.status === 'ok' && r.pages.length > 0, ms: r.stats.totalMs, cached: false };
     } else {
       const tex = (req.attrs.tex ?? 'auto') as MetaPostOptions['tex'];
