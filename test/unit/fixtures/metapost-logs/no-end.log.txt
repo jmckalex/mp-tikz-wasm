@@ -1,0 +1,12 @@
+This is MetaPost, version 2.11 (TeX Live 2025) (kpathsea version 6.4.1)  12 SEP 2026 01:38
+**no-end.mp
+(/usr/local/texlive/2025/texmf-dist/metapost/base/mpost.mp
+(/usr/local/texlive/2025/texmf-dist/metapost/base/plain.mp
+Preloading the plain mem file, version 1.005) ) (./no-end.mp [1])
+! Emergency stop.
+<*> no-end.mp
+             
+*** (job aborted, no legal end found)
+
+1 output file written: no-end.1
+

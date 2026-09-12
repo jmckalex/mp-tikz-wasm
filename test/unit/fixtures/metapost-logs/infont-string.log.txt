@@ -1,0 +1,32 @@
+This is MetaPost, version 2.11 (TeX Live 2025) (kpathsea version 6.4.1)  12 SEP 2026 01:38
+**infont-string.mp
+(/usr/local/texlive/2025/texmf-dist/metapost/base/mpost.mp
+(/usr/local/texlive/2025/texmf-dist/metapost/base/plain.mp
+Preloading the plain mem file, version 1.005) ) (./infont-string.mp
+>> picture
+>> "nosuchfont"
+! Not implemented: (picture)infont(string).
+<to be read again> 
+                   ;
+l.2 label("x", origin) infont "nosuchfont";
+                                           
+I'm afraid I don't know how to apply that operation to that
+combination of types. Continue, and I'll return the second
+argument (see above) as the result of the operation.
+
+>> "nosuchfont"
+! Improper `addto'.
+<to be read again> 
+                   withpen
+draw->...:also(EXPR0)else:doublepath(EXPR0)withpen
+                                                  .currentpen.fi._op_
+<to be read again> 
+                   ;
+l.2 label("x", origin) infont "nosuchfont";
+                                           
+This expression should have specified a known path.
+So I'll not change anything just now.
+
+[1] )
+1 output file written: infont-string.1
+

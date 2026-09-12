@@ -1,0 +1,2 @@
+makempx error: 07-nested-etex.mp:1: unmatched etex
+makempx error: 07-nested-etex.mp:2: unmatched etex

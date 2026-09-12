@@ -1,0 +1,12 @@
+.po 0
+.lf 1 06-two-blocks-one-line.mp
+one
+.bp
+.lf 1 06-two-blocks-one-line.mp
+two
+.bp
+.lf 1 06-two-blocks-one-line.mp
+three
+.bp
+.lf 2 06-two-blocks-one-line.mp
+four

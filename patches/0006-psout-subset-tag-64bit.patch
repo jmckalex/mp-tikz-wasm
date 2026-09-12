@@ -1,0 +1,30 @@
+--- a/psout.w
++++ b/psout.w
+@@ -1684,11 +1684,15 @@
+   subsets prefixes somewhat disjunct
+ 
+ @c
+-static unsigned long crc32 (unsigned long oldcrc, const Byte *buf, size_t len) {
+-  unsigned long ret = 0;
++static uint64_t crc32 (uint64_t oldcrc, const Byte *buf, size_t len) {
++  /* MetaPost-WASM patch 0006: this is a 64-bit accumulation on the 64-bit
++     TeX Live binaries (|unsigned long|), and the tag below uses all of it.
++     Use 64 bits explicitly so that a 32-bit build (wasm32) produces the same
++     font subset tags. */
++  uint64_t ret = 0;
+   size_t i;
+   if (oldcrc==0)
+-	ret = (unsigned long)((23<<24)+(45<<16)+(67<<8)+89);
++	ret = (uint64_t)((23<<24)+(45<<16)+(67<<8)+89);
+   else 
+       for (i=0;i<len;i++)
+ 	  ret = (ret<<2)+buf[i];
+@@ -1706,7 +1710,7 @@
+ static void make_subset_tag (MP mp, fm_entry * fm_cur, char **glyph_names, font_number tex_font)
+ {
+     char tag[7];
+-    unsigned long crc;
++    uint64_t crc; /* MetaPost-WASM patch 0006 */
+     int i;
+     size_t l ;
+     if (mp->ps->job_id_string ==NULL)

@@ -1,0 +1,36 @@
+This is MetaPost, version 2.11 (TeX Live 2025) (kpathsea version 6.4.1)
+(/usr/local/texlive/2025/texmf-dist/metapost/base/mpost.mp
+(/usr/local/texlive/2025/texmf-dist/metapost/base/plain.mp
+Preloading the plain mem file, version 1.005) ) (./undefined-coordinate.mp
+>> x1
+! Undefined x coordinate has been replaced by 0.
+<to be read again> 
+                   {
+--->{
+     curl1}..{curl1}
+l.1 beginfig(1); draw z1--
+                          z2; endfig; end.
+>> y1
+! Undefined y coordinate has been replaced by 0.
+<to be read again> 
+                   {
+--->{
+     curl1}..{curl1}
+l.1 beginfig(1); draw z1--
+                          z2; endfig; end.
+>> x2
+! Undefined x coordinate has been replaced by 0.
+<to be read again> 
+                   ;
+l.1 beginfig(1); draw z1--z2;
+                              endfig; end.
+>> y2
+! Undefined y coordinate has been replaced by 0.
+<to be read again> 
+                   ;
+l.1 beginfig(1); draw z1--z2;
+                              endfig; end.
+[1] )
+(see the transcript file for additional information)
+1 output file written: undefined-coordinate.1
+Transcript written on undefined-coordinate.log.

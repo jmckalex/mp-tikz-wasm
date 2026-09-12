@@ -1,0 +1,18 @@
+.po 0
+.lf 1 10-etex-end-of-line.mp
+a
+.bp
+.lf 3 10-etex-end-of-line.mp
+b
+.bp
+.lf 5 10-etex-end-of-line.mp
+c
+.bp
+.lf 7 10-etex-end-of-line.mp
+d
+.lf 10 10-etex-end-of-line.mp
+\x
+
+.bp
+.lf 13 10-etex-end-of-line.mp
+e

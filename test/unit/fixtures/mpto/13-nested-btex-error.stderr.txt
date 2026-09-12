@@ -1,0 +1,8 @@
+makempx error: 13-nested-btex-error.mp:1: btex in TeX mode
+makempx error: 13-nested-btex-error.mp:1: unmatched etex
+makempx error: 13-nested-btex-error.mp:1: unmatched etex
+makempx error: 13-nested-btex-error.mp:2: verbatimtex in TeX mode
+makempx error: 13-nested-btex-error.mp:2: unmatched etex
+makempx error: 13-nested-btex-error.mp:2: unmatched etex
+makempx error: 13-nested-btex-error.mp:3: btex in TeX mode
+makempx error: 13-nested-btex-error.mp:3: unmatched etex

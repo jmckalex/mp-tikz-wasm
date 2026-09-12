@@ -1,0 +1,16 @@
+--- a/mpxout.w
++++ b/mpxout.w
+@@ -577,8 +577,11 @@
+ static const char *mpx_predoc[]  = {"", ".po 0\n"};
+ static const char *mpx_postdoc[] = { "\\end{document}\n", ""};
+ static const char *mpx_pretex1[] = { 
+-    "\\gdef\\mpxshipout{\\shipout\\hbox\\bgroup%\n"
+-    "  \\setbox0=\\hbox\\bgroup}%\n"
++    /* MetaPost-WASM patch 0007: these are printf formats, so the two |%|
++       below must be |%%|. glibc printed a bare |%\n| verbatim, BSD libc
++       dropped the |%|, and musl (Emscripten) prints nothing at all. */
++    "\\gdef\\mpxshipout{\\shipout\\hbox\\bgroup%%\n"
++    "  \\setbox0=\\hbox\\bgroup}%%\n"
+     "\\gdef\\stopmpxshipout{\\egroup"
+     "  \\dimen0=\\ht0 \\advance\\dimen0\\dp0\n"
+     "  \\dimen1=\\ht0 \\dimen2=\\dp0\n"

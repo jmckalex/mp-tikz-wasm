@@ -1,0 +1,23 @@
+--- a/mpxout.w
++++ b/mpxout.w
+@@ -3964,6 +3964,12 @@
+ 
+ @c
+ static int do_spawn (MPX mpx, char *icmd, char **options) {
++#ifdef MPWASM_NO_SPAWN
++  /* MetaPost-WASM patch 0002: no subprocesses in this build (docs/02 5.3) */
++  (void) options;
++  mpx_abort (mpx, "cannot run %s: spawning external programs is not supported in this build", icmd);
++  return -1;
++#else
+ #ifndef WIN32
+   pid_t child;
+ #endif
+@@ -3994,6 +4000,7 @@
+ #endif
+   xfree(cmd);
+   return retcode;
++#endif
+ }
+ 
+ @ @c

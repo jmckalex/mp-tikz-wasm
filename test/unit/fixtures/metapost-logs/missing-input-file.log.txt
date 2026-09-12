@@ -1,0 +1,15 @@
+This is MetaPost, version 2.11 (TeX Live 2025) (kpathsea version 6.4.1)  12 SEP 2026 01:38
+**missing-input-file.mp
+(/usr/local/texlive/2025/texmf-dist/metapost/base/mpost.mp
+(/usr/local/texlive/2025/texmf-dist/metapost/base/plain.mp
+Preloading the plain mem file, version 1.005) ) (./missing-input-file.mp
+! I can't open file `nonexistent'.
+l.2 input nonexistent
+                     ;
+Please type another input file name
+! Emergency stop.
+l.2 input nonexistent
+                     ;
+*** (job aborted, file error in nonstop mode)
+
+

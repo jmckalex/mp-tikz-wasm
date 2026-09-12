@@ -1,0 +1,23 @@
+This is MetaPost, version 2.11 (TeX Live 2025) (kpathsea version 6.4.1)
+(/usr/local/texlive/2025/texmf-dist/metapost/base/mpost.mp
+(/usr/local/texlive/2025/texmf-dist/metapost/base/plain.mp
+Preloading the plain mem file, version 1.005) ) (./inconsistent-equation.mp
+! Inconsistent equation (off by 1).
+<to be read again> 
+                   ;
+l.2 x1 = 1; x1 = 2;
+                   
+! Division by zero.
+l.3 numeric a; a := 1/0
+                       ;
+>> unknown string s
+>> 3
+! Equation cannot be performed (unknown string=numeric).
+<to be read again> 
+                   ;
+l.4 string s; s := 3;
+                     
+[1] )
+(see the transcript file for additional information)
+1 output file written: inconsistent-equation.1
+Transcript written on inconsistent-equation.log.

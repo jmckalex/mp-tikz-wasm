@@ -1,0 +1,16 @@
+.po 0
+.lf 2 05-verbatimtex-first-later.mp
+first  
+  
+.lf 5 05-verbatimtex-first-later.mp
+ second 
+.lf 5 05-verbatimtex-first-later.mp
+a
+.lf 5 05-verbatimtex-first-later.mp
+ third 
+.lf 6 05-verbatimtex-first-later.mp
+\font\x=cmr10
+
+.bp
+.lf 9 05-verbatimtex-first-later.mp
+\x b

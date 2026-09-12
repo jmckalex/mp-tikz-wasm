@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MetaPost in the browser</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%23335' stroke-width='8'/></svg>">
+<style>
+  :root { --bg: #f7f6f2; --ink: #1c1b18; --muted: #6b6860; --line: #d9d5cc; --accent: #2b4c8c; --accent-2: #b23a2f; --panel: #fffdf8; --code: #1e1e1e; --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #17181c; --ink: #e8e6df; --muted: #9a978f; --line: #33353c; --accent: #8fb0ff; --accent-2: #ff8f80; --panel: #1f2126; --code: #0f1013; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  header { padding: 18px 24px 10px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: -0.01em; }
+  header h1 span { color: var(--accent); }
+  header .sub { color: var(--muted); }
+  header .status { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  header .status b { color: var(--ink); font-weight: 600; }
+  main { display: grid; grid-template-columns: 250px minmax(320px, 1fr) minmax(320px, 1.1fr); gap: 0; min-height: calc(100vh - 62px); }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } nav { border-right: 0; border-bottom: 1px solid var(--line); } }
+  nav { border-right: 1px solid var(--line); padding: 12px 10px; overflow: auto; }
+  nav h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 8px 8px 6px; }
+  nav button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 8px 10px; border-radius: 6px; color: var(--ink); font: inherit; cursor: pointer; }
+  nav button:hover { background: var(--panel); }
+  nav button.active { background: var(--accent); color: #fff; }
+  nav button small { display: block; color: inherit; opacity: .7; font-size: 12px; }
+  .editor { display: flex; flex-direction: column; border-right: 1px solid var(--line); min-width: 0; }
+  .toolbar { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .toolbar button, .toolbar select { font: inherit; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+  .toolbar button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .toolbar label { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 4px; }
+  textarea { flex: 1; width: 100%; min-height: 320px; resize: none; border: 0; padding: 14px; background: var(--code); color: #e6e6e6; font: 13px/1.45 var(--mono); tab-size: 2; outline: none; }
+  .blurb { padding: 10px 14px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+  .output { display: flex; flex-direction: column; min-width: 0; }
+  .tabs { display: flex; gap: 2px; padding: 8px 12px 0; border-bottom: 1px solid var(--line); }
+  .tabs button { font: inherit; font-size: 13px; padding: 6px 12px; border: 1px solid transparent; border-bottom: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 6px 6px 0 0; }
+  .tabs button.active { color: var(--ink); background: var(--panel); border-color: var(--line); }
+  .pane { flex: 1; overflow: auto; padding: 14px; }
+  .pane[hidden] { display: none; }
+  #preview { display: flex; align-items: center; justify-content: center; background: var(--panel); background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 20px 20px; }
+  #preview svg { max-width: 100%; max-height: 70vh; height: auto; filter: drop-shadow(0 1px 2px rgba(0,0,0,.15)); }
+  @media (prefers-color-scheme: dark) { #preview svg { background: #fff; padding: 12px; border-radius: 4px; } }
+  pre { margin: 0; font: 12px/1.45 var(--mono); white-space: pre-wrap; word-break: break-word; }
+  .diag { border-left: 3px solid var(--accent-2); padding: 6px 10px; margin: 0 0 10px; background: var(--panel); border-radius: 0 6px 6px 0; }
+  .diag.warning { border-color: #c9a227; }
+  .diag .where { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  .diag .help { color: var(--muted); font-size: 13px; margin-top: 4px; white-space: pre-wrap; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .stat b { display: block; font-size: 18px; font-weight: 600; }
+  .stat span { color: var(--muted); font-size: 12px; }
+  footer { padding: 14px 24px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+  footer a { color: var(--accent); }
+  .pill { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; background: var(--line); color: var(--ink); margin-left: 6px; vertical-align: middle; }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>MetaPost</span> in the browser</h1>
+  <div class="sub">John Hobby's MetaPost 2.11 and pdfTeX 1.40, both compiled to WebAssembly, with real LaTeX labels — no server.</div>
+  <div class="status" id="status"><span class="spinner"></span>loading engine…</div>
+</header>
+<main>
+  <nav id="gallery"><h2>Examples</h2></nav>
+  <section class="editor">
+    <div class="toolbar">
+      <button class="primary" id="run">Run <span class="pill">⌘⏎</span></button>
+      <label><input type="checkbox" id="live" checked> live</label>
+      <label>TeX <select id="tex"><option value="auto">auto</option><option value="plain">plain</option><option value="latex">latex</option><option value="none">none</option></select></label>
+      <label>numbers <select id="numbers"><option value="scaled">scaled</option><option value="double">double</option><option value="decimal">decimal</option></select></label>
+      <label><input type="checkbox" id="worker" checked> worker</label>
+    </div>
+    <textarea id="source" spellcheck="false"></textarea>
+    <div class="blurb" id="blurb"></div>
+  </section>
+  <section class="output">
+    <div class="tabs">
+      <button class="active" data-pane="preview">Preview</button>
+      <button data-pane="svg">SVG</button>
+      <button data-pane="eps">EPS</button>
+      <button data-pane="json">JSON</button>
+      <button data-pane="log">Log</button>
+      <button data-pane="stats">Stats</button>
+    </div>
+    <div class="pane" id="preview"></div>
+    <div class="pane" id="svg" hidden><pre></pre></div>
+    <div class="pane" id="eps" hidden><pre></pre></div>
+    <div class="pane" id="json" hidden><pre></pre></div>
+    <div class="pane" id="log" hidden><div id="diagnostics"></div><pre></pre></div>
+    <div class="pane" id="stats" hidden></div>
+  </section>
+</main>
+<footer>
+  <b>What you are looking at.</b> The MetaPost interpreter (mplib, ~1.2 MB wasm) runs in a Web Worker. Text in <code>btex … etex</code> is extracted before the run, typeset in one batched pdfTeX job (DVI mode, ~1.1 MB wasm) with a format built by the wasm engine itself, converted with MetaPost's own <code>dvitomp</code>, cached by content hash, and served back through mplib's <code>make_text</code> callback. Fonts are Type 1 outlines converted to SVG paths by MetaPost's SVG backend (<code>prologues:=3</code>); TeX packages, fonts and formats load lazily from static files. Output is byte-identical to native <code>mpost</code> from TeX Live 2025 on the golden corpus.
+  <span id="sizes"></span>
+</footer>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+--- a/mpxout.w
++++ b/mpxout.w
+@@ -4144,6 +4144,14 @@
+ } mpx_options;
+ int mpx_makempx (mpx_options *mpxopt) ;
+ int mpx_run_dvitomp (mpx_options *mpxopt) ;
++typedef struct mpx_mpto_options {
++  int mode;                     /* |mpx_tex_mode| or |mpx_troff_mode| */
++  char *mpname;                 /* input \.{.mp} file */
++  char *texname;                /* output \.{.tex} (or \.{.i}) file */
++  char *mptexpre;               /* prepended file, default \.{mptexpre.tex} */
++  int debug;
++} mpx_mpto_options;
++int mpx_run_mpto (mpx_mpto_options *opt) ;
+ 
+  
+ @ 
+@@ -4277,7 +4285,52 @@
+     return retcode;
+ }
+ 
++@ MetaPost-WASM patch 0001: run only the \.{mpto} step. The classic
++|mpx_makempx| insists on spawning \TeX\ and running \.{dvitomp} in the same
++call, which an embedding without subprocesses cannot do. This wrapper writes
++the generated \TeX\ file to |opt->texname| and returns the history value.
++Upstream behaviour is untouched: nothing calls this unless the host does.
+ 
++@c
++int mpx_run_mpto (mpx_mpto_options *opt) {
++  MPX mpx;
++  int retcode;
++  char tmpname[] = "mptotmp";
++  mpx = malloc (sizeof (struct mpx_data));
++  if (mpx == NULL || opt->mpname == NULL || opt->texname == NULL)
++    return mpx_fatal_error;
++  mpx_initialize (mpx);
++  mpx->mode = opt->mode;
++  mpx->debug = opt->debug;
++  mpx->mpname = xstrdup (opt->mpname);
++  mpx->mpxname = xstrdup (opt->texname);
++  mpx->errfile = stderr;
++  mpx->progname = "mpto";
++  if (setjmp (mpx->jump_buf) != 0) {
++    int h = mpx->history;
++    xfree (mpx->buf);
++    xfree (mpx->maincmd);
++    xfree (mpx->mpname);
++    xfree (mpx->mpxname);
++    xfree (mpx);
++    return h;
++  }
++  mpx_mpto (mpx, tmpname, (opt->mptexpre != NULL ? opt->mptexpre : (char *) "mptexpre.tex"));
++  if (strcmp (mpx->tex, opt->texname) != 0) {
++    remove (opt->texname);
++    if (rename (mpx->tex, opt->texname) != 0)
++      mpx_abort (mpx, "cannot rename %s to %s", mpx->tex, opt->texname);
++  }
++  retcode = mpx->history;
++  xfree (mpx->buf);
++  xfree (mpx->maincmd);
++  xfree (mpx->mpname);
++  xfree (mpx->mpxname);
++  free (mpx);
++  return retcode;
++}
++
++
+ @ \TeX\ has to operate on an actual input file, so we have to append
+ that to the command line.
+ 

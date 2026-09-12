@@ -1,0 +1,15 @@
+.po 0
+.lf 2 15-token-delimiters.mp
+1
+.bp
+.lf 4 15-token-delimiters.mp
+.
+.bp
+.lf 7 15-token-delimiters.mp
+a xetex b
+.bp
+.lf 8 15-token-delimiters.mp
+"q" % p
+.bp
+.lf 10 15-token-delimiters.mp
+digits

@@ -1,0 +1,1 @@
+label(btex a etex)

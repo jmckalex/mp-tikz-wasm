@@ -1,0 +1,32 @@
+# build outputs
+/build/
+/dist/*.wasm
+/dist/*.mjs
+/dist/*.data
+/dist/bundles/
+/dist/formats/
+/node_modules/
+/test/golden/_out/
+/test/contract/harness
+/test/contract/*.dSYM
+*.o
+*.a
+*.log
+*.dvi
+*.mpx
+*.fls
+.DS_Store
+
+# vendored upstream (populated by scripts/extract-vendor.sh)
+/vendor/downloads/
+/vendor/texlive-source/
+/vendor/native-build/
+/vendor/wasm-build/
+
+# tooling
+.emsdk-cache/
+coverage/
+
+# generated (rebuild with npm run build / build-standalone)
+/dist/
+/site/standalone.html

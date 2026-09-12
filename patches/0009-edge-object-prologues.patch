@@ -1,0 +1,25 @@
+--- a/psout.w
++++ b/psout.w
+@@ -5382,6 +5382,8 @@
+   double minx, miny, maxx, maxy;
+   double width, height, depth, ital_corr;
+   int charcode;
++  int prologues; /* MetaPost-WASM patch 0009: the values of the |prologues| */
++  int procset;   /* and |mpprocset| internals when the figure was shipped out */
+ } mp_edge_object;
+ 
+ @ @<Exported function headers@>=
+--- a/mp.w
++++ b/mp.w
+@@ -35119,6 +35119,11 @@
+   hh->height = number_to_double (internal_value (mp_char_ht));
+   hh->depth = number_to_double (internal_value (mp_char_dp));
+   hh->ital_corr = number_to_double (internal_value (mp_char_ic));
++  /* MetaPost-WASM patch 0009: remember the backend parameters in force at
++     shipout time, so that a deferred |mp_ps_ship_out|/|mp_svg_ship_out| can
++     reproduce what an immediate one would have written. */
++  hh->prologues = (int)((unsigned)number_to_scaled (internal_value (mp_prologues))>>16);
++  hh->procset = (int)((unsigned)number_to_scaled (internal_value (mp_procset))>>16);
+   @<Export pending specials@>;
+   p = mp_link (edge_list (h));
+   while (p != NULL) {

@@ -1,0 +1,78 @@
+This is MetaPost, version 2.11 (TeX Live 2025) (kpathsea version 6.4.1)  12 SEP 2026 01:38
+**nested-input.mp
+(/usr/local/texlive/2025/texmf-dist/metapost/base/mpost.mp
+(/usr/local/texlive/2025/texmf-dist/metapost/base/plain.mp
+Preloading the plain mem file, version 1.005) ) (./nested-input.mp [1]
+(./sub.mp
+>> x9
+! Undefined x coordinate has been replaced by 0.
+<to be read again> 
+                   {
+--->{
+     curl1}..{curl1}
+foo->draw.z9--
+              z8
+l.3 foo
+       ;
+I need a `known' x value for this part of the path.
+The value I found (see above) was no good;
+so I'll try to keep going by using zero instead.
+(Chapter 27 of The METAFONTbook explains that
+you might want to type `I ???' now.)
+
+>> y9
+! Undefined y coordinate has been replaced by 0.
+<to be read again> 
+                   {
+--->{
+     curl1}..{curl1}
+foo->draw.z9--
+              z8
+l.3 foo
+       ;
+I need a `known' y value for this part of the path.
+The value I found (see above) was no good;
+so I'll try to keep going by using zero instead.
+(Chapter 27 of The METAFONTbook explains that
+you might want to type `I ???' now.)
+
+>> x8
+! Undefined x coordinate has been replaced by 0.
+<to be read again> 
+                   ;
+l.3 foo;
+        
+I need a `known' x value for this part of the path.
+The value I found (see above) was no good;
+so I'll try to keep going by using zero instead.
+(Chapter 27 of The METAFONTbook explains that
+you might want to type `I ???' now.)
+
+>> y8
+! Undefined y coordinate has been replaced by 0.
+<to be read again> 
+                   ;
+l.3 foo;
+        
+I need a `known' y value for this part of the path.
+The value I found (see above) was no good;
+so I'll try to keep going by using zero instead.
+(Chapter 27 of The METAFONTbook explains that
+you might want to type `I ???' now.)
+
+[7])
+! An expression can't begin with `right delimiter'.
+<inserted text> 
+                0
+<to be read again> 
+                   )
+l.6 draw (0,0)--(1,1)--(2,)
+                           ;
+I'm afraid I need some sort of value in order to continue,
+so I've tentatively inserted `0'. You may want to
+delete this zero and insert something else;
+see Chapter 27 of The METAFONTbook for an example.
+
+[2] )
+3 output files written: nested-input.1 .. nested-input.7
+

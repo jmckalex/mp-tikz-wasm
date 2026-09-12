@@ -1,0 +1,40 @@
+--- a/psout.w
++++ b/psout.w
+@@ -769,6 +769,7 @@
+ 
+ @ @<Glob...@>=
+ mapitem *mitem;
++int psname_table_read; /* MetaPost-WASM patch 0003: per-instance, not static */
+ fm_entry *fm_cur;
+ fm_entry *loaded_tfm_found;
+ fm_entry *avail_tfm_found;
+@@ -777,6 +778,7 @@
+ 
+ @ @<Set initial...@>=
+ mp->ps->mitem = NULL;
++mp->ps->psname_table_read = 0;
+ 
+ @ @<Declarations@>=
+ static const char nontfm[] = "<nontfm>";
+@@ -1591,7 +1593,6 @@
+ void mp_read_psname_table (MP mp) {
+   font_number k;
+   char *s;
+-  static int isread = 0;
+   if (mp->ps->mitem == NULL) {
+     mp->ps->mitem = mp_xmalloc (mp,1,sizeof(mapitem));
+     mp->ps->mitem->mode = FM_DUPIGNORE;
+@@ -1600,8 +1601,11 @@
+   }
+   s = mp_xstrdup (mp,ps_tab_name);
+   mp->ps->mitem->map_line = s;
+-  if (isread == 0) {
+-    isread++;
++  if (mp->ps->psname_table_read == 0) {
++    /* MetaPost-WASM patch 0003: upstream keeps this flag in a function-scope
++       static, so a second |MP| instance in the same process never reads the
++       font map and crashes in the Type 1 code. Keep it per instance. */
++    mp->ps->psname_table_read = 1;
+     fm_read_info (mp);
+   }
+   for (k=mp->last_ps_fnum+1;k<=mp->last_fnum;k++) {

@@ -1,0 +1,10 @@
+x etex y;
+label(btex1etex);
+label(btex_ etex);
+label(btex.etex);
+label(btexetex);
+label(xbtex a etex);
+label(btex a xetex b etex);
+label(btex "q" % p etex);
+label(BTEX no ETEX);
+label(1btex digits etex2);

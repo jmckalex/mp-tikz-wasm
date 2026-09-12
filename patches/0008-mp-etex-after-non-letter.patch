@@ -1,0 +1,14 @@
+--- a/mp.w
++++ b/mp.w
+@@ -20103,6 +20103,11 @@
+                             } else if (mp->char_class[mp->buffer[loc - 4]] == space_class) {
+                                 /* when we're beyond the start of a line a leading space is required */
+                                 done = 2;
++                            } else if (mp->char_class[mp->buffer[loc - 4]] != letter_class) {
++                                /* MetaPost-WASM patch 0008: like mpto, accept any non-letter
++                                   before \&{etex} (TeX Live's own texnum.mp writes
++                                   |btex$-$etex|); nothing is stripped in that case. */
++                                done = 1;
+                             }
+                             if (done) {
+                                 if ((loc + 1) <= limit) {

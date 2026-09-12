@@ -1,0 +1,18 @@
+This is MetaPost, version 2.11 (TeX Live 2025) (kpathsea version 6.4.1)  12 SEP 2026 01:38
+**unknown-transform.mp
+(/usr/local/texlive/2025/texmf-dist/metapost/base/mpost.mp
+(/usr/local/texlive/2025/texmf-dist/metapost/base/plain.mp
+Preloading the plain mem file, version 1.005) ) (./unknown-transform.mp
+>> (0,0,50withcolour.red,0,0,50withcolour.red)
+! Transform components aren't all known.
+<to be read again> 
+                   ;
+l.2 draw fullcircle scaled 50 withcolour red;
+                                             
+I'm unable to apply a partially specified transformation
+except to a fully known pair or transform.
+Proceed, and I'll omit the transformation.
+
+[1] )
+1 output file written: unknown-transform.1
+

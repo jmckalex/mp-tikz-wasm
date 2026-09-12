@@ -1,0 +1,52 @@
+{
+  "name": "metapost-wasm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MetaPost (mplib 2.11) and pdfTeX compiled to WebAssembly: MetaPost to SVG/EPS/JSON in the browser and Node, with btex/LaTeX labels",
+  "type": "module",
+  "license": "LGPL-3.0-or-later",
+  "scripts": {
+    "build": "npm run build:mplib && npm run build:tex && npm run build:texmf && npm run build:formats && npm run build:bundles && npm run build:ts",
+    "build:mplib": "make wasm",
+    "build:tex": "./scripts/build-tex-wasm.sh",
+    "build:texmf": "./scripts/build-texmf.sh",
+    "build:formats": "node scripts/make-formats.mjs",
+    "build:bundles": "node scripts/build-bundles.mjs",
+    "build:ts": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:contract": "make contract",
+    "test:golden": "node scripts/golden.mjs",
+    "test:golden:check": "node scripts/golden.mjs --check",
+    "test:all": "npm run test && npm run test:contract && npm run test:golden:check",
+    "typecheck": "tsc --noEmit",
+    "demo": "node scripts/serve.mjs 8080",
+    "verify-pin": "./scripts/verify-pin.sh"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5",
+    "vitest": "^2"
+  },
+  "bin": {
+    "mpost-wasm": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./worker": "./dist/worker.js",
+    "./mplib.wasm": "./dist/mplib.wasm",
+    "./tex.wasm": "./dist/tex.wasm",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "patches",
+    "src/c"
+  ]
+}

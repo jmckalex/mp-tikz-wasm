@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!-- Created by MetaPost 2.11 on 2026.09.12:0021 -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100.500000" height="136.708313" viewBox="0 0 100.500000 136.708313">
+<!-- Original BoundingBox: -50.250000 -59.918503 50.250000 76.789810 -->
+  <path d="M100.250000 76.789810C100.250000 63.528397,94.981140 50.811722,85.604614 41.435196C76.228088 32.058670,63.511414 26.789810,50.250000 26.789810C36.988586 26.789810,24.271912 32.058670,14.895386 41.435196C5.518860 50.811722,0.250000 63.528397,0.250000 76.789810C0.250000 90.051224,5.518860 102.767899,14.895386 112.144424C24.271912 121.520950,36.988586 126.789810,50.250000 126.789810C63.511414 126.789810,76.228088 121.520950,85.604614 112.144424C94.981140 102.767899,100.250000 90.051224,100.250000 76.789810Z" style="stroke:rgb(0.000000%,0.000000%,0.000000%); stroke-width: 0.500000;stroke-linecap: round;stroke-linejoin: round;stroke-miterlimit: 10.000000;fill: none;"></path>
+  <g transform="translate(9.056900 1.152206)" style="fill: rgb(0.000000%,0.000000%,0.000000%);">
+    <text font-size="9.962646">Z</text>
+  </g>
+  <g transform="translate(19.019608 3.615204)" style="fill: rgb(0.000000%,0.000000%,0.000000%);">
+    <text font-size="6.973846">1</text>
+  </g>
+  <g transform="translate(14.591705 23.789795)" style="fill: rgb(0.000000%,0.000000%,0.000000%);">
+    <text font-size="6.973846">0</text>
+  </g>
+  <g transform="translate(29.120499 14.712601)" style="fill: rgb(0.000000%,0.000000%,0.000000%);">
+    <text font-size="9.962646">e</text>
+  </g>
+  <g transform="translate(33.759399 10.599106)" style="fill: rgb(0.000000%,0.000000%,0.000000%);">
+    <text font-size="6.973846"></text>
+  </g>
+  <g transform="translate(39.986099 10.599106)" style="fill: rgb(0.000000%,0.000000%,0.000000%);">
+    <text font-size="6.973846">x</text>
+  </g>
+  <g transform="translate(44.503906 7.592606)" style="fill: rgb(0.000000%,0.000000%,0.000000%);">
+    <text font-size="4.981323">2</text>
+  </g>
+  <g transform="translate(50.550705 14.712601)" style="fill: rgb(0.000000%,0.000000%,0.000000%);">
+    <text font-size="9.962646">dx</text>
+  </g>
+  <g transform="translate(64.197296 14.712601)" style="fill: rgb(0.000000%,0.000000%,0.000000%);">
+    <text font-size="9.962646">=</text>
+  </g>
+  <g transform="translate(75.908905 0.796906)" style="fill: rgb(0.000000%,0.000000%,0.000000%);">
+    <text font-size="9.962646">p</text>
+  </g>
+  <path d="M84.211105 0.597702L90.247604 0.597702" style="stroke:rgb(0.000000%,0.000000%,0.000000%); stroke-width: 0.398499;stroke-linejoin: round;stroke-miterlimit: 10.000000;fill: none;"></path>
+  <g transform="translate(84.211105 7.972794)" style="fill: rgb(0.000000%,0.000000%,0.000000%);">
+    <text font-size="9.962646"></text>
+  </g>
+  <path d="M75.908905 12.221893L90.247604 12.221893" style="stroke:rgb(0.000000%,0.000000%,0.000000%); stroke-width: 0.398499;stroke-linejoin: round;stroke-miterlimit: 10.000000;fill: none;"></path>
+  <g transform="translate(80.587601 21.546494)" style="fill: rgb(0.000000%,0.000000%,0.000000%);">
+    <text font-size="9.962646">2</text>
+  </g>
+  <g transform="translate(37.094543 136.708313)" style="fill: rgb(0.000000%,0.000000%,0.000000%);">
+    <text font-size="9.962646">Hello</text>
+  </g>
+</svg>

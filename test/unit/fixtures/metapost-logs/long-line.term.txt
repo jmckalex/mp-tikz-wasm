@@ -1,0 +1,15 @@
+This is MetaPost, version 2.11 (TeX Live 2025) (kpathsea version 6.4.1)
+(/usr/local/texlive/2025/texmf-dist/metapost/base/mpost.mp
+(/usr/local/texlive/2025/texmf-dist/metapost/base/plain.mp
+Preloading the plain mem file, version 1.005) ) (./long-line.mp
+! An expression can't begin with `right delimiter'.
+<inserted text> 
+                0
+<to be read again> 
+                   )
+l.2 ...,80)--(90,90)--(100,100)--(110,110)--(120,)
+                                                  ;
+[1] )
+(see the transcript file for additional information)
+1 output file written: long-line.1
+Transcript written on long-line.log.

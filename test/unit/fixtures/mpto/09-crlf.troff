@@ -1,0 +1,13 @@
+.po 0
+.lf 1 09-crlf.mp
+\font\x=cmr10
+
+.lf 4 09-crlf.mp
+a
+  b
+.bp
+.lf 7 09-crlf.mp
+c
+.lf 7 09-crlf.mp
+\y
+ 

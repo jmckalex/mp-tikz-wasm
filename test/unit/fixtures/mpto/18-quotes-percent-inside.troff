@@ -1,0 +1,13 @@
+.po 0
+.lf 1 18-quotes-percent-inside.mp
+a "quoted" b
+.bp
+.lf 2 18-quotes-percent-inside.mp
+50\% off
+.bp
+.lf 3 18-quotes-percent-inside.mp
+"
+still
+.bp
+.lf 5 18-quotes-percent-inside.mp
+trailing %

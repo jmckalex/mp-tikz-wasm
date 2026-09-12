@@ -1,0 +1,1 @@
+beginfig(1); draw z1--z2; endfig; end.

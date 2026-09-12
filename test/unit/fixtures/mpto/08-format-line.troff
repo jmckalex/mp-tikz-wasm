@@ -1,0 +1,13 @@
+.po 0
+.lf 2 08-format-line.mp
+%&latex
+.bp
+.lf 3 08-format-line.mp
+%&latex
+second
+.bp
+.lf 5 08-format-line.mp
+% comment in tex
+.bp
+.lf 8 08-format-line.mp
+\relax % trailing comment

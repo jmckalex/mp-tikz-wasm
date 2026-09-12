@@ -1,0 +1,6 @@
+["_mpwasm_new","_mpwasm_free","_mpwasm_set_int","_mpwasm_set_str","_mpwasm_add_path","_mpwasm_add_alias",
+ "_mpwasm_run","_mpwasm_status","_mpwasm_term_out","_mpwasm_log_out","_mpwasm_error_out","_mpwasm_last_error",
+ "_mpwasm_opened_files_json","_mpwasm_figure_count","_mpwasm_figure_charcode","_mpwasm_figure_dim",
+ "_mpwasm_figure_svg","_mpwasm_figure_ps","_mpwasm_figure_json","_mpwasm_get_numeric","_mpwasm_get_boolean",
+ "_mpwasm_get_string","_mpwasm_mpto","_mpwasm_dvitomp","_mpwasm_mpx_add_path","_mpwasm_mpx_last_error",
+ "_mpwasm_version","_mpwasm_build_id","_malloc","_free"]
