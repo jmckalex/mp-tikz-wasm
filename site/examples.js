@@ -58,7 +58,7 @@ beginfig(1);
   label.top(btex $\\displaystyle\\int_0^\\infty e^{-x^2}\\,dx = \\frac{\\sqrt{\\pi}}{2}$ etex, (0,55));
   label.bot(btex $\\begin{pmatrix} \\cos\\theta & -\\sin\\theta \\\\ \\sin\\theta & \\cos\\theta \\end{pmatrix}$ etex, (0,-55));
   label.lft(btex $\\forall x \\in \\mathbb{R}$ etex, (-55,0));
-  label.rt(btex \\textbf{LaTeX} \\textit{in the browser} etex, (55,0));
+  label.rt(btex \\LaTeX\\ \\textit{in the browser} etex, (55,0));
 endfig;
 end.`,
   },

@@ -26,7 +26,7 @@ etex
 beginfig(1);
   draw fullcircle scaled 100;
   label.top(btex $\\displaystyle\\int_0^\\infty e^{-x^2}\\,dx=\\frac{\\sqrt\\pi}{2}$ etex, (0,50));
-  label.bot(btex \\textbf{LaTeX} in the browser etex, (0,-50));
+  label.bot(btex \\LaTeX\\ \\textit{in the browser} etex, (0,-50));
 endfig;
 end.`;
 await show('LaTeX + amsmath', latex);
