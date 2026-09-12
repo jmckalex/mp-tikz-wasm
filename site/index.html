@@ -59,7 +59,7 @@
 <body>
 <header>
   <h1><span>MetaPost</span> &amp; <span>TikZ</span> in the browser</h1>
-  <div class="sub">MetaPost 2.11, pdfTeX 1.40 and dvisvgm 3.4, all compiled to WebAssembly: MetaPost figures with LaTeX labels, and whole TikZ/PGF documents — no server.</div>
+  <div class="sub">MetaPost 2.11, pdfTeX 1.40, LuaTeX 1.21 and dvisvgm 3.4, all compiled to WebAssembly: MetaPost figures with LaTeX labels, and whole TikZ/PGF documents, graph drawing included — no server.</div>
   <div class="status" id="status"><span class="spinner"></span>loading engine…</div>
 </header>
 <main>
@@ -94,7 +94,7 @@
   </section>
 </main>
 <footer>
-  <b>What you are looking at.</b> In TikZ mode the whole document goes through pdfTeX (DVI mode) and then dvisvgm (~3 MB wasm, with PGF's special handlers), so shadings, patterns, clipping, opacity and pgfplots all come out as native SVG. In MetaPost mode the interpreter (mplib, ~1.2 MB wasm) runs in a Web Worker. Text in <code>btex … etex</code> is extracted before the run, typeset in one batched pdfTeX job (DVI mode, ~1.1 MB wasm) with a format built by the wasm engine itself, converted with MetaPost's own <code>dvitomp</code>, cached by content hash, and served back through mplib's <code>make_text</code> callback. Fonts are Type 1 outlines converted to SVG paths by MetaPost's SVG backend (<code>prologues:=3</code>); TeX packages, fonts and formats load lazily from static files. Output is byte-identical to native <code>mpost</code> from TeX Live 2025 on the golden corpus.
+  <b>What you are looking at.</b> In TikZ mode the whole document goes through pdfTeX (DVI mode) and then dvisvgm (~3 MB wasm, with PGF's special handlers), so shadings, patterns, clipping, opacity and pgfplots all come out as native SVG. A document that uses TikZ's graph drawing library, <code>\directlua</code> or luacode is sent to LuaTeX instead (luatex.wasm, 4 MB, fetched the first time it is needed, with its own DVI-mode format). In MetaPost mode the interpreter (mplib, ~1.2 MB wasm) runs in a Web Worker. Text in <code>btex … etex</code> is extracted before the run, typeset in one batched pdfTeX job (DVI mode, ~1.1 MB wasm) with a format built by the wasm engine itself, converted with MetaPost's own <code>dvitomp</code>, cached by content hash, and served back through mplib's <code>make_text</code> callback. Fonts are Type 1 outlines converted to SVG paths by MetaPost's SVG backend (<code>prologues:=3</code>); TeX packages, fonts and formats load lazily from static files. Output is byte-identical to native <code>mpost</code> from TeX Live 2025 on the golden corpus.
   <span id="sizes"></span>
 </footer>
 <script type="module" src="./app.js"></script>

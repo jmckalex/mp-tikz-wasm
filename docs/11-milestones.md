@@ -120,3 +120,20 @@ compiles a LaTeX-labelled figure in the browser from a cold cache.
 * M4 is the schedule risk. Start the `tex.wasm` build spike **during M1**, in
   parallel, so its cost is known before it is on the critical path.
 * Do not defer `mptrap` to M8. Run it from M1 and watch it improve.
+
+## Beyond the plan (done, 2026-09-12)
+
+Recorded here so the milestone list is not read as the whole story; details
+in `docs/14-implementation-notes.md` §7–§10.
+
+* **TikZ/PGF documents**: `dvisvgm.wasm` and `mp.latex()` — whole LaTeX and
+  plain-TeX documents to SVG, with PGF's dvisvgm driver injected; the
+  pre-warmed `tikz.fmt` snapshot; the drop-in tags (`<script type="text/tikz">`,
+  `<tikz-diagram>`, `<script type="text/metapost">`, `<metapost-diagram>`).
+* **Bundles**: hyperref and friends, listings, fp, url, imakeidx, todonotes,
+  the 35 standard PostScript fonts (URW), the EC metrics.
+* **The PGF manual as a stress test** (`scripts/stress-pgfmanual.mjs`): 1181
+  pages, DVI byte-identical, all pages matching native dvisvgm.
+* **LuaTeX**: `luatex.wasm` in DVI mode for graph drawing, `\directlua`,
+  luacode and pgfplots' Lua features; `engine: 'auto'`.
+

@@ -4,9 +4,13 @@
 one you need to read first. It tells you what is already known, what is already
 proven, what to read next, and what to do in your first hour.
 
-> **Status (2026-09-12): the port is built.** `mplib.wasm`, `tex.wasm`, the
-> bundles, the TypeScript API, the CLI, the demo site and the test suites all
-> exist and pass; the golden corpus is byte-identical to native `mpost`. Start
+> **Status (2026-09-12): the port is built, and went past the plan.**
+> `mplib.wasm`, `tex.wasm`, `dvisvgm.wasm` and `luatex.wasm`, the bundles, the
+> TypeScript API, the drop-in diagram tags, the CLI, the demo site, the feature
+> guide and the test suites all exist and pass. The MetaPost golden corpus is
+> byte-identical to native `mpost`; whole TikZ/LaTeX documents (pdfTeX or
+> LuaTeX in DVI mode, then dvisvgm) are byte-identical to native TeX Live,
+> including the complete 1181-page PGF manual and TikZ graph drawing. Start
 > with [`README.md`](README.md) for how to build and run, and
 > [`docs/14-implementation-notes.md`](docs/14-implementation-notes.md) for what
 > was learned (including nine patches to upstream, four of them real bugs).

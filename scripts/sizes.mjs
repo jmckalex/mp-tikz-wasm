@@ -24,6 +24,7 @@ console.log('fixed payload (fetched once, then browser-cached):');
 for (const f of ['mplib.wasm', 'tex.wasm', 'dvisvgm.wasm']) { const b = fs.readFileSync(`${DIST}/${f}`); console.log(`  ${f.padEnd(14)} ${MB(b.length)} raw, ${MB(gz(b))} gzip`); }
 let js = 0, jsgz = 0; for (const f of fs.readdirSync(DIST)) if (/\.(js|mjs)$/.test(f)) { const b = fs.readFileSync(`${DIST}/${f}`); js += b.length; jsgz += gz(b); } for (const d of ['tex', 'vfs', 'render']) for (const f of fs.readdirSync(`${DIST}/${d}`)) if (f.endsWith('.js')) { const b = fs.readFileSync(`${DIST}/${d}/${f}`); js += b.length; jsgz += gz(b); }
 console.log(`  JavaScript      ${MB(js)} raw, ${MB(jsgz)} gzip`);
+{ const b = fs.readFileSync(`${DIST}/luatex.wasm`); const f = fs.readFileSync(`${DIST}/bundles/luatex/files/web2c/dvilualatex.fmt`); console.log(`  optional, first LuaTeX figure: luatex.wasm ${MB(b.length)} raw / ${MB(gz(b))} gzip + dvilualatex.fmt ${MB(f.length)} raw / ${MB(gz(f))} gzip`); }
 console.log('\nbundle files touched per scenario (each fetched once, then browser-cached):');
 for (const [name, run] of Object.entries(scenarios)) {
   used = new Map();

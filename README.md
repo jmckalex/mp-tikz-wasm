@@ -2,12 +2,13 @@
 
 **MetaPost and TikZ in the browser and in Node.** John Hobby's MetaPost (the
 `mplib` library maintained by Taco Hoekwater and Luigi Scarso in TeX Live 2025,
-MetaPost 2.11), pdfTeX 1.40 (DVI mode) and dvisvgm 3.4.3 are compiled to
-WebAssembly and wrapped in a TypeScript API. MetaPost source goes in; SVG with
+MetaPost 2.11), pdfTeX 1.40 (DVI mode), LuaTeX 1.21 (DVI mode) and dvisvgm
+3.4.3 are compiled to WebAssembly and wrapped in a TypeScript API. MetaPost source goes in; SVG with
 real glyph outlines, EPS/PostScript, and a structured JSON figure model come
 out — including `btex … etex` / `verbatimtex … etex` labels typeset by plain
 TeX or LaTeX. Whole LaTeX documents go in too — `\documentclass[tikz]{standalone}`,
-pgfplots, Latin Modern — and come out as one SVG per page, entirely client-side.
+pgfplots, Latin Modern, TikZ graph drawing under LuaTeX — and come out as one
+SVG per page, entirely client-side.
 
 ```ts
 import { MetaPost } from 'metapost-wasm';
@@ -41,7 +42,7 @@ The output is **byte-identical to native TeX Live 2025** on the golden corpora
 the C output is left untouched, and every deviation from upstream lives in a
 numbered, explained patch in [`patches/`](patches/).
 
-LuaTeX is a second engine, `luatex.wasm` (4.4 MB, fetched on demand): LuaTeX 1.21 in
+LuaTeX is a second engine, `luatex.wasm` (4.2 MB, fetched on demand): LuaTeX 1.21 in
 DVI mode with TeX Live's `dvilualatex`/`dviluatex` formats, for TikZ's `graphdrawing`
 library, `\directlua` and `luacode`. `engine: 'auto'` (the default in the tags and the
 CLI) picks it whenever a document needs it; a graph-drawing golden case is byte-identical
@@ -60,11 +61,14 @@ differ too). `node scripts/stress-pgfmanual.mjs` reproduces it.
 npm run demo            # then open http://localhost:8080/site/
 ```
 
-The demo (`site/`) is a live editor with a gallery: geometry, labels without
-TeX, plain-TeX and LaTeX labels (amsmath, amssymb, tabular), `boxes.mp`,
-`graph.mp`, recursion, clipping, JSON output and diagnostics. Everything runs
-in a Web Worker; fonts, macro packages and formats are fetched lazily from
-static files and cached by the browser.
+The demo (`site/`) is a live editor with two galleries: MetaPost (geometry,
+labels without TeX, plain-TeX and LaTeX labels, `boxes.mp`, `graph.mp`,
+recursion, clipping, JSON output, diagnostics) and TikZ/LaTeX (plots, nodes
+and edges, shadings and patterns, pgfplots, Latin Modern text, trees, and
+graph drawing under LuaTeX). `site/tags.html` shows the drop-in tags and
+`site/guide.html` is the feature guide. Everything runs in a Web Worker;
+fonts, macro packages, formats and engines are fetched lazily from static
+files and cached by the browser.
 
 ## What is in the box
 
@@ -72,13 +76,16 @@ static files and cached by the browser.
 | --- | --- | --- |
 | `dist/mplib.wasm` | 1.2 MB | MetaPost 2.11: interpreter, PostScript + SVG backends, Type 1 font machinery, TFM reader, `scaled`/`double`/`decimal` arithmetic, `mpto` + `dvitomp` |
 | `dist/tex.wasm` | 1.1 MB | pdfTeX 1.40.27 in DVI mode (= `tex`, `etex`, `latex`) with kpathsea, zlib, libpng |
-| `dist/dvisvgm.wasm` | 2.7 MB | dvisvgm 3.4.3 with FreeType, potrace, clipper, woff2/brotli and PGF's special handlers (no Ghostscript) |
+| `dist/dvisvgm.wasm` | 2.6 MB | dvisvgm 3.4.3 with FreeType, potrace, clipper, woff2/brotli and PGF's special handlers (no Ghostscript) |
+| `dist/luatex.wasm` | 4.2 MB, fetched on demand | LuaTeX 1.21.0 in DVI mode (= `dvilualatex`, `dviluatex`) with Lua 5.3, pplib, zziplib, the fontforge-derived font loader, kpathsea and our patched mplib; no C FFI |
 | `dist/index.js` + friends | ~70 KB | the TypeScript API, the Worker, the TeX bridge, the CLI, `auto.js` (the tag renderer) |
 | `dist/bundles/*` | 47 MB total, fetched per file on demand | `core` (plain.mp, mpost.mp, boxes, graph, format, sarith, metaobj…), `cm-tfm`, `cm-type1`, `ps-fonts` (the 35 standard PostScript fonts as URW Type 1), `lm-fonts` (Latin Modern, T1/TS1), `tex-plain` (+ `plain.fmt`, `etex.fmt`), `latex-core` (+ `latex.fmt`), `latex-extra` (pgf/TikZ with all libraries, pgfplots, amsmath, amsfonts, tools, graphics, xcolor, standalone, geometry, booktabs, mathtools, …) `luatex` (the DVI-mode LuaTeX formats) |
 
-The formats (`plain.fmt` 114 KB, `etex.fmt` 128 KB, `latex.fmt` 2.2 MB) are
-built **by the wasm engine itself** (`scripts/make-formats.mjs`), so they match
-it byte for byte and nothing at runtime depends on a host TeX Live.
+The formats (`plain.fmt` 114 KB, `etex.fmt` 128 KB, `latex.fmt` 2.2 MB,
+`tikz.fmt` 5.8 MB; `dviluatex.fmt` 1.2 MB and `dvilualatex.fmt` 6.2 MB by
+`luatex.wasm`) are built **by the wasm engines themselves**
+(`scripts/make-formats.mjs`), so they match them byte for byte and nothing at
+runtime depends on a host TeX Live.
 
 ## How `btex … etex` works without a subprocess
 
@@ -106,8 +113,10 @@ with one page; recompiling an unchanged document runs TeX zero times.
 ## TikZ and whole LaTeX documents
 
 `mp.latex(source, options)` takes the other road: the document is typeset by
-`tex.wasm` (`latex.fmt`, or `etex.fmt` for plain TeX with `engine: 'plain'`),
-and every DVI page is converted by `dvisvgm.wasm` — the reference converter,
+`tex.wasm` (`latex.fmt`, or `etex.fmt` for plain TeX with `engine: 'plain'`)
+or by `luatex.wasm` (`engine: 'lualatex' | 'luatex'`; `engine: 'auto'` picks
+LuaTeX whenever the source uses graphdrawing, `\directlua`, luacode or
+pgfplots' `contour lua`), and every DVI page is converted by `dvisvgm.wasm` — the reference converter,
 with its PGF special handlers, FreeType glyph outlines and potrace. The
 library prepends `\def\pgfsysdriver{pgfsys-dvisvgm.def}` so PGF draws with
 SVG specials rather than the dvips PostScript ones (which need Ghostscript);
@@ -130,12 +139,15 @@ One script turns diagram tags into SVGs, with no other code on the page:
 <script type="text/metapost">draw fullcircle scaled 50; label(btex $\pi$ etex, origin);</script>
 
 <tikz-diagram data-libraries="shadings">\shade[ball color=red] (0,0) circle (1);</tikz-diagram>
+<tikz-diagram data-gdlibraries="layered">\graph[layered layout]{a -> {b, c} -> d};</tikz-diagram>
 <metapost-diagram>draw unitsquare scaled 40;</metapost-diagram>
 ```
 
 A TikZ body without `\documentclass` is wrapped in a `standalone` document
-(`data-libraries`, `data-packages`, `data-preamble`, `data-border`); a
-complete document is compiled as is. A MetaPost body without `beginfig` becomes
+(`data-libraries`, `data-packages`, `data-preamble`, `data-border`;
+`data-gdlibraries` adds `\usegdlibrary` and the graphs and graphdrawing
+libraries, which means LuaTeX; `data-engine` forces `latex`, `lualatex` or
+`plain`, default `auto`); a complete document is compiled as is. A MetaPost body without `beginfig` becomes
 one figure (`data-tex` picks the label engine). Errors show their diagnostics
 under the figure; `data-show-console` keeps the log. Rendered SVGs are cached
 in IndexedDB by content hash, so a revisited page shows its figures without
@@ -178,16 +190,18 @@ what its diagrams use:
 | TikZ figure, `latex.fmt` | 3.8 MB | 2.5 MB |
 | TikZ figure, `tikz.fmt` snapshot | 5.9 MB | 5.5 MB |
 | TikZ with Latin Modern T1 text | +0.3 MB | +0.3 MB |
+| first LuaTeX figure: `luatex.wasm` + `dvilualatex.fmt` | +10.4 MB | +4.9 MB |
 
 The whole bundle tree on the server is 47 MB, but no page downloads it. A
 single self-contained file is possible too — `site/standalone.html` inlines
 the three engines plus the gallery's fonts, formats and packages, gzip +
-base64, at 9.8 MB — but the per-file layout is the right one for a drop-in
+base64, at 10.8 MB — but the per-file layout is the right one for a drop-in
 script: a first TikZ figure costs about 4.7 MB, a first MetaPost figure about
 2.3 MB, and everything after that is cached.
 
 Compared with tikzjax: real LaTeX rather than a pre-dumped plain-TeX snapshot,
-so `\documentclass`, `\usepackage` and every TikZ library work unchanged;
+so `\documentclass`, `\usepackage` and every TikZ library work unchanged,
+graph drawing included (it needs LuaTeX, which tikzjax does not have);
 formats built by the engine itself; per-file lazy loading through real
 kpathsea; glyph outlines instead of web fonts; and dvisvgm itself rather than
 a re-implementation of its special language.
@@ -206,6 +220,7 @@ Measured on an M-series Mac, Node 23 (`scripts/smoke-api.mjs`):
 | 40 labels with one edited | 91 ms, one TeX run, one page |
 | TikZ standalone figure (`latex()`), snapshot | ~120 ms (TeX 100 ms, dvisvgm 13 ms) |
 | pgfplots axis with two curves, snapshot | ~270 ms (TeX 255 ms, dvisvgm 15 ms) |
+| graph drawing, three layouts (LuaTeX) | ~450 ms (LuaTeX 410 ms, dvisvgm 40 ms) |
 
 ## API
 
@@ -226,6 +241,9 @@ See [`src/ts/types.ts`](src/ts/types.ts) (the implemented contract) and
   mapped back to the `btex` block that caused them.
 * `sanitizeSvg(svg)` for `innerHTML` use (MetaPost's `special` can inject
   arbitrary text into the output).
+* `mp.latex(source, { engine: 'latex' | 'lualatex' | 'luatex' | 'plain' | 'tex' | 'auto',
+  snapshot, files, jobName, pages, fonts, bbox, dvisvgmArgs, svg })` →
+  `{ status, pages[], log, texLog, dvisvgmLog, diagnostics[], stats, format, artifacts }`.
 * `MetaPostPool` for batch work; `mp.preload([...])` to warm bundles.
 
 ### CLI
@@ -235,6 +253,7 @@ npx mpost-wasm figure.mp                        # figure.1, figure.2 … like mp
 npx mpost-wasm -s 'outputformat="svg"' -s prologues=3 figure.mp
 npx mpost-wasm -tex=latex -numbersystem=double figure.mp
 npx mpost-wasm --latex figure.tex                      # figure-1.svg, figure-2.svg … via tex.wasm + dvisvgm.wasm
+npx mpost-wasm --latex --engine=lualatex graph.tex       # LuaTeX; --engine=auto (the default) picks it for graph drawing
 ```
 
 Accepts the common `mpost` flags (`-interaction`, `-jobname`, `-tex`, `-s`,
@@ -253,7 +272,8 @@ the source of the texmf files in the bundles.
 make contract                   # native build + the L0 contract harness (46 checks)
 scripts/native-texlive.sh       # native web2c pass: generates pdftex's C (once)
 scripts/native-dvisvgm.sh       # native configure of dvisvgm: config.h (once)
-npm run build                   # mplib.wasm, tex.wasm, dvisvgm.wasm, texmf tree, formats, bundles, TypeScript
+scripts/native-luatex.sh        # native LuaTeX build, compile commands recorded for the wasm build (once)
+npm run build                   # mplib.wasm, tex.wasm, luatex.wasm, dvisvgm.wasm, texmf tree, formats, bundles, TypeScript
 npm test                        # unit tests (scanner vs the C oracle, mpx, keys, diagnostics) + end-to-end
 npm run test:golden             # golden corpus vs native mpost (byte-identical)
 npm run test:golden:tikz        # TikZ corpus vs native latex / dvilualatex + dvisvgm (byte-identical)
@@ -299,8 +319,9 @@ Every patch is a unified diff in `patches/`, applied by
 | LuaTeX (beyond the plan) | done — `luatex.wasm`, engine `lualatex`/`luatex`/`auto`, graphdrawing golden case byte-identical |
 | M9 hardening | PNG, `binary`/`interval` number systems, IndexedDB cache and JSPI are not done |
 
-Out of scope, as planned: troff mode, XeTeX/LuaTeX as the `btex` engine, PDF
-as a native output, interactive error recovery.
+Out of scope, as planned: troff mode, XeTeX as an engine, LuaTeX as the
+`btex` label engine, OpenType font loading (luaotfload/fontspec), PDF as a
+native output, interactive error recovery.
 
 ## Licence
 
@@ -308,7 +329,9 @@ MetaPost itself is public domain; the shipped `mplib.wasm` also contains
 `avl.c` (LGPL-3+) and decNumber (ICU licence), so the wasm binary is
 distributed under **LGPL-3.0-or-later** with the sources, the patches and a
 reproducible build (`make wasm`) in this repository. pdfTeX and kpathsea are
-GPL; `tex.wasm` is distributed under the GPL, as is `dvisvgm.wasm` (dvisvgm is
+GPL; `tex.wasm` is distributed under the GPL, as is `luatex.wasm` (LuaTeX is
+GPL-2+; it embeds Lua (MIT), pplib, zziplib (LGPL-2.1+/MPL) and a BSD-licensed
+fontforge-derived font loader) and `dvisvgm.wasm` (dvisvgm is
 GPL-3+; it embeds FreeType (FTL), potrace (GPL), clipper (Boost), woff2 and
 brotli (MIT) and the URW base-14 CFF fonts (AGPL/LPPL as distributed by dvisvgm)). The TeX macro packages and
 fonts in the bundles keep their own licences (LPPL, Knuth's, AMS).

@@ -9,7 +9,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - name: TeX Live (oracle)
-        run: sudo apt-get update && sudo apt-get install -y texlive-metapost texlive-latex-base texlive-latex-recommended texlive-fonts-recommended texlive-pictures texlive-latex-extra dvisvgm
+        run: sudo apt-get update && sudo apt-get install -y texlive-metapost texlive-latex-base texlive-latex-recommended texlive-fonts-recommended texlive-pictures texlive-latex-extra texlive-luatex dvisvgm
       - name: vendor
         run: ./scripts/extract-vendor.sh && ./scripts/verify-pin.sh
       - name: contract harness
@@ -25,7 +25,7 @@ jobs:
       - uses: mymindstorm/setup-emsdk@v14
         with: { version: 6.0.9 }
       - name: TeX Live (oracle + texmf sources)
-        run: sudo apt-get update && sudo apt-get install -y texlive-metapost texlive-latex-base texlive-latex-recommended texlive-fonts-recommended texlive-pictures texlive-latex-extra dvisvgm
+        run: sudo apt-get update && sudo apt-get install -y texlive-metapost texlive-latex-base texlive-latex-recommended texlive-fonts-recommended texlive-pictures texlive-latex-extra texlive-luatex dvisvgm
       - name: vendor
         run: ./scripts/extract-vendor.sh
       - name: mplib.wasm
@@ -34,6 +34,8 @@ jobs:
         run: ./scripts/native-texlive.sh && ./scripts/build-tex-wasm.sh
       - name: dvisvgm.wasm
         run: ./scripts/native-dvisvgm.sh && ./scripts/build-dvisvgm-wasm.sh
+      - name: luatex.wasm (native LuaTeX build recorded, then replayed with emcc)
+        run: ./scripts/native-luatex.sh && ./scripts/build-luatex-wasm.sh
       - name: texmf, formats, bundles, TypeScript
         run: ./scripts/build-texmf.sh && node scripts/make-formats.mjs && node scripts/build-bundles.mjs && npm ci && npm run build:ts
       - name: golden corpus vs the oracle (MetaPost, then LaTeX/TikZ)

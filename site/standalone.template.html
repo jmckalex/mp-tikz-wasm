@@ -124,7 +124,7 @@
   </div>
   <div class="thesis">
     <div>
-      <p class="lede">John Hobby's MetaPost 2.11, pdfTeX 1.40 and dvisvgm 3.4 compiled to WebAssembly. MetaPost source in; SVG with real glyph outlines, EPS and structured JSON out — including <code>btex … etex</code> labels typeset by plain TeX or LaTeX. And whole TikZ/PGF documents: LaTeX to DVI to SVG, shadings and pgfplots included. No server, no web fonts, no rendering shortcuts: the output is byte-identical to native <code>mpost</code> and <code>latex</code> + <code>dvisvgm</code> from TeX Live 2025.</p>
+      <p class="lede">John Hobby's MetaPost 2.11, pdfTeX 1.40 and dvisvgm 3.4 compiled to WebAssembly. MetaPost source in; SVG with real glyph outlines, EPS and structured JSON out — including <code>btex … etex</code> labels typeset by plain TeX or LaTeX. And whole TikZ/PGF documents: LaTeX to DVI to SVG, shadings and pgfplots included. No server, no web fonts, no rendering shortcuts: the output is byte-identical to native <code>mpost</code> and <code>latex</code> + <code>dvisvgm</code> from TeX Live 2025. (The full build adds a fourth engine, LuaTeX, for TikZ graph drawing; it is left out of this single file for size.)</p>
       <div id="status" class="status" style="margin-top:14px"><span class="dot busy"></span><span>decoding the engine (everything on this page is inlined)…</span></div>
     </div>
     <div class="facts" id="facts"></div>
@@ -230,7 +230,7 @@
 </section>
 
 <footer>
-  MetaPost is public domain; <code>mplib.wasm</code> carries LGPL-3+ (avl.c) and ICU (decNumber) code; pdfTeX and kpathsea are GPL. Nine small, explained patches to upstream; everything else is untouched upstream C. This page is the single-file build of the <code>metapost-wasm</code> repository — the full build serves fonts and packages lazily and runs in a Web Worker.
+  MetaPost is public domain; <code>mplib.wasm</code> carries LGPL-3+ (avl.c) and ICU (decNumber) code; pdfTeX and kpathsea are GPL. Nine small, explained patches to upstream; everything else is untouched upstream C. This page is the single-file build of the <code>metapost-wasm</code> repository — the full build serves fonts, packages and the LuaTeX engine lazily, runs in a Web Worker, and ships hyperref, listings, the 35 PostScript fonts and the drop-in diagram tags.
 </footer>
 </div>
 

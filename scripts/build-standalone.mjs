@@ -38,6 +38,8 @@ const wordmark = (await mp.run('prologues:=3; beginfig(1); draw "MetaPost" infon
 const tikzGallery = [];
 for (let i = 0; i < TIKZ_EXAMPLES.length; i++) {
   const ex = TIKZ_EXAMPLES[i];
+  // LuaTeX (graph drawing) stays out of the single file: luatex.wasm plus its format would add ~5 MB
+  if (/graphdrawing|\\directlua|contour lua/.test(ex.src)) { console.log(`  ${ex.id.padEnd(12)} skipped (needs LuaTeX)`); continue; }
   // no snapshot here: tikz.fmt is 5.8 MB and does not compress, and a run
   // without it must touch every pgf file the page needs to embed
   const r = await mp.latex(ex.src, { engine: ex.plain ? 'plain' : 'latex', snapshot: 'none', svg: { idPrefix: `t${i}-`, precision: false } });

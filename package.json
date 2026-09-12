@@ -2,7 +2,7 @@
   "name": "metapost-wasm",
   "version": "0.1.0",
   "private": true,
-  "description": "MetaPost (mplib 2.11), pdfTeX and dvisvgm compiled to WebAssembly: MetaPost to SVG/EPS/JSON, and LaTeX/TikZ documents to SVG, in the browser and Node",
+  "description": "MetaPost (mplib 2.11), pdfTeX, LuaTeX and dvisvgm compiled to WebAssembly: MetaPost to SVG/EPS/JSON, and LaTeX/TikZ documents (graph drawing included) to SVG, in the browser and Node",
   "type": "module",
   "license": "LGPL-3.0-or-later",
   "scripts": {
