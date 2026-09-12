@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Graphics</title>
+<style>
+  :root { --bg: #f6f7f9; --panel: #fff; --ink: #1b2430; --muted: #66707c; --line: #d9dee5; --accent: #1f4e9c; --err: #b3372c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding-block: 0 40px; padding-inline: clamp(14px, 3vw, 32px); }
+  header { max-width: 1200px; margin: 28px auto 8px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); max-width: 80ch; }
+  a { color: var(--accent); }
+  .grid { max-width: 1200px; margin: 18px auto 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; }
+  .card h2 { font-size: 17px; margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 10px; }
+  .card h2 small { color: var(--muted); font-weight: normal; font-size: 13px; }
+  .card h2 .ms { margin-left: auto; color: var(--muted); font-weight: normal; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .fig { min-height: 260px; display: flex; align-items: center; justify-content: center; padding: 12px; background: #fff; background-image: linear-gradient(#f0f2f5 1px, transparent 1px), linear-gradient(90deg, #f0f2f5 1px, transparent 1px); background-size: 20px 20px; }
+  .fig svg { max-width: 100%; height: auto; max-height: 300px; }
+  .fig .placeholder { color: var(--muted); font-size: 14px; }
+  .controls { display: grid; grid-template-columns: max-content 1fr max-content; gap: 6px 10px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 13.5px; }
+  .controls input[type=range] { width: 100%; }
+  .controls .v { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 3.5em; text-align: right; }
+  .controls button { grid-column: 1 / -1; justify-self: start; font: inherit; padding: 4px 12px; border: 1px solid var(--line); background: #fff; border-radius: 4px; cursor: pointer; }
+  details { border-top: 1px solid var(--line); }
+  summary { cursor: pointer; padding: 7px 14px; font-size: 13px; color: var(--muted); }
+  pre { margin: 0; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace; background: #111820; color: #e9eef3; padding: 10px 14px; overflow: auto; max-height: 240px; }
+  footer { max-width: 1200px; margin: 24px auto 0; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Live graphics with MetaPost and TikZ</h1>
+  <p>Every picture here is re-typeset by MetaPost or LaTeX in your browser each time it changes: the harmonograph and the cube by MetaPost (a few milliseconds a frame), the plot and the clock by pdfTeX and dvisvgm (a few hundred milliseconds). <span id="status">Loading the engines…</span> <a href="__GUIDE_URL__">Feature guide</a> · <a href="__REPO_URL__">Source</a></p>
+</header>
+
+<div class="grid">
+  <div class="card" id="c-harm">
+    <h2>Harmonograph <small>MetaPost, on every slider move</small><span class="ms"></span></h2>
+    <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
+    <div class="controls">
+      <label>f<sub>1</sub></label><input type="range" min="1" max="8" step="0.05" value="3" data-k="f1"><span class="v">3</span>
+      <label>f<sub>2</sub></label><input type="range" min="1" max="8" step="0.05" value="2" data-k="f2"><span class="v">2</span>
+      <label>f<sub>3</sub></label><input type="range" min="1" max="8" step="0.05" value="3" data-k="f3"><span class="v">3</span>
+      <label>f<sub>4</sub></label><input type="range" min="1" max="8" step="0.05" value="2" data-k="f4"><span class="v">2</span>
+      <label>phase</label><input type="range" min="0" max="360" step="1" value="45" data-k="phase"><span class="v">45</span>
+      <label>damping</label><input type="range" min="0" max="1" step="0.01" value="0.3" data-k="damping"><span class="v">0.3</span>
+      <label>colour</label><input type="range" min="0" max="1" step="0.01" value="0.62" data-k="hue"><span class="v">0.62</span>
+    </div>
+    <details><summary>MetaPost source of the last frame</summary><pre></pre></details>
+  </div>
+
+  <div class="card" id="c-cube">
+    <h2>Spinning cube <small>MetaPost, one run per animation frame</small><span class="ms"></span></h2>
+    <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
+    <div class="controls">
+      <label>speed</label><input type="range" min="0" max="3" step="0.05" value="1" data-k="speed"><span class="v">1</span>
+      <button id="cube-toggle">Pause</button>
+    </div>
+    <details><summary>MetaPost source of the last frame</summary><pre></pre></details>
+  </div>
+
+  <div class="card" id="c-plot">
+    <h2>Damped oscillator <small>pgfplots, re-typeset on release</small><span class="ms"></span></h2>
+    <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
+    <div class="controls">
+      <label>amplitude</label><input type="range" min="0.1" max="1" step="0.05" value="1" data-k="A"><span class="v">1</span>
+      <label>damping</label><input type="range" min="0" max="1" step="0.01" value="0.3" data-k="k"><span class="v">0.3</span>
+      <label>frequency</label><input type="range" min="0.5" max="6" step="0.1" value="2" data-k="w"><span class="v">2</span>
+    </div>
+    <details><summary>LaTeX source of the last render</summary><pre></pre></details>
+  </div>
+
+  <div class="card" id="c-clock">
+    <h2>Clock <small>TikZ, typeset every second</small><span class="ms"></span></h2>
+    <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
+    <details><summary>LaTeX source of the last render</summary><pre></pre></details>
+  </div>
+</div>
+
+<footer>Two engine instances run in Web Workers: one MetaPost-only for the animation and the harmonograph, one with pdfTeX and dvisvgm for the LaTeX documents, so a slow TeX run never stalls a MetaPost frame. Sources: <code>live-sources.js</code>.</footer>
+
+__SOURCES_SCRIPT__
+__COMMON_SCRIPT__
+__BOOT__
+<script type="module">
+const $ = (s, r = document) => r.querySelector(s);
+const S = globalThis.PAGE_SOURCES;
+const card = (id) => { const c = $('#' + id); return { c, fig: $('.fig', c), ms: $('.ms', c), pre: $('pre', c), values() { const o = {}; for (const i of c.querySelectorAll('input[type=range]')) o[i.dataset.k] = parseFloat(i.value); return o; } }; };
+for (const i of document.querySelectorAll('input[type=range]')) i.addEventListener('input', () => { i.nextElementSibling.textContent = i.value; });
+const showSvg = (k, svg, ms) => { k.fig.innerHTML = svg || '<span class="placeholder">no output</span>'; k.ms.textContent = ms; };
+let mpEngine, texEngine;
+try {
+  [mpEngine, texEngine] = await Promise.all([globalThis.enginePromise, globalThis.texEnginePromise]);
+  $('#status').textContent = 'Engines ready.';
+} catch (e) { $('#status').textContent = `The engines could not start here: ${e.message}`; throw e; }
+
+// -- harmonograph: one MetaPost run per slider event, coalesced while busy
+const harm = card('c-harm');
+const drawHarm = makeQueue(async (p) => {
+  const src = S.harmonograph(p); harm.pre.textContent = src;
+  const r = await mpEngine.run(src, { format: 'svg', svg: { idPrefix: 'h-' } });
+  showSvg(harm, r.figures[0]?.svg, `${r.stats.metapostMs.toFixed(0)} ms`);
+});
+harm.c.addEventListener('input', () => drawHarm(harm.values())); drawHarm(harm.values());
+
+// -- cube: an animation loop; each frame is a MetaPost run with the time as a variable
+const cube = card('c-cube');
+let playing = true, t = 0, last = performance.now(), frames = 0, fpsAt = performance.now(), fps = 0;
+async function frame() {
+  if (!playing) return;
+  const now = performance.now(); t += (now - last) / 1000 * cube.values().speed; last = now;
+  const src = S.cube(t);
+  const r = await mpEngine.run(src, { format: 'svg', svg: { idPrefix: 'c-' } });
+  cube.fig.innerHTML = r.figures[0]?.svg ?? '';
+  if (++frames % 10 === 0) { fps = 10000 / (performance.now() - fpsAt); fpsAt = performance.now(); cube.ms.textContent = `${r.stats.metapostMs.toFixed(1)} ms MetaPost · ${fps.toFixed(0)} fps`; cube.pre.textContent = src; }
+  requestAnimationFrame(frame);
+}
+$('#cube-toggle').onclick = () => { playing = !playing; $('#cube-toggle').textContent = playing ? 'Pause' : 'Play'; if (playing) { last = performance.now(); frame(); } };
+frame();
+
+// -- pgfplots: debounced, coalesced; the pre-warmed tikz.fmt makes each run ~250 ms when available
+const plot = card('c-plot');
+const drawPlot = makeQueue(async (p) => {
+  const src = S.plot(p); plot.pre.textContent = src;
+  const r = await texEngine.latex(src, { svg: { idPrefix: 'p-', precision: false } });
+  showSvg(plot, r.pages[0], `${r.stats.texMs.toFixed(0)} ms TeX + ${r.stats.dvisvgmMs.toFixed(0)} ms dvisvgm`);
+});
+plot.c.addEventListener('input', debounce(() => drawPlot(plot.values()), 80)); drawPlot(plot.values());
+
+// -- clock: a new TikZ document every second
+const clock = card('c-clock');
+const drawClock = makeQueue(async () => {
+  const d = new Date(); const src = S.clock(d.getHours(), d.getMinutes(), d.getSeconds()); clock.pre.textContent = src;
+  const r = await texEngine.latex(src, { svg: { idPrefix: 'k-', precision: false } });
+  showSvg(clock, r.pages[0], `${r.stats.texMs.toFixed(0)} ms TeX + ${r.stats.dvisvgmMs.toFixed(0)} ms dvisvgm`);
+});
+drawClock(); setInterval(drawClock, 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MetaPost and TikZ, live</title>
+<style>
+  :root { --bg: #f6f7f9; --panel: #fff; --ink: #1b2430; --muted: #66707c; --line: #d9dee5; --accent: #1f4e9c; --err: #b3372c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding-block: 0 40px; padding-inline: clamp(14px, 3vw, 32px); }
+  header { max-width: 1200px; margin: 28px auto 8px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); max-width: 80ch; }
+  header a { color: var(--accent); }
+  .row { max-width: 1200px; margin: 22px auto 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  @media (max-width: 820px) { .row { grid-template-columns: 1fr; } }
+  .pane { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; min-height: 360px; }
+  .pane > .bar { display: flex; align-items: baseline; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .pane > .bar b { color: var(--ink); font-size: 14px; }
+  .pane > .bar .ms { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .CodeMirror { flex: 1; height: auto; min-height: 320px; font: 13.5px/1.45 ui-monospace, Menlo, Consolas, monospace; }
+  .out { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px; background: #fff; background-image: linear-gradient(#f0f2f5 1px, transparent 1px), linear-gradient(90deg, #f0f2f5 1px, transparent 1px); background-size: 20px 20px; }
+  .out svg { max-width: 100%; height: auto; }
+  .out .placeholder { color: var(--muted); font-size: 14px; }
+  .errors { font: 12.5px/1.45 ui-monospace, Menlo, monospace; color: var(--err); background: #fff6f5; border-top: 1px solid #f0d0cc; padding: 8px 12px; white-space: pre-wrap; max-height: 140px; overflow: auto; }
+  .errors:empty { display: none; }
+  footer { max-width: 1200px; margin: 26px auto 0; color: var(--muted); font-size: 13px; }
+  .cm-s-default .cm-keyword { color: #1f4e9c; } .cm-s-default .cm-comment { color: #7a8591; font-style: italic; } .cm-s-default .cm-string { color: #a5541e; } .cm-s-default .cm-string-2 { color: #6b3fa0; } .cm-s-default .cm-number { color: #0b7a5d; } .cm-s-default .cm-tag { color: #1f4e9c; } .cm-s-default .cm-atom { color: #0b7a5d; }
+  __CM_CSS__
+</style>
+</head>
+<body>
+<header>
+  <h1>MetaPost and TikZ, running in your browser</h1>
+  <p>Edit either source; the figure re-renders as you type. MetaPost 2.11, pdfTeX and dvisvgm compiled to WebAssembly, with real LaTeX for the labels — no server involved. <span id="status">Loading the engine…</span> <a href="__GUIDE_URL__">Feature guide</a> · <a href="__REPO_URL__">Source and downloads</a></p>
+</header>
+
+<div class="row">
+  <div class="pane"><div class="bar"><b>MetaPost</b> <span>with a LaTeX label</span><span class="ms" id="ms-mp"></span></div><textarea id="src-mp"></textarea></div>
+  <div class="pane"><div class="bar"><b>Output</b> <span>SVG with glyph outlines</span></div><div class="out" id="out-mp"><span class="placeholder">waiting for the engine…</span></div><div class="errors" id="err-mp"></div></div>
+</div>
+<div class="row">
+  <div class="pane"><div class="bar"><b>TikZ</b> <span>a complete LaTeX document</span><span class="ms" id="ms-tikz"></span></div><textarea id="src-tikz"></textarea></div>
+  <div class="pane"><div class="bar"><b>Output</b> <span>one SVG per page</span></div><div class="out" id="out-tikz"><span class="placeholder">waiting for the engine…</span></div><div class="errors" id="err-tikz"></div></div>
+</div>
+
+<footer id="foot">MetaPost by John Hobby (mplib, TeX Live 2025); pdfTeX; dvisvgm by Martin Gieseking. Editors: CodeMirror. Everything on this page runs in a Web Worker in your browser; fonts and macro packages are fetched on demand and cached.</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/stex/stex.min.js"></script>
+__SOURCES_SCRIPT__
+__COMMON_SCRIPT__
+__BOOT__
+<script type="module">
+const $ = (s) => document.querySelector(s);
+const S = globalThis.PAGE_SOURCES;
+const edMp = CodeMirror.fromTextArea($('#src-mp'), { value: S.metapost, mode: 'metapost', lineNumbers: true, lineWrapping: true, viewportMargin: Infinity });
+const edTikz = CodeMirror.fromTextArea($('#src-tikz'), { value: S.tikz, mode: 'stex', lineNumbers: true, lineWrapping: true, viewportMargin: Infinity });
+edMp.setValue(S.metapost); edTikz.setValue(S.tikz);
+let mp;
+const show = (id, svg, ms, errs) => {
+  const out = $('#out-' + id); out.innerHTML = svg || '<span class="placeholder">no output</span>';
+  const el = out.querySelector('svg');     // show figures at 1.6x their natural size, within the pane
+  if (el) { const w = parseFloat(el.getAttribute('width')) * (/pt$/.test(el.getAttribute('width') || '') ? 96 / 72 : 1); if (w) { el.removeAttribute('height'); el.style.width = `min(100%, ${Math.round(w * 1.6)}px)`; } }
+  $('#ms-' + id).textContent = ms;
+  $('#err-' + id).textContent = errs.map((d) => `${d.line ? 'line ' + d.line + ': ' : ''}${d.message}`).join('\n');
+};
+const renderMp = makeQueue(async (src) => {
+  const r = await mp.run(src, { format: 'svg', svg: { idPrefix: 'mp-' } });
+  show('mp', r.figures.map((f) => f.svg).join(''), `${r.stats.metapostMs.toFixed(0)} ms MetaPost${r.stats.texRuns ? ` + ${r.stats.texMs.toFixed(0)} ms TeX` : ''}`, r.diagnostics.filter((d) => d.severity === 'error' || d.severity === 'fatal'));
+});
+const renderTikz = makeQueue(async (src) => {
+  const r = await mp.latex(src, { engine: 'auto', svg: { idPrefix: 'tz-', precision: false } });
+  show('tikz', r.pages.join(''), `${r.stats.texMs.toFixed(0)} ms ${/lua/.test(r.format) ? 'LuaTeX' : 'TeX'} + ${r.stats.dvisvgmMs.toFixed(0)} ms dvisvgm`, r.diagnostics.filter((d) => d.severity === 'error' || d.severity === 'fatal'));
+});
+try {
+  mp = await globalThis.enginePromise;
+  $('#status').textContent = `Engine ready: MetaPost ${mp.version.metapost}.`;
+  renderMp(edMp.getValue()); renderTikz(edTikz.getValue());
+  edMp.on('change', debounce(() => renderMp(edMp.getValue()), 350));
+  edTikz.on('change', debounce(() => renderTikz(edTikz.getValue()), 500));
+} catch (e) {
+  $('#status').textContent = `The engine could not start here: ${e.message}`;
+}
+</script>
+</body>
+</html>

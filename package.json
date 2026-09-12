@@ -26,7 +26,8 @@
     "build:standalone": "node scripts/build-standalone.mjs",
     "test:golden:tikz": "node scripts/golden-tikz.mjs",
     "package": "./scripts/package-release.sh",
-    "build:guide": "node scripts/build-guide.mjs"
+    "build:guide": "node scripts/build-guide.mjs",
+    "build:pages": "node scripts/build-pages.mjs"
   },
   "devDependencies": {
     "@types/node": "^22",
