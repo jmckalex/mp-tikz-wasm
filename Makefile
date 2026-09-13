@@ -30,7 +30,12 @@ CTANGLE_BIN := $(TOOLS)/ctangle
 WEBS      := mp psout svgout tfmin mpxout mpmath mpmathdouble mpmathdecimal mpstrings
 CSRCS     := avl decNumber decContext
 GEN_C     := $(addprefix $(GEN)/,$(addsuffix .c,$(WEBS)))
-GEN_H     := $(GEN)/mplib.h $(GEN)/mplibps.h $(GEN)/mplibsvg.h $(GEN)/mpxout.h
+# Every header ctangle writes: objects depend on all of them, so that a fresh
+# `make contract` tangles every .w before compiling mp.c (which includes
+# mpmath.h, mpstrings.h and tfmin.h from other .w files). Listing only the
+# public ones let mp.o be compiled before mpmath.w was tangled on a clean
+# Linux checkout.
+GEN_H     := $(addprefix $(GEN)/,mplib.h mpmp.h mplibps.h mppsout.h mplibsvg.h mpsvgout.h mpxout.h tfmin.h mpmath.h mpmathdouble.h mpmathdecimal.h mpstrings.h)
 VEND_C    := $(addprefix $(PATCHED)/,$(addsuffix .c,$(CSRCS)))
 
 SHIM_C    := $(SRC_C)/mpwasm_host.c $(SRC_C)/mpwasm_api.c $(SRC_C)/mpwasm_figure.c $(SRC_C)/mpwasm_mpx.c
@@ -92,11 +97,17 @@ tangle: $(GEN_C) $(GEN_H)
 
 # -------------------------------------------------------------------- native
 NATIVE_OBJS := $(patsubst %.c,$(NATIVE)/%.o,$(notdir $(ALL_C)))
-vpath %.c $(GEN) $(PATCHED) $(SRC_C)
-
-$(NATIVE)/%.o: %.c $(GEN_H)
+# One pattern rule per source directory rather than a vpath: with a vpath,
+# GNU make 3.81 (macOS) cannot see that a not-yet-tangled build/gen/mp.c is
+# makeable and reports "No rule to make target mp.o" on a clean tree.
+define NATIVE_RULE
+$(NATIVE)/%.o: $(1)/%.c $(GEN_H)
 	@mkdir -p $(NATIVE)
-	$(CC) $(NATIVE_CFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(CC) $(NATIVE_CFLAGS) $(CPPFLAGS) -c -o $$@ $$<
+endef
+$(eval $(call NATIVE_RULE,$(GEN)))
+$(eval $(call NATIVE_RULE,$(PATCHED)))
+$(eval $(call NATIVE_RULE,$(SRC_C)))
 
 $(NATIVE)/libmplib.a: $(NATIVE_OBJS)
 	$(AR) rcs $@ $^
