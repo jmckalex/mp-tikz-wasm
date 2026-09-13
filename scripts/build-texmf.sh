@@ -13,6 +13,12 @@ OUT="${1:-$REPO/build/texmf}"
 TEXMF="$(kpsewhich -var-value TEXMFDIST)"
 [ -d "$TEXMF" ] || { echo "error: no TeX Live found" >&2; exit 1; }
 echo "==> assembling $OUT from $TEXMF"
+# Some distributions package fonts in a sibling tree rather than in TEXMFDIST
+# (Debian's lmodern installs Latin Modern under /usr/share/texmf), so a few
+# lookups below search every configured TeX tree. `tree_with REL` echoes the
+# first tree that contains REL.
+TEXMF_TREES="$(kpsewhich -expand-path '$TEXMF' 2>/dev/null | tr ':' '\n' | awk 'NF && !seen[$0]++')"
+tree_with() { for t in $TEXMF_TREES; do [ -e "$t/$1" ] && { echo "$t"; return 0; }; done; return 1; }
 # keep formats already built by tex.wasm (scripts/make-formats.mjs) across rebuilds
 KEEP="$(mktemp -d)"; cp "$OUT"/web2c/*.fmt "$KEEP/" 2>/dev/null || true
 rm -rf "$OUT"
@@ -114,13 +120,14 @@ done
 # Latin Modern: T1/TS1-encoded text fonts for \usepackage[T1]{fontenc} and
 # \usepackage{lmodern} (TikZ documents, LaTeX text). Type 1 outlines are
 # fetched lazily per font, so the 9 MB only costs what a document uses.
-if [ -d "$TEXMF/fonts/tfm/public/lm" ]; then
-  find "$TEXMF/fonts/tfm/public/lm" -name '*.tfm' -exec cp {} "$OUT/fonts/tfm/" \;
-  find "$TEXMF/fonts/type1/public/lm" -name '*.pfb' -exec cp {} "$OUT/fonts/type1/" \;
-  find "$TEXMF/fonts/enc/dvips/lm" -name '*.enc' -exec cp {} "$OUT/fonts/enc/" \;
-  cp -R "$TEXMF/tex/latex/lm" "$OUT/tex/latex/lm"
+LMTREE="$(tree_with fonts/tfm/public/lm || true)"
+if [ -n "$LMTREE" ]; then
+  find "$LMTREE/fonts/tfm/public/lm" -name '*.tfm' -exec cp {} "$OUT/fonts/tfm/" \;
+  find "$LMTREE/fonts/type1/public/lm" -name '*.pfb' -exec cp {} "$OUT/fonts/type1/" \;
+  find "$LMTREE/fonts/enc/dvips/lm" -name '*.enc' -exec cp {} "$OUT/fonts/enc/" \;
+  LMSTY="$(tree_with tex/latex/lm || true)"; [ -n "$LMSTY" ] && cp -R "$LMSTY/tex/latex/lm" "$OUT/tex/latex/lm"
 else
-  echo "  warning: Latin Modern (lm) not in $TEXMF — install the lmodern package; LaTeX text output will differ" >&2
+  echo "  warning: Latin Modern (lm) not found in any TeX tree — install the lmodern package; LaTeX text output will differ" >&2
 fi
 # The 35 standard PostScript fonts (psnfss: times, helvetica, courier, palatino,
 # bookman, avant garde, new century, zapf chancery, symbol, dingbats) as URW
@@ -136,8 +143,10 @@ done
 # mode and dvisvgm read pdftex.map / ps2pk.map. All are built from the dvips map
 # fragments of the fonts we ship; a fragment absent from this TeX Live is skipped.
 : > "$OUT/fonts/map/mpost.map"
-for m in "$TEXMF"/fonts/map/dvips/amsfonts/{cm,cmextra,symbols,euler,latxfont}.map "$TEXMF/fonts/map/dvips/lm/lm.map" "$TEXMF/fonts/map/dvips/tetex/ps2pk35.map"; do
-  [ -f "$m" ] && cat "$m" >> "$OUT/fonts/map/mpost.map"
+for rel in fonts/map/dvips/amsfonts/cm.map fonts/map/dvips/amsfonts/cmextra.map fonts/map/dvips/amsfonts/symbols.map \
+           fonts/map/dvips/amsfonts/euler.map fonts/map/dvips/amsfonts/latxfont.map fonts/map/dvips/lm/lm.map \
+           fonts/map/dvips/tetex/ps2pk35.map; do
+  t="$(tree_with "$rel" || true)"; [ -n "$t" ] && cat "$t/$rel" >> "$OUT/fonts/map/mpost.map"
 done
 cp "$OUT/fonts/map/mpost.map" "$OUT/fonts/map/psfonts.map"
 cp "$OUT/fonts/map/mpost.map" "$OUT/fonts/map/pdftex.map"
