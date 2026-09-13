@@ -43,6 +43,14 @@ const list = JSON.parse(fs.readFileSync(process.argv[5], "utf8"));
 const lines = [];
 for (const c of list) {
   if (/\/luaffi\//.test(c.src)) continue;                       // no C FFI in wasm
+  // The native mplib is replaced by our patched tangle: the web2c-root tangles
+  // (mp, psout, tfmin, mpmath*, mpstrings) are recompiled from build/gen and the
+  // mplibdir core (avl, decNumber, decContext) from build/patched, as the
+  // mplib-*/mputil-* entries added below. Skip the native copies here — their
+  // recorded path is the VPATH srcdir fallback, which for the generated tangles
+  // does not exist (docs/14 §10). lmplib.c, the LuaTeX-to-mplib binding, is kept.
+  if (/\/texk\/web2c\/(mp|psout|tfmin|mpmath|mpmathdouble|mpmathdecimal|mpstrings)\.c$/.test(c.src)) continue;
+  if (/\/mplibdir\/(avl|decNumber|decContext)\.c$/.test(c.src)) continue;
   let f = c.flags.split(" ").filter(Boolean);
   f = f.map((t) => t === "-I." ? `-I${NB}/texk/web2c` : t === "-I./w2c" ? `-I${NB}/texk/web2c/w2c` : t.replace(/^-I\.\.\/\.\.\/\.\.\/texlive-source\//, `-I${TL}/`))
        .filter((t) => !/libs\/(zlib|libpng|harfbuzz)\/include/.test(t) && t !== "-DLUA_USE_DLOPEN" && !/extra_version_info|^\+-%Y/.test(t));

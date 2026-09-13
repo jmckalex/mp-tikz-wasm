@@ -21,7 +21,18 @@ if [ "${1:-}" = "--rebuild" ] || [ ! -f "$LOG" ]; then
   echo "==> the libraries luatex links besides those of pdftex (lua53, pplib, zziplib)"
   for lib in lua53 pplib zziplib; do native_package libs/$lib; done
   echo "==> native LuaTeX build (make -C texk/web2c luatex V=1)"
-  make -C "$NB/texk/web2c" luatex V=1 -j"${JOBS:-8}" > "$LOG" 2>&1 || { tail -20 "$LOG"; exit 1; }
+  # V=1 prints each compile command; the parse below reads them. Parallel make
+  # interleaves the recipe lines of concurrent jobs, and two glued command lines
+  # corrupt a flag (a -DLUAI_HASHLIMIT=6 once became '-DLUAI_HA) __DSHLIMIT=6',
+  # breaking the wasm replay nondeterministically). GNU make >= 4 serializes each
+  # target's output with -Otarget and keeps the parallel speed; older make (Apple
+  # ships 3.81) has no -O, so record serially there.
+  MKFLAGS="-j${JOBS:-8} -Otarget"
+  case "$(make --version 2>/dev/null | head -1)" in
+    *"GNU Make "[4-9]*|*"GNU Make "[1-9][0-9]*) ;;
+    *) MKFLAGS="-j1" ;;
+  esac
+  make -C "$NB/texk/web2c" luatex V=1 $MKFLAGS > "$LOG" 2>&1 || { tail -20 "$LOG"; exit 1; }
 fi
 python3 - "$LOG" "$NB" "$REPO/vendor/texlive-source" "$REPO/build/native-luatex-compiles.json" <<'PY'
 import re, shlex, json, os, sys
