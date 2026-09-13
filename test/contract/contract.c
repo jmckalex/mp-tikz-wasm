@@ -284,7 +284,8 @@ static void test_mpx_pipeline(void) {
     CHECK(r == 0, "dvitomp converts the oracle's DVI (status %d)", r);
     mpx = read_file("latex-math.mpx");
     ref = read_file("../../../reference/mpx-samples/latex-math.mpx");
-    CHECK(mpx && ref && strcmp(mpx, ref) == 0, "the .mpx is byte-identical to the committed oracle sample");
+    CHECK(mpx && ref && strcmp(mpx, ref) == 0, "the .mpx is byte-identical to the committed oracle sample%s",
+          !mpx ? " (latex-math.mpx was not written)" : !ref ? " (reference/mpx-samples/latex-math.mpx is missing)" : "");
     if (mpx && ref && strcmp(mpx, ref) != 0) { printf("---- ours ----\n%s\n---- ref ----\n%s\n", mpx, ref); }
     free(mpx); free(ref);
   } else {

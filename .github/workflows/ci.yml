@@ -19,8 +19,8 @@ jobs:
         run: ./scripts/extract-vendor.sh && ./scripts/verify-pin.sh
       - name: contract harness
         run: make contract
-      - name: unit tests (scanner vs the C mpto oracle)
-        run: npm ci && npm test
+      - name: unit tests (scanner vs the C mpto oracle; the e2e tests need the wasm job's build)
+        run: npm ci && npx vitest run test/unit
   wasm:
     runs-on: ubuntu-latest
     steps:
@@ -48,5 +48,10 @@ jobs:
         run: ./scripts/native-luatex.sh && ./scripts/build-luatex-wasm.sh
       - name: texmf, formats, bundles, TypeScript
         run: ./scripts/build-texmf.sh && node scripts/make-formats.mjs && node scripts/build-bundles.mjs && npm ci && npm run build:ts
-      - name: golden corpus vs the oracle (MetaPost, then LaTeX/TikZ)
-        run: node scripts/golden.mjs && node scripts/golden-tikz.mjs
+      - name: end-to-end tests (API, memory, prefetch)
+        run: npx vitest run test/e2e
+      # The runner's TeX Live is Ubuntu's 2023 release; the committed expectations
+      # were produced against the TeX Live 2025 oracle (`npm run test:golden` and
+      # `npm run test:golden:tikz` without --check, on a machine that has it).
+      - name: golden corpora vs the committed TeX Live 2025 expectations (MetaPost, then LaTeX/TikZ)
+        run: node scripts/golden.mjs --check && node scripts/golden-tikz.mjs --check

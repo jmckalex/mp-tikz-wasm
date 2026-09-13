@@ -5,28 +5,31 @@
 # the generated config headers that scripts/build-tex-wasm.sh compiles with
 # emcc, plus a native pdftex binary from the exact pinned source.
 #
-# Only `make -C texk/web2c pdftex` is needed; `--disable-all-pkgs` does not
+# Only `make -C texk/web2c pdftex` is wanted; `--disable-all-pkgs` does not
 # disable the other web2c engines and a full `make` would build (and on macOS
-# fail on) xetex.
+# fail on) xetex. The packages pdftex needs (kpathsea; zlib, libpng and xpdf;
+# web2c itself) are therefore configured and built one at a time — see
+# scripts/native-common.sh for why they have to be configured at all.
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SRC="$REPO/vendor/texlive-source"
-NB="$REPO/vendor/native-build"
+. "$REPO/scripts/native-common.sh"
 [ -f "$SRC/configure" ] || { echo "error: run scripts/extract-vendor.sh first" >&2; exit 1; }
 mkdir -p "$NB"
 cd "$NB"
 if [ ! -f Makefile ]; then
   echo "==> configuring (native)"
-  "$SRC/configure" --disable-all-pkgs --enable-pdftex --enable-web2c --without-x --disable-shared \
+  # The source is named by a relative path on purpose: it ends up in the #line
+  # directives of every tangled C file (and so in anything that embeds
+  # __FILE__), which keeps the generated sources identical between machines.
+  ../texlive-source/configure --disable-all-pkgs --enable-pdftex --enable-web2c --without-x --disable-shared \
     --disable-native-texlive-build --prefix="$REPO/vendor/native-install" > configure.log 2>&1 \
-    || { echo "error: configure failed; tail of $NB/configure.log:" >&2; tail -40 configure.log >&2; exit 1; }
+    || fail "configure" "$NB/configure.log"
 fi
-# Each step logs to a file; on failure the tail is printed so that CI shows why.
-fail() { echo "error: $1 failed; tail of $NB/$2:" >&2; tail -60 "$2" >&2; exit 1; }
-echo "==> building the libraries pdftex needs (kpathsea, zlib, libpng, xpdf, md5)"
-make -j"${JOBS:-8}" -C libs > make-libs.log 2>&1 || true
-make -j"${JOBS:-8}" -C texk/kpathsea > make-kpathsea.log 2>&1 || fail "make -C texk/kpathsea" make-kpathsea.log
-echo "==> building pdftex (generates the web2c C)"
-make -j"${JOBS:-8}" -C texk/web2c pdftex > make-pdftex.log 2>&1 || fail "make -C texk/web2c pdftex" make-pdftex.log
+echo "==> kpathsea and the libraries pdftex links (zlib, libpng, xpdf)"
+native_package texk/kpathsea
+for lib in zlib libpng xpdf; do native_package libs/$lib; done
+echo "==> web2c: pdftex (generates the web2c C)"
+native_configure texk/web2c
+native_build texk/web2c pdftex
 ls -l texk/web2c/pdftex texk/web2c/pdftex0.c
 echo "==> native pdftex: $(texk/web2c/pdftex --version | head -1)"

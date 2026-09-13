@@ -11,13 +11,15 @@
 # useful as an oracle).
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-NB="$REPO/vendor/native-build"
+. "$REPO/scripts/native-common.sh"
 LOG="$REPO/build/native-luatex.log"
 [ -f "$NB/texk/web2c/Makefile" ] || { echo "error: run scripts/native-texlive.sh first" >&2; exit 1; }
 mkdir -p "$REPO/build"
 if [ "${1:-}" = "--rebuild" ] || [ ! -f "$LOG" ]; then
   find "$NB/texk/web2c/luatexdir" -name '*.o' -delete
   rm -f "$NB"/texk/web2c/{libluatex,libluatexspecific,libff,libluamisc,libluasocket,libluaffi,libunilib,libmd5}.a "$NB/texk/web2c/luatex"
+  echo "==> the libraries luatex links besides those of pdftex (lua53, pplib, zziplib)"
+  for lib in lua53 pplib zziplib; do native_package libs/$lib; done
   echo "==> native LuaTeX build (make -C texk/web2c luatex V=1)"
   make -C "$NB/texk/web2c" luatex V=1 -j"${JOBS:-8}" > "$LOG" 2>&1 || { tail -20 "$LOG"; exit 1; }
 fi
