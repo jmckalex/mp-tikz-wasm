@@ -313,7 +313,7 @@ endfig; end.` },
     child { node {mplib.wasm} child { node {SVG} } child { node {EPS} } }
     child { node {tex.wasm} child { node {DVI} } }
     child { node {dvisvgm.wasm} child { node {TikZ} } };
-  \\draw[decorate,decoration={brace,amplitude=4pt},thick] (-3.2,-2.6) -- (3.2,-2.6) node[midway,below=4pt,draw=none,fill=none] {all in the browser};
+  \\draw[decorate,decoration={brace,amplitude=4pt,mirror},thick] (-3.2,-2.6) -- (3.2,-2.6) node[midway,below=4pt,draw=none,fill=none] {all in the browser};
 \\end{tikzpicture}
 \\end{document}` },
   { id: 'tz-graphdrawing', section: 'tikz', title: 'Graph drawing (LuaTeX)', kind: 'tikz', engine: 'lualatex',

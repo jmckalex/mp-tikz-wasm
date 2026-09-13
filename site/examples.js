@@ -156,4 +156,86 @@ end.`,
 endfig;
 end.`,
   },
+
+  {
+    id: 'lissajous', title: 'Lissajous curve', tier: 'geometry',
+    blurb: 'A parametric curve traced by 720 pen dabs, each coloured by its phase — the colour is a blend picked by MetaPost arithmetic.',
+    src: `beginfig(1);
+  def couleur(expr x) =
+    if x > .5: (2*(1-x))[red, blue] else: (1-2x)[blue, red] fi
+  enddef;
+  for i = 0 step .5 until 360:
+    draw 90 * (sind(2i), cosd(3i))
+      withpen pencircle scaled 2.5 withcolor couleur(i/360);
+  endfor
+endfig;
+end.`,
+  },
+  {
+    id: 'surface', title: 'A shaded 3D surface', tier: 'geometry',
+    blurb: 'A height field drawn as 400 quadrilaterals, each shaded by the slope of its normal — Lambert lighting done entirely in MetaPost.',
+    src: `beginfig(1);
+  numeric u; u := 24;
+  vardef project(expr x, y, z) = x*(-1,-1) + y*(1,0) + z*(0,1) enddef;
+  vardef f(expr x, y) = sind(x/u*180)*sind(y/u*180)*u enddef;
+  numeric m, M, inc, c; m := -2u; M := 2u; inc := .2u;
+  for i = m step inc until M-inc:
+    for j = m step inc until M-inc:
+      path p;
+      p = project(i,j,f(i,j)) -- project(i,j+inc,f(i,j+inc))
+          -- project(i+inc,j+inc,f(i+inc,j+inc)) -- project(i+inc,j,f(i+inc,j)) -- cycle;
+      c := 1 / sqrt( ((f(i,j)-f(i+inc,j))/inc)**2 + ((f(i,j)-f(i,j+inc))/inc)**2 + 1 );
+      fill p withcolor c*(0.25,0.55,0.95) + (1-c)*(0.03,0.08,0.18);
+      draw p withpen pencircle scaled .15 withcolor .35white;
+    endfor
+  endfor
+endfig;
+end.`,
+  },
+  {
+    id: 'rose', title: 'Mystic rose', tier: 'geometry',
+    blurb: 'Every chord of eleven points on a circle. The loops and the pair array A[] are plain MetaPost; the colour interpolates around the ring.',
+    src: `beginfig(1);
+  numeric n, u; n := 11; u := 90;
+  pair A[]; for i = 0 upto n-1: A[i] = u*dir(360i/n); endfor
+  for i = 0 upto n-1: for j = i+1 upto n-1:
+    draw A[i]--A[j] withpen pencircle scaled .5
+      withcolor (i/n)[(0.1,0.2,0.7), (0.7,0.1,0.3)];
+  endfor endfor
+  for i = 0 upto n-1: draw A[i] withpen pencircle scaled 4 withcolor (0.1,0.1,0.2); endfor
+endfig;
+end.`,
+  },
+  {
+    id: 'blob', title: 'A gradient by nested fills', tier: 'geometry',
+    blurb: 'No gradient primitive: the same path is filled fifty times at shrinking scales with a fading colour, so a smooth radial blend falls out.',
+    src: `beginfig(1);
+  numeric u; u := 42;
+  path p; p := (0,0) .. (-1,1) .. (2,0) .. (0,-3) .. cycle; p := p shifted (-1,0);
+  for i = 1 step -.02 until 0:
+    fill p scaled (i*u) withcolor i*(0.15,0.5,1) + (1-i)*white;
+  endfor
+  draw p scaled u withpen pencircle scaled 1.4 withcolor (0.1,0.2,0.6);
+endfig;
+end.`,
+  },
+  {
+    id: 'pentagram', title: 'Pentagram from linear equations', tier: 'geometry',
+    blurb: 'The five inner vertices are never given coordinates: each is stated as the intersection of two diagonals with whatever, and MetaPost solves the linear system.',
+    src: `beginfig(1);
+  numeric u; u := 90;
+  pair A, B, C, D, E;
+  A := (0,u); B := A rotated 72; C := B rotated 72; D := C rotated 72; E := D rotated 72;
+  pair AA, BB, CC, DD, EE;
+  AA = whatever[A,C]; AA = whatever[B,D];
+  BB = whatever[B,D]; BB = whatever[C,E];
+  CC = whatever[C,E]; CC = whatever[D,A];
+  DD = whatever[D,A]; DD = whatever[E,B];
+  EE = whatever[E,B]; EE = whatever[A,C];
+  fill A--C--E--B--D--cycle withcolor (1,0.82,0.2);
+  fill AA--BB--CC--DD--EE--cycle withcolor (0.65,0.12,0.12);
+  draw A--C--E--B--D--cycle withpen pencircle scaled 1.5 withcolor (0.4,0.05,0.05);
+endfig;
+end.`,
+  },
 ];
