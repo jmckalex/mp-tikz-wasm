@@ -26,19 +26,20 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         baseUrl = String(req.baseUrl);
         const io = browserIO();
         bundles = new BundleSet(io);
-        for (const spec of resolveBundleSpecs(options.bundles ?? DEFAULT_BUNDLES, options.bundleBaseUrl ?? new URL('./bundles/', baseUrl).href)) {
-          await bundles.add(spec);
-        }
+        // manifests, hot lists and engine glue all at once: a slow host charges per round trip
+        const bundleBase = options.bundleBaseUrl ?? new URL('./bundles/', baseUrl).href;
+        const wantTex = (options.tex ?? 'auto') !== 'none';
+        const glue = (name: string) => import(/* @vite-ignore */ new URL(name, baseUrl).href).then((m) => m.default, () => undefined);
+        const [mplibFactory, texFactory, dvisvgmFactory, luatexFactory] = await Promise.all([
+          import(/* @vite-ignore */ new URL('./mplib.mjs', baseUrl).href).then((m) => m.default),
+          wantTex ? glue('./tex.mjs') : undefined,
+          wantTex ? glue('./dvisvgm.mjs') : undefined,
+          wantTex ? glue('./luatex.mjs') : undefined,
+          bundles.addAll(resolveBundleSpecs(options.bundles ?? DEFAULT_BUNDLES, bundleBase)),
+          bundles.loadHot((bundleBase.endsWith('/') ? bundleBase : bundleBase + '/') + 'hot.json'),
+        ]);
         await bundles.prefetchEager();
-        { const b = options.bundleBaseUrl ?? new URL('./bundles/', baseUrl).href; await bundles.loadHot((b.endsWith('/') ? b : b + '/') + 'hot.json'); }
         if (!bundles.canFetchSync) await bundles.prefetchAll();
-        const mplibFactory = (await import(/* @vite-ignore */ new URL('./mplib.mjs', baseUrl).href)).default;
-        let texFactory, luatexFactory, dvisvgmFactory;
-        if ((options.tex ?? 'auto') !== 'none') {
-          try { texFactory = (await import(/* @vite-ignore */ new URL('./tex.mjs', baseUrl).href)).default; } catch { texFactory = undefined; }
-          try { dvisvgmFactory = (await import(/* @vite-ignore */ new URL('./dvisvgm.mjs', baseUrl).href)).default; } catch { dvisvgmFactory = undefined; }
-          try { luatexFactory = (await import(/* @vite-ignore */ new URL('./luatex.mjs', baseUrl).href)).default; } catch { luatexFactory = undefined; }
-        }
         core = new MetaPostCore({
           mplibFactory, texFactory, luatexFactory, dvisvgmFactory, bundles, options,
           onProgress: (e) => post({ event: 'progress', data: e }),

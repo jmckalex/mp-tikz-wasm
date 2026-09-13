@@ -39,7 +39,7 @@ class InProcessBackend implements Backend {
     if (!texmfDir) {
       this.bundles = new BundleSet(io);
       const base = o.bundleBaseUrl ?? new URL('./bundles/', here).href;
-      for (const spec of resolveBundleSpecs(o.bundles ?? DEFAULT_BUNDLES, base)) await this.bundles.add(spec);
+      await this.bundles.addAll(resolveBundleSpecs(o.bundles ?? DEFAULT_BUNDLES, base));
       await this.bundles.prefetchEager();
       await this.bundles.loadHot((base.endsWith('/') ? base : base + '/') + 'hot.json');
       if (!this.bundles.canFetchSync) await this.bundles.prefetchAll();

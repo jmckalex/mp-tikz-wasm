@@ -110,14 +110,19 @@ export class AutoRenderer {
 
   private get mp(): Promise<MetaPost> {
     if (!this.engine) {
-      // prefetch the files the page's diagrams will need, in parallel, before the first render
-      const options = { ...this.options, prefetch: this.options.prefetch ?? prefetchKinds() };
-      this.engine = MetaPost.create(options).then((m) => {
+      // prefetch the files the page's diagrams will need, in parallel, before the first render;
+      // the progress listener goes on first so the placeholders show it happening
+      const { prefetch, ...rest } = this.options;
+      const kinds = prefetch ?? prefetchKinds();
+      this.engine = MetaPost.create(rest).then(async (m) => {
         this.version = `${m.version.metapost}/${m.version.build}`;
         m.on('progress', (e) => {
-          const text = e.phase === 'fetching' ? `fetching ${e.detail ?? ''}…` : e.phase === 'typesetting' ? `typesetting${e.detail ? ` (${e.detail})` : ''}…` : `${e.phase}…`;
+          const text = e.phase === 'fetching'
+            ? (e.total ? `fetching files (${e.current} of ${e.total})…` : `fetching ${e.detail ?? ''}…`)
+            : e.phase === 'typesetting' ? `typesetting${e.detail ? ` (${e.detail})` : ''}…` : `${e.phase}…`;
           for (const s of statusSpans) s.textContent = text;
         });
+        if (kinds.length) await m.prefetch(kinds);
         return m;
       });
     }

@@ -27,6 +27,13 @@ export interface BundleIO {
 
 export const TEXMF_ROOT = '/texmf';
 
+const inWorker = typeof (globalThis as any).WorkerGlobalScope !== 'undefined' && typeof (globalThis as any).importScripts === 'function';
+/** Inside a Worker, post a `fetching` progress event; the main thread's stall watchdog and status text listen for them. */
+function fetchingEvent(name: string, current?: number, total?: number): void {
+  if (!inWorker) return;
+  try { (globalThis as any).postMessage({ event: 'progress', data: { phase: 'fetching', detail: name, current, total } }); } catch { /* ignore */ }
+}
+
 function joinUrl(base: string, rel: string): string {
   if (!base.endsWith('/')) base += '/';
   return base + rel;
@@ -47,6 +54,9 @@ export class BundleSet {
   async add(spec: BundleSpec): Promise<void> {
     const base = spec.manifestUrl.replace(/\/manifest\.json$/, '');
     const manifest = (await this.io.fetchJson(joinUrl(base, 'manifest.json'))) as BundleManifest;
+    this.addLoaded(spec, base, manifest);
+  }
+  private addLoaded(spec: BundleSpec, base: string, manifest: BundleManifest): void {
     this.manifests.push({ spec, manifest, base });
     const blobBase = spec.blobBaseUrl ?? joinUrl(base, 'files');
     for (const [path, info] of Object.entries(manifest.files)) {
@@ -57,6 +67,15 @@ export class BundleSet {
       const list = this.byName.get(name);
       if (list) list.push(f); else this.byName.set(name, [f]);
     }
+  }
+
+  /** Add several bundles: the manifests are fetched in parallel, then merged in the given order (first bundle wins). */
+  async addAll(specs: BundleSpec[]): Promise<void> {
+    const manifests = await Promise.all(specs.map(async (spec) => {
+      const base = spec.manifestUrl.replace(/\/manifest\.json$/, '');
+      return { spec, base, manifest: (await this.io.fetchJson(joinUrl(base, 'manifest.json'))) as BundleManifest };
+    }));
+    for (const m of manifests) this.addLoaded(m.spec, m.base, m.manifest);
   }
 
   /** Load the hot lists; optional, so a missing file is not an error. */
@@ -73,9 +92,13 @@ export class BundleSet {
     for (const k of kinds) for (const p of this.hot[k] ?? []) paths.add(p);
     const wanted: BundleFile[] = [];
     for (const p of paths) { const f = this.files.get(p); if (f && !this.cache.has(f.path)) wanted.push(f); }
-    let i = 0;
+    let i = 0, done = 0;
     await Promise.all(Array.from({ length: Math.min(concurrency, wanted.length) }, async () => {
-      while (i < wanted.length) { const f = wanted[i++]; try { await this.fetchAsync(f); } catch { /* the run reports it */ } }
+      while (i < wanted.length) {
+        const f = wanted[i++];
+        try { await this.fetchAsync(f); } catch { /* the run reports it */ }
+        fetchingEvent(f.path.slice(f.path.lastIndexOf('/') + 1), ++done, wanted.length);
+      }
     }));
     return wanted.length;
   }
@@ -218,15 +241,13 @@ export class BundleSet {
 
 /** Browser I/O: fetch() plus a synchronous XHR that only works inside a Worker. */
 export function browserIO(): BundleIO {
-  const inWorker = typeof (globalThis as any).WorkerGlobalScope !== 'undefined' && typeof (globalThis as any).importScripts === 'function';
   const io: BundleIO = {
     async fetch(url) { const r = await fetch(url); if (!r.ok) throw new Error(`fetch ${url}: ${r.status}`); return new Uint8Array(await r.arrayBuffer()); },
     async fetchJson(url) { const r = await fetch(url); if (!r.ok) throw new Error(`fetch ${url}: ${r.status}`); return r.json(); },
   };
   if (inWorker && typeof XMLHttpRequest !== 'undefined') {
     io.fetchSync = (url) => {
-      // one progress event per on-demand file, so the caller's stall watchdog sees a slow host at work
-      try { (globalThis as any).postMessage({ event: 'progress', data: { phase: 'fetching', detail: url.slice(url.lastIndexOf('/') + 1) } }); } catch { /* not a worker */ }
+      fetchingEvent(url.slice(url.lastIndexOf('/') + 1));   // the stall watchdog sees a slow host at work
       const xhr = new XMLHttpRequest();
       xhr.open('GET', url, false);
       xhr.responseType = 'arraybuffer';
