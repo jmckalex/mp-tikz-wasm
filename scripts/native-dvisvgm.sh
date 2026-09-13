@@ -10,5 +10,6 @@ NB="$REPO/vendor/native-build"
 mkdir -p "$NB/texk/dvisvgm"
 cd "$NB/texk/dvisvgm"
 ARGS=$(grep -o 'with options ".*"' ../../config.log | head -1 | sed 's/with options "//; s/"$//' | tr -d "'")
-"$SRC/texk/dvisvgm/configure" --disable-option-checking $ARGS --srcdir="$SRC/texk/dvisvgm" > configure.log 2>&1
+"$SRC/texk/dvisvgm/configure" --disable-option-checking $ARGS --srcdir="$SRC/texk/dvisvgm" > configure.log 2>&1 \
+  || { echo "error: dvisvgm configure failed; tail of $(pwd)/configure.log:" >&2; tail -40 configure.log >&2; exit 1; }
 ls -l config.h dvisvgm-src/src/version.hpp
