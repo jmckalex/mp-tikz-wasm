@@ -38,6 +38,19 @@ AddType text/plain .mp .tex .sty .cls .def .clo .cfg .fd .ltx .ini .enc .map .lu
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE application/wasm text/javascript application/json text/plain text/html text/css image/svg+xml
 </IfModule>
+# Without explicit freshness the browser revalidates every file on a return
+# visit, one round trip each; a first TikZ run touches ninety. The bundle
+# files are content-addressed by their manifest and change only with a
+# release; the engines and the JavaScript change together on a rebuild.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  <If "%{REQUEST_URI} =~ m#/dist/bundles/#">
+    ExpiresDefault "access plus 30 days"
+  </If>
+  <If "%{REQUEST_URI} =~ m#/dist/[^/]+\.(wasm|js|mjs|json)$#">
+    ExpiresDefault "access plus 1 day"
+  </If>
+</IfModule>
 HT
 cat > "$STAGE/index.html" <<HTML
 <!doctype html>
