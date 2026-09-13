@@ -48,7 +48,8 @@
     "test:golden:tikz": "node scripts/golden-tikz.mjs",
     "package": "./scripts/package-release.sh",
     "build:guide": "node scripts/build-guide.mjs",
-    "build:pages": "node scripts/build-pages.mjs"
+    "build:pages": "node scripts/build-pages.mjs",
+    "pages": "./scripts/publish-pages.sh"
   },
   "devDependencies": {
     "@types/node": "^22",

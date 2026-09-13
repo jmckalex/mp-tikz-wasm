@@ -35,33 +35,89 @@ document.body.innerHTML = fig.figures[0].svg + doc.pages[0];
 
 ## What it does
 
-- **MetaPost to SVG, EPS and JSON.** The full language, every number system
-  (`scaled`, `double`, `decimal`), `boxes.mp`, `graph.mp`, Type 1 outlines for
-  `infont` text, and `btex … etex` labels typeset by plain TeX or LaTeX without
-  a subprocess: labels are batched into one TeX run and cached by content hash.
-- **LaTeX and TikZ documents to SVG.** `\documentclass`, `\usepackage`, every
-  PGF/TikZ library shipped with TeX Live, pgfplots, tikz-cd, amsmath, Latin
-  Modern; shadings become gradients, patterns become patterns, opacity and
-  clipping survive. Plain TeX documents work too.
-- **LuaTeX for what needs it.** TikZ's `graphdrawing` library, `\directlua`
-  and `luacode` run on a second engine that is fetched only when a document
-  uses it. `engine: 'auto'` chooses.
-- **Drop-in tags.** One script turns `<script type="text/tikz">`,
-  `<script type="text/metapost">`, `<tikz-diagram>` and `<metapost-diagram>`
-  into SVGs, renders elements added later, and caches results in IndexedDB.
-  This is the tikzjax replacement, with real LaTeX instead of a frozen memory
-  image.
-- **Lazy loading.** Fonts, macro packages and formats live in ten bundles on a
-  static server and are fetched per file through real kpathsea. A first TikZ
-  figure costs about 4.7 MB over the wire, a first MetaPost figure about 2.3 MB,
-  and everything after that is cached.
-- **A CLI**, `mpost-wasm`, that takes `mpost`'s flags and writes `mpost`'s
-  output files, and `--latex` for documents.
+mp-tikz-wasm renders MetaPost figures and LaTeX documents entirely on the
+client: in a web page, in a Web Worker, or in a Node process. It is not a
+reimplementation of either language. The engines are the real programs from
+TeX Live 2025, compiled to WebAssembly, so anything that typesets on a TeX
+installation typesets here, and the output is the same to the byte.
 
-The feature guide in the release archive (`site/guide.html`) shows all of it
-with rendered examples, including a paragraph set inside a circle by
-`\parshape` with inline TikZ pictures, which is the kind of thing a real TeX
-can do and a picture-only engine cannot.
+For MetaPost, the whole language is available: every number system
+(`scaled`, `double` and `decimal`), the standard macro packages such as
+`boxes.mp` and `graph.mp`, and text set directly from Type 1 outlines with
+`infont`. Labels written as `btex … etex` are typeset by plain TeX or LaTeX.
+MetaPost normally launches TeX as a subprocess for these, which a browser
+cannot do, so the library collects the labels, typesets them in a single TeX
+run and caches the result by content: a figure with forty labels costs one
+TeX run, and an unchanged figure costs none. Figures come out as SVG with real
+glyph outlines, as the EPS that `mpost` itself writes, or as a JSON model of
+the paths, pens, colours and text for further processing.
+
+For LaTeX, a complete document goes in and one SVG per page comes out.
+`\documentclass`, `\usepackage`, every PGF/TikZ library shipped with TeX Live,
+pgfplots, tikz-cd, amsmath and Latin Modern all work, because the document is
+typeset by pdfTeX in DVI mode and converted by dvisvgm, the standard
+converter, which has its own handlers for PGF's drawing commands. Shadings
+become gradients, patterns become patterns, and opacity and clipping survive.
+Plain TeX documents are accepted too. When a document uses TikZ's
+graph-drawing library, `\directlua` or `luacode`, the library switches to a
+second engine, LuaTeX, which is downloaded only when it is needed.
+
+For web pages, a single script tag is enough. It finds
+`<script type="text/tikz">`, `<script type="text/metapost">`, `<tikz-diagram>`
+and `<metapost-diagram>` elements, replaces each with its rendered SVG,
+watches for elements added later, and keeps rendered results in the browser's
+IndexedDB so that a revisited page shows its figures without running TeX
+again. This is the role tikzjax plays, but with a real LaTeX rather than a
+frozen memory image, so packages and libraries work unchanged.
+
+Fonts, macro packages and formats are served as static files and fetched
+individually, through the real kpathsea library, as the engines ask for them.
+A first TikZ figure transfers about 4.7 MB, a first MetaPost figure about
+2.3 MB, and everything after that comes from the browser cache. A command-line
+tool, `mpost-wasm`, accepts `mpost`'s options and writes `mpost`'s output
+files, and takes `--latex` for documents.
+
+The feature guide shows all of this with rendered examples, among them a
+paragraph set inside a circle by TeX's `\parshape` primitive with inline TikZ
+pictures and displayed mathematics, which is the kind of thing a real TeX can
+do and a picture-only engine cannot.
+
+## Demos and documentation
+
+The demo pages need the built engines, which are not committed, so they are
+published to GitHub Pages from the build (`npm run pages`, see
+[Publishing](#publishing)). Once Pages is enabled they live at:
+
+- [Feature guide](https://jmckalex.github.io/mp-tikz-wasm/site/guide.html):
+  the complete user documentation, with every feature rendered by the engines
+  themselves, installation, the drop-in tags, the API, the command line, how
+  it works, fidelity, limits and building.
+- [Editor demo](https://jmckalex.github.io/mp-tikz-wasm/site/index.html):
+  galleries of MetaPost and TikZ examples with a live editor.
+- [Drop-in tags](https://jmckalex.github.io/mp-tikz-wasm/site/tags.html): a
+  page whose diagrams are just `<script type="text/tikz">` elements.
+- [Real-time graphics](https://jmckalex.github.io/mp-tikz-wasm/site/live.html):
+  six animations and interactive plots regenerated by MetaPost and LaTeX as
+  you move the controls.
+- [Two editors](https://jmckalex.github.io/mp-tikz-wasm/site/minimal.html):
+  a MetaPost editor and a TikZ editor side by side with their output.
+- [Single-file playground](https://jmckalex.github.io/mp-tikz-wasm/site/standalone.html):
+  the same in one 11 MB file with everything inlined, for saving and using
+  offline.
+
+The written documentation is in the repository:
+
+- [`docs/08-javascript-api.md`](docs/08-javascript-api.md) and
+  [`src/ts/types.ts`](src/ts/types.ts): the API, every option and result type.
+- [`docs/`](docs/): the design documents, one per subsystem (build toolchain,
+  mplib embedding, the TeX bridge, the virtual filesystem and bundles, fonts
+  and output, testing), then
+  [`docs/14-implementation-notes.md`](docs/14-implementation-notes.md) on what
+  was learned building it and
+  [`docs/15-handover.md`](docs/15-handover.md), the summary of what exists,
+  how to build and test it, and what is known to be unfinished.
+- [`patches/`](patches/): the twelve upstream patches, each explained.
+- [`NOTICE.md`](NOTICE.md): what is licensed how.
 
 ## Get it
 
@@ -257,8 +313,16 @@ npm run demo                     # the editor demo at http://localhost:8080/site
 ```
 
 `npm run build:guide`, `build:pages` and `build:standalone` regenerate the
-feature guide, the two single-file pages and the single-file playground;
-`npm run package` writes the release archives to `release/`.
+feature guide, the two single-file pages and the single-file playground.
+
+### Publishing
+
+`npm run package` writes the release archives to `release/`; upload them to a
+GitHub release, which is where the guide's "Get it" section sends people.
+`npm run pages` assembles the demo pages and the built library in the layout
+of the release archive and force-pushes them as one commit to the `gh-pages`
+branch; enable GitHub Pages for that branch once (Settings, Pages, deploy
+from a branch, `gh-pages`, root) and the links above go live.
 
 ## Patches to upstream
 
