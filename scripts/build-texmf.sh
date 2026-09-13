@@ -114,10 +114,14 @@ done
 # Latin Modern: T1/TS1-encoded text fonts for \usepackage[T1]{fontenc} and
 # \usepackage{lmodern} (TikZ documents, LaTeX text). Type 1 outlines are
 # fetched lazily per font, so the 9 MB only costs what a document uses.
-find "$TEXMF/fonts/tfm/public/lm" -name '*.tfm' -exec cp {} "$OUT/fonts/tfm/" \;
-find "$TEXMF/fonts/type1/public/lm" -name '*.pfb' -exec cp {} "$OUT/fonts/type1/" \;
-find "$TEXMF/fonts/enc/dvips/lm" -name '*.enc' -exec cp {} "$OUT/fonts/enc/" \;
-cp -R "$TEXMF/tex/latex/lm" "$OUT/tex/latex/lm"
+if [ -d "$TEXMF/fonts/tfm/public/lm" ]; then
+  find "$TEXMF/fonts/tfm/public/lm" -name '*.tfm' -exec cp {} "$OUT/fonts/tfm/" \;
+  find "$TEXMF/fonts/type1/public/lm" -name '*.pfb' -exec cp {} "$OUT/fonts/type1/" \;
+  find "$TEXMF/fonts/enc/dvips/lm" -name '*.enc' -exec cp {} "$OUT/fonts/enc/" \;
+  cp -R "$TEXMF/tex/latex/lm" "$OUT/tex/latex/lm"
+else
+  echo "  warning: Latin Modern (lm) not in $TEXMF — install the lmodern package; LaTeX text output will differ" >&2
+fi
 # The 35 standard PostScript fonts (psnfss: times, helvetica, courier, palatino,
 # bookman, avant garde, new century, zapf chancery, symbol, dingbats) as URW
 # Type 1 clones: LaTeX reads the T1-encoded metrics, dvisvgm resolves them
@@ -127,15 +131,18 @@ for d in avantgar bookman courier helvetic ncntrsbk palatino symbol times zapfch
   [ -d "$TEXMF/fonts/vf/adobe/$d" ] && find "$TEXMF/fonts/vf/adobe/$d" -name '*.vf' -exec cp {} "$OUT/fonts/vf/" \;
   [ -d "$TEXMF/fonts/type1/urw/$d" ] && find "$TEXMF/fonts/type1/urw/$d" -name '*.pfb' -exec cp {} "$OUT/fonts/type1/" \;
 done
-cp "$TEXMF/fonts/enc/dvips/base/8r.enc" "$OUT/fonts/enc/"
+[ -f "$TEXMF/fonts/enc/dvips/base/8r.enc" ] && cp "$TEXMF/fonts/enc/dvips/base/8r.enc" "$OUT/fonts/enc/"
 # MetaPost looks for mpost.map first, then psfonts.map (psout.w); pdfTeX in PDF
 # mode and dvisvgm read pdftex.map / ps2pk.map. All are built from the dvips map
-# fragments of the fonts we ship.
-cat "$TEXMF"/fonts/map/dvips/amsfonts/{cm,cmextra,symbols,euler,latxfont}.map "$TEXMF/fonts/map/dvips/lm/lm.map" "$TEXMF/fonts/map/dvips/tetex/ps2pk35.map" > "$OUT/fonts/map/mpost.map"
+# fragments of the fonts we ship; a fragment absent from this TeX Live is skipped.
+: > "$OUT/fonts/map/mpost.map"
+for m in "$TEXMF"/fonts/map/dvips/amsfonts/{cm,cmextra,symbols,euler,latxfont}.map "$TEXMF/fonts/map/dvips/lm/lm.map" "$TEXMF/fonts/map/dvips/tetex/ps2pk35.map"; do
+  [ -f "$m" ] && cat "$m" >> "$OUT/fonts/map/mpost.map"
+done
 cp "$OUT/fonts/map/mpost.map" "$OUT/fonts/map/psfonts.map"
 cp "$OUT/fonts/map/mpost.map" "$OUT/fonts/map/pdftex.map"
 cp "$OUT/fonts/map/mpost.map" "$OUT/fonts/map/ps2pk.map"
-cp "$TEXMF/fonts/map/fontname/texfonts.map" "$OUT/fonts/map/texfonts.map"
+[ -f "$TEXMF/fonts/map/fontname/texfonts.map" ] && cp "$TEXMF/fonts/map/fontname/texfonts.map" "$OUT/fonts/map/texfonts.map"
 
 # --- MetaPost ---------------------------------------------------------------
 cp "$TEXMF"/metapost/base/*.mp "$OUT/metapost/base/"
