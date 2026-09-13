@@ -4,9 +4,13 @@
 # name                                sha256                                                            url
 texlive-20250308-source.tar.xz        fffdb1a3d143c177a4398a2229a40d6a88f18098e5f6dcfd57648c9f2417490f  https://ftp.math.utah.edu/pub/tex/historic/systems/texlive/2025/texlive-20250308-source.tar.xz
 #
-# Alternative mirrors for the same file:
-#   https://ftp.tu-chemnitz.de/pub/tug/historic/systems/texlive/2025/texlive-20250308-source.tar.xz
-#   https://ftp.tug.org/texlive/historic/2025/texlive-20250308-source.tar.xz  (TLS certificate mismatch as of 2026-09)
+# Mirrors of the same file, tried in order after the primary URL when it does
+# not answer (the historic mirrors go down individually; ftp.math.utah.edu was
+# unreachable from GitHub's runners on 2026-09-13, ftp.tug.org had a TLS
+# certificate mismatch). TEXLIVE_SOURCE_URL=<url> overrides all of them.
+mirror https://ftp.tu-chemnitz.de/pub/tug/historic/systems/texlive/2025/texlive-20250308-source.tar.xz
+mirror https://texlive.info/historic/systems/texlive/2025/texlive-20250308-source.tar.xz
+mirror https://ftp.tug.org/texlive/historic/2025/texlive-20250308-source.tar.xz
 #
 # Contents relied on:
 #   texk/web2c/mplibdir   MetaPost 2.11 (mplib)         -> mplib.wasm
