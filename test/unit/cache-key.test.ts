@@ -65,7 +65,7 @@ describe('snippetKey', () => {
     expect(snippetKey({ engineId: 'e', formatId: 'f', chain: ['v'], body: 'b' })).toBe(
       sha256Hex(
         Buffer.concat([
-          lp('metapost-wasm:snippet:1'), lp('e'), lp('f'), u32(1), lp('v'), lp('b'), lp('1'),
+          lp('mp-tikz-wasm:snippet:1'), lp('e'), lp('f'), u32(1), lp('v'), lp('b'), lp('1'),
         ]),
       ),
     );

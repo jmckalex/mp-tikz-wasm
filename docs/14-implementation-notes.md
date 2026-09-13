@@ -190,7 +190,7 @@ byte-identical to `latex` (or `etex`) + `dvisvgm` from TeX Live 2025.
 `<script type="text/metapost">`, `<tikz-diagram>` and `<metapost-diagram>`
 into SVG on load and on later insertion, wraps bare bodies in a standalone
 document or a single figure, caches results in IndexedDB by content hash, and
-exposes `window.metapostWasm`. Custom elements hold HTML, so `<` must be
+exposes `window.mpTikzWasm`. Custom elements hold HTML, so `<` must be
 written `&lt;` in them; script tags are raw, which is why tikzjax uses them.
 
 `tikz.fmt` is the pre-warmed format. Building it taught three things:

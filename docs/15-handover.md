@@ -14,8 +14,14 @@ CLI (`mpost-wasm`), drop-in HTML tags (`dist/auto.js`), ten lazily fetched
 texmf bundles (56 MB on the server, per-file fetch), and five demo pages in
 `site/`: the editor demo (`index.html`), the tags page, the feature guide,
 the two-editor page (`minimal.html`) and the real-time graphics page
-(`live.html`). `release/metapost-wasm-0.1.0.{tar.gz,zip}` is the prebuilt
+(`live.html`). `release/mp-tikz-wasm-0.1.0.{tar.gz,zip}` is the prebuilt
 distribution (`npm run package`).
+
+The project was renamed from `metapost-wasm` to `mp-tikz-wasm` on
+2026-09-13 (the npm name was free that day). Deliberately unchanged: the
+CLI is still `mpost-wasm` (it is the `mpost` drop-in), the C shim keeps its
+`mpwasm_` prefix, and the working directory on the build machine is still
+`~/Source/Metapost-WASM`.
 
 Fidelity: MetaPost golden corpus 15/15 and TikZ corpus 8/8 byte-identical to
 TeX Live 2025; the complete 1181-page PGF manual byte-identical in DVI and
@@ -45,7 +51,7 @@ npm run build:guide; npm run build:pages; npm run build:standalone
 npm run package
 ```
 
-`REPO_URL=https://github.com/<you>/metapost-wasm` on `build:guide` and
+`REPO_URL=https://github.com/<you>/mp-tikz-wasm` on `build:guide` and
 `build:pages` replaces the placeholder links. `GUIDE_URL` does the same for
 the guide link in the single-file pages.
 

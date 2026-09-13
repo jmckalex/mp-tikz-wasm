@@ -5,7 +5,7 @@
      while (1) {
          /* we don't need to check when we have less than 4 characters left */
 -        if (loc < limit - 4) {
-+        /* MetaPost-WASM patch 0004: |buffer[limit]| is the sentinel, so an
++        /* mp-tikz-wasm patch 0004: |buffer[limit]| is the sentinel, so an
 +           \&{etex} that ends the line starts at |limit - 4|; upstream's |<|
 +           never matched it and swallowed the rest of the file. */
 +        if (loc <= limit - 4) {

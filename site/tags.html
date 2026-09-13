@@ -17,10 +17,11 @@
 <script>
   // optional: listen for renders
   let n = 0, cached = 0, total = 0;
-  document.addEventListener('metapost-wasm:rendered', (e) => { n++; total += e.detail.ms; if (e.detail.cached) cached++; document.getElementById('stats').textContent = `${n} diagrams rendered, ${cached} from cache, ${total.toFixed(0)} ms total`; });
+  document.addEventListener('mp-tikz-wasm:rendered', (e) => { n++; total += e.detail.ms; if (e.detail.cached) cached++; document.getElementById('stats').textContent = `${n} diagrams rendered, ${cached} from cache, ${total.toFixed(0)} ms total`; });
 </script>
 </head>
 <body>
+<div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.65">mp-tikz-wasm</div>
 <h1>Diagram tags</h1>
 <p class="muted">This page contains no pre-rendered images. Every figure below is typeset on load by MetaPost, pdfTeX, LuaTeX (for graph drawing) and dvisvgm running in this tab, from a <code>&lt;script&gt;</code> or custom tag in the HTML source. <span id="stats"></span></p>
 
@@ -104,7 +105,7 @@
 <script type="text/tikz">\begin{tikzpicture}\draw (0,0) -- (1,1) node {\undefinedmacro};\end{tikzpicture}</script>
 
 <h2>How to use it on your page</h2>
-<pre>&lt;script type="module" src="https://your-host/metapost-wasm/dist/auto.js"&gt;&lt;/script&gt;
+<pre>&lt;script type="module" src="https://your-host/mp-tikz-wasm/dist/auto.js"&gt;&lt;/script&gt;
 &lt;script type="text/tikz" data-libraries="arrows.meta"&gt;
   \begin{tikzpicture} \draw[-&gt;] (0,0) -- (2,1); \end{tikzpicture}
 &lt;/script&gt;

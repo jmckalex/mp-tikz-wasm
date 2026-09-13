@@ -15,7 +15,7 @@ import { MetaPost } from '../dist/index.js';
 
 const REPO = path.resolve(new URL('..', import.meta.url).pathname);
 const DIST = path.join(REPO, 'dist'), BUNDLES = path.join(DIST, 'bundles'), SITE = path.join(REPO, 'site'), OUT = path.join(REPO, 'build/pages');
-const REPO_URL = process.env.REPO_URL ?? 'https://github.com/YOUR-GITHUB-USER/metapost-wasm';
+const REPO_URL = process.env.REPO_URL ?? 'https://github.com/YOUR-GITHUB-USER/mp-tikz-wasm';
 const only = process.argv[2];
 fs.mkdirSync(OUT, { recursive: true }); fs.mkdirSync(path.join(REPO, 'build/vendor'), { recursive: true });
 
@@ -141,7 +141,7 @@ function inWorker(options) {
 }
 let mode = null;
 async function engine(options) {
-  if (mode !== 'in-process') { try { const e = await inWorker(options); mode ??= 'workers'; globalThis.ENGINE_MODE = 'workers'; return e; } catch (e) { console.warn('metapost-wasm: engines run in-process here (' + e.message + ')'); } }
+  if (mode !== 'in-process') { try { const e = await inWorker(options); mode ??= 'workers'; globalThis.ENGINE_MODE = 'workers'; return e; } catch (e) { console.warn('mp-tikz-wasm: engines run in-process here (' + e.message + ')'); } }
   mode = 'in-process'; globalThis.ENGINE_MODE = 'in-process';
   return globalThis.__mpwCreate(assetsText, options);
 }

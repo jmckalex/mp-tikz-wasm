@@ -153,7 +153,7 @@ export class TexBridge {
       const M = this.o.mplib;
       const work = this.o.workDir ?? '/work';
       writeFileDeep(M.FS, `${work}/${name}.dvi`, dvi);
-      const rc = dvitomp(M, `${work}/${name}.dvi`, `${work}/${name}.mpx`, '% Written by metapost-wasm');
+      const rc = dvitomp(M, `${work}/${name}.dvi`, `${work}/${name}.mpx`, '% Written by mp-tikz-wasm');
       if (rc !== 0) {
         let err = mpxLastError(M);
         try { err += '\n' + (M.FS.readFile(`${work}/mpxerr.log`, { encoding: 'utf8' }) as string); } catch { /* none */ }

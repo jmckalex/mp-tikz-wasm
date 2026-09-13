@@ -1,5 +1,5 @@
 /**
- * metapost-wasm — public API (docs/08). `MetaPost.create()` starts a Web
+ * mp-tikz-wasm — public API (docs/08). `MetaPost.create()` starts a Web
  * Worker in browsers and runs in-process in Node (or when `worker: false`).
  */
 import type { MetaPostOptions, RunOptions, RunResult, ProgressEvent, BundleName, LatexRunOptions, LatexResult } from './types.js';
@@ -129,7 +129,7 @@ export class MetaPost {
     const hasCallbacks = !!(options.runScript || options.makeText || options.onFindFile || options.modules || options.bundleIO);
     const useWorker = options.worker ?? (!isNode && typeof Worker !== 'undefined' && !hasCallbacks);
     if (!isNode && (options.runScript || options.makeText || options.onFindFile) && options.worker === undefined && typeof console !== 'undefined') {
-      console.warn('metapost-wasm: runScript/makeText/onFindFile callbacks require in-process mode; running on the main thread');
+      console.warn('mp-tikz-wasm: runScript/makeText/onFindFile callbacks require in-process mode; running on the main thread');
     }
     let mp!: MetaPost;
     const emit = (ev: string, data: unknown) => mp.emit(ev, data);
@@ -147,7 +147,7 @@ export class MetaPost {
       const p = this.backend.run(source, options);
       if (!(this.backend instanceof WorkerBackend) || !timeout) return p;
       return new Promise<RunResult>((resolve, reject) => {
-        const t = setTimeout(() => { this.backend.dispose(); reject(new Error(`metapost-wasm: run exceeded ${timeout} ms; worker terminated`)); }, timeout);
+        const t = setTimeout(() => { this.backend.dispose(); reject(new Error(`mp-tikz-wasm: run exceeded ${timeout} ms; worker terminated`)); }, timeout);
         p.then((r) => { clearTimeout(t); resolve(r); }, (e) => { clearTimeout(t); reject(e); });
         options.signal?.addEventListener('abort', () => { clearTimeout(t); this.backend.dispose(); reject(new Error('aborted')); });
       });
@@ -163,7 +163,7 @@ export class MetaPost {
       const p = this.backend.latex(source, options);
       if (!(this.backend instanceof WorkerBackend) || !timeout) return p;
       return new Promise<LatexResult>((resolve, reject) => {
-        const t = setTimeout(() => { this.backend.dispose(); reject(new Error(`metapost-wasm: latex exceeded ${timeout} ms; worker terminated`)); }, timeout);
+        const t = setTimeout(() => { this.backend.dispose(); reject(new Error(`mp-tikz-wasm: latex exceeded ${timeout} ms; worker terminated`)); }, timeout);
         p.then((r) => { clearTimeout(t); resolve(r); }, (e) => { clearTimeout(t); reject(e); });
       });
     };

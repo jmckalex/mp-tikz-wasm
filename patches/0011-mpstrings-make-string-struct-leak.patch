@@ -4,7 +4,7 @@
      str->str = mp->cur_string;
      str->len = tmp.len;
      assert (avl_ins (str, mp->strings, avl_false) > 0);
-+    mp_xfree (str); /* MetaPost-WASM patch 0011: the tree keeps a copy; this struct was leaked */
++    mp_xfree (str); /* mp-tikz-wasm patch 0011: the tree keeps a copy; this struct was leaked */
      str = (mp_string) avl_find (&tmp, mp->strings);
      mp->pool_in_use = mp->pool_in_use + (integer) str->len;
      if (mp->pool_in_use > mp->max_pl_used)

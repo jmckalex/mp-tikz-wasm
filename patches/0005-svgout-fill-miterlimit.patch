@@ -9,7 +9,7 @@
 -      mp_svg_store_double(mp, gr_miterlim_val((mp_stroked_object *)h)); 
 -      append_char(';');
 +    {
-+      /* MetaPost-WASM patch 0005: |h| may be a fill object (filldraw with an
++      /* mp-tikz-wasm patch 0005: |h| may be a fill object (filldraw with an
 +         elliptical pen); its |miterlim| sits at a different offset from a
 +         stroked object's, so the cast below read uninitialised memory. */
 +      double miterlim = (gr_type(h) == mp_fill_code)

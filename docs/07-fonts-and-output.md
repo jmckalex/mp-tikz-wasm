@@ -98,7 +98,7 @@ compare against the native oracle.
 | 3 | full Type 1 embedding of a subset |
 
 Ship this unmodified. It is what users hand to `dvips`/`ps2pdf` pipelines and
-what makes MetaPost-WASM output interchangeable with the real thing.
+what makes mp-tikz-wasm output interchangeable with the real thing.
 
 ## 5. The JSON / typed-array backend (ours)
 

@@ -47,7 +47,7 @@ Pure functions, no wasm.
 
 ### L2 — golden graphics
 
-For each case, compile with MetaPost-WASM and compare:
+For each case, compile with mp-tikz-wasm and compare:
 
 * **EPS**: normalise the `%%CreationDate` and `%%Creator` lines, then compare
   **byte for byte**. MetaPost's PostScript output is deterministic to the last
@@ -117,7 +117,7 @@ issue for anyone running untrusted input.
 ## 3. Differential testing
 
 The highest-value test in the project: a script that takes any `.mp` file,
-compiles it with both the oracle and MetaPost-WASM, and diffs. Point it at
+compiles it with both the oracle and mp-tikz-wasm, and diffs. Point it at
 every `.mp` in `texmf-dist/metapost/` (about 20 MB of real-world MetaPost,
 including `profcollege`, `metaobj`, `featpost`, `mcf2graph`) and triage the
 differences.

@@ -1,4 +1,4 @@
-# MetaPost-WASM
+# mp-tikz-wasm
 
 **MetaPost and TikZ in the browser and in Node.** John Hobby's MetaPost (the
 `mplib` library maintained by Taco Hoekwater and Luigi Scarso in TeX Live 2025,
@@ -11,7 +11,7 @@ pgfplots, Latin Modern, TikZ graph drawing under LuaTeX — and come out as one
 SVG per page, entirely client-side.
 
 ```ts
-import { MetaPost } from 'metapost-wasm';
+import { MetaPost } from 'mp-tikz-wasm';
 
 const mp = await MetaPost.create();
 const result = await mp.run(`
@@ -131,7 +131,7 @@ Results: `pages[]` (SVG strings), `log`, `texLog`, `dvisvgmLog`, `diagnostics`
 One script turns diagram tags into SVGs, with no other code on the page:
 
 ```html
-<script type="module" src="https://your-host/metapost-wasm/dist/auto.js"></script>
+<script type="module" src="https://your-host/mp-tikz-wasm/dist/auto.js"></script>
 
 <script type="text/tikz" data-libraries="arrows.meta,calc">
   \begin{tikzpicture} \draw[->] (0,0) -- (2,1) node[right] {$x$}; \end{tikzpicture}
@@ -152,7 +152,7 @@ one figure (`data-tex` picks the label engine). Errors show their diagnostics
 under the figure; `data-show-console` keeps the log. Rendered SVGs are cached
 in IndexedDB by content hash, so a revisited page shows its figures without
 running TeX. Elements added later are rendered by a `MutationObserver`; a
-`metapost-wasm:rendered` event fires per figure; `window.metapostWasm.render()`
+`mp-tikz-wasm:rendered` event fires per figure; `window.mpTikzWasm.render()`
 renders programmatically. `site/tags.html` is a working example page.
 
 ### The pre-warmed snapshot

@@ -112,7 +112,7 @@ export const TIKZ_EXAMPLES = [
 \\usetikzlibrary{trees,decorations.pathreplacing}
 \\begin{document}
 \\begin{tikzpicture}[level distance=11mm, sibling distance=18mm, every node/.style={draw,rounded corners,fill=blue!8,font=\\footnotesize}, edge from parent/.style={draw,-latex}]
-  \\node {MetaPost-WASM}
+  \\node {mp-tikz-wasm}
     child { node {mplib.wasm} child { node {SVG} } child { node {EPS} } }
     child { node {tex.wasm} child { node {DVI} } }
     child { node {dvisvgm.wasm} child { node {TikZ} } };

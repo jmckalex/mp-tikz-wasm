@@ -33,7 +33,7 @@ for (let i = 0; i < EXAMPLES.length; i++) {
   gallery.push({ id: ex.id, title: ex.title, tier: ex.tier, blurb: ex.blurb, src: ex.src, svg: r.figures[0]?.svg ?? '', status: r.status, stats: r.stats, diagnostics: r.diagnostics.slice(0, 3) });
   console.log(`  ${ex.id.padEnd(8)} ${r.status.padEnd(6)} ${r.stats.totalMs.toFixed(0).padStart(4)} ms  ${(r.figures[0]?.svg?.length ?? 0)} B`);
 }
-const wordmark = (await mp.run('prologues:=3; beginfig(1); draw "MetaPost" infont "cmbx10" scaled 6; endfig; end.', { format: 'svg', svg: { idPrefix: 'wm-' } })).figures[0].svg;
+const wordmark = (await mp.run('prologues:=3; beginfig(1); draw "mp-tikz-wasm" infont "cmbx10" scaled 6; endfig; end.', { format: 'svg', svg: { idPrefix: 'wm-' } })).figures[0].svg;
 // TikZ gallery: whole documents through tex.wasm + dvisvgm.wasm
 const tikzGallery = [];
 for (let i = 0; i < TIKZ_EXAMPLES.length; i++) {

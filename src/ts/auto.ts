@@ -1,7 +1,7 @@
 /**
  * auto.ts — the drop-in web integration (a tikzjax replacement).
  *
- *   <script type="module" src=".../metapost-wasm/dist/auto.js"></script>
+ *   <script type="module" src=".../mp-tikz-wasm/dist/auto.js"></script>
  *
  *   <script type="text/tikz">\begin{tikzpicture} ... \end{tikzpicture}</script>
  *   <script type="text/metapost">draw fullcircle scaled 50;</script>
@@ -80,7 +80,7 @@ export function wrapMetaPost(source: string, attrs: Record<string, string> = {})
   return `prologues:=${prologues};\n${inputs.join('\n')}${inputs.length ? '\n' : ''}beginfig(1);\n${body}\nendfig;\nend.`;
 }
 
-const DB_NAME = 'metapost-wasm-cache', STORE = 'svg';
+const DB_NAME = 'mp-tikz-wasm-cache', STORE = 'svg';
 function openDb(): Promise<IDBDatabase | null> {
   if (typeof indexedDB === 'undefined') return Promise.resolve(null);
   return new Promise((resolve) => {
@@ -101,7 +101,7 @@ async function cachePut(key: string, svg: string): Promise<void> {
 
 export class AutoRenderer {
   private engine: Promise<MetaPost> | null = null;
-  private version = 'metapost-wasm';
+  private version = 'mp-tikz-wasm';
   constructor(private options: MetaPostOptions & { cacheResults?: boolean } = {}) {}
 
   private get mp(): Promise<MetaPost> {
@@ -175,7 +175,7 @@ export async function renderElement(el: Element): Promise<void> {
       pre.textContent = (r.diagnostics.map((d) => `${d.severity}: ${d.message}${d.line ? ` (line ${d.line})` : ''}`).join('\n') + '\n' + r.log).trim();
       host.appendChild(pre);
     }
-    host.dispatchEvent(new CustomEvent('metapost-wasm:rendered', { bubbles: true, detail: { kind, ok: r.ok, ms: r.ms, cached: r.cached } }));
+    host.dispatchEvent(new CustomEvent('mp-tikz-wasm:rendered', { bubbles: true, detail: { kind, ok: r.ok, ms: r.ms, cached: r.cached } }));
   } catch (e: any) {
     host.className = `mpw-figure mpw-${kind} mpw-error`;
     const msg = typeof e === 'string' ? e : e?.message ?? e?.error ?? (() => { try { return JSON.stringify(e); } catch { return String(e); } })();
@@ -220,5 +220,5 @@ if (typeof document !== 'undefined' && typeof customElements !== 'undefined') {
     }
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
-  (globalThis as any).metapostWasm = { render: (req: RenderRequest) => (renderer ??= new AutoRenderer(loaderOptions())).render(req), autoRender, wrapTikz, wrapMetaPost };
+  (globalThis as any).mpTikzWasm = { render: (req: RenderRequest) => (renderer ??= new AutoRenderer(loaderOptions())).render(req), autoRender, wrapTikz, wrapMetaPost };
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MetaPost-WASM</title>
+<title>mp-tikz-wasm Guide</title>
 <meta name="description" content="MetaPost, pdfTeX and dvisvgm compiled to WebAssembly: MetaPost figures with LaTeX labels and whole TikZ/PGF documents rendered to SVG in the browser and in Node.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -79,8 +79,8 @@
 <div class="wrap">
 <header class="masthead">
   <div>
-    <div class="wordmark" aria-label="MetaPost">__WORDMARK__</div>
-    <div class="eyebrow">MetaPost-WASM · version __VERSION__ · MetaPost 2.11, pdfTeX 1.40, LuaTeX 1.21, dvisvgm 3.4.3</div>
+    <div class="wordmark" aria-label="mp-tikz-wasm">__WORDMARK__</div>
+    <div class="eyebrow">mp-tikz-wasm · version __VERSION__ · MetaPost 2.11, pdfTeX 1.40, LuaTeX 1.21, dvisvgm 3.4.3</div>
   </div>
   <div class="thesis">
     <div>
@@ -102,13 +102,13 @@
 <p>Two ways. The prebuilt archive is what most people want: it contains the compiled engines, the JavaScript and the font, format and package bundles, and needs neither TeX Live nor Emscripten.</p>
 <h3>1. Prebuilt release</h3>
 <ol class="steps">
-  <li><span>Download <code>metapost-wasm-__VERSION__.tar.gz</code> (or <code>.zip</code>) from the <a href="__REPO_URL__/releases">releases page</a> and unpack it.</span></li>
+  <li><span>Download <code>mp-tikz-wasm-__VERSION__.tar.gz</code> (or <code>.zip</code>) from the <a href="__REPO_URL__/releases">releases page</a> and unpack it.</span></li>
   <li><span>Host the <code>dist/</code> folder on any static web server (the files are plain; nothing needs special headers). To try it locally: <code>node serve.mjs 8080</code> inside the unpacked folder, then open <code>http://localhost:8080/site/</code>.</span></li>
   <li><span>Add one line to your page — see <a href="#tags">Drop-in tags</a> — or <code>import { MetaPost } from '/path/to/dist/index.js'</code>.</span></li>
 </ol>
 <h3>2. From source</h3>
 <pre><code>git clone __REPO_URL__.git
-cd metapost-wasm
+cd mp-tikz-wasm
 ./scripts/extract-vendor.sh      # fetch and verify the pinned TeX Live 2025 source (111 MB)
 ./scripts/verify-pin.sh          # assert the mplib API the design relies on
 npm install
@@ -142,7 +142,7 @@ npm run demo                     # http://localhost:8080/site/</code></pre>
   <li>Attributes (as <code>data-*</code> on script tags, plain on custom elements): <code>libraries</code>, <code>packages</code>, <code>preamble</code>, <code>border</code>, <code>gdlibraries</code> (graph drawing, implies LuaTeX) and <code>engine</code> (<code>auto</code> | <code>latex</code> | <code>lualatex</code> | <code>plain</code>) for TikZ; <code>tex</code> (<code>auto</code> | <code>plain</code> | <code>latex</code> | <code>none</code>) and <code>prologues</code> for MetaPost; <code>fonts="woff2"</code> for embedded fonts instead of outlines; <code>cache="off"</code>; <code>show-console</code>; <code>alt</code>.</li>
   <li>Loader attributes: <code>data-base</code> (where <code>bundles/</code> and the wasm files live, default next to the script), <code>data-worker="off"</code>, <code>data-observe="off"</code>, <code>data-snapshot="on"</code>.</li>
   <li><code>&lt;tikz-diagram&gt;</code> and <code>&lt;metapost-diagram&gt;</code> are registered custom elements (web components): they render when they are connected to the document, so elements created later by a framework or by script work too. The two <code>&lt;script&gt;</code> forms are picked up by a <code>MutationObserver</code> instead, because script elements cannot be custom elements.</li>
-  <li>Results are cached in IndexedDB by content hash; a revisited page shows every figure without running TeX. Each render dispatches a <code>metapost-wasm:rendered</code> event; <code>window.metapostWasm.render()</code> renders programmatically.</li>
+  <li>Results are cached in IndexedDB by content hash; a revisited page shows every figure without running TeX. Each render dispatches a <code>mp-tikz-wasm:rendered</code> event; <code>window.mpTikzWasm.render()</code> renders programmatically.</li>
   <li>Errors show their diagnostics under the figure rather than failing silently. Inside custom elements the content is HTML, so write <code>&amp;lt;</code> for <code>&lt;</code>; script tags are raw.</li>
 </ul>
 <p>The engines run in a Web Worker, so the page never blocks; there is a 20 s watchdog per run.</p>
@@ -277,7 +277,7 @@ __FIG:tz-graphdrawing__
 
 <h2 id="tikzjax">Compared with tikzjax</h2>
 <div class="tablewrap"><table>
-<thead><tr><th></th><th>MetaPost-WASM</th><th>tikzjax</th></tr></thead>
+<thead><tr><th></th><th>mp-tikz-wasm</th><th>tikzjax</th></tr></thead>
 <tbody>
 <tr><td>Engine</td><td>pdfTeX in DVI mode with a real <code>latex.fmt</code> built by the engine; LuaTeX for graph drawing and Lua</td><td>Knuth TeX with a plain-TeX memory snapshot; <code>\documentclass</code> and <code>\usepackage</code> shimmed or ignored</td></tr>
 <tr><td>Documents</td><td>any LaTeX document: <code>standalone</code>, <code>article</code>, multi-page, any bundled package</td><td>a TikZ picture body and curated preloaded packages</td></tr>
@@ -316,7 +316,7 @@ __FIG:tz-graphdrawing__
 <tr><td class="mono">node scripts/make-formats.mjs</td><td><code>plain.fmt</code>, <code>etex.fmt</code>, <code>latex.fmt</code>, <code>tikz.fmt</code>, built by <code>tex.wasm</code>; <code>dviluatex.fmt</code>, <code>dvilualatex.fmt</code> by <code>luatex.wasm</code></td></tr>
 <tr><td class="mono">node scripts/build-bundles.mjs</td><td><code>dist/bundles/*</code>: manifests and files per bundle</td></tr>
 <tr><td class="mono">npm run build:ts</td><td><code>dist/*.js</code>: the library, the worker, the CLI, <code>auto.js</code></td></tr>
-<tr><td class="mono">npm run package</td><td><code>release/metapost-wasm-__VERSION__.tar.gz</code> and <code>.zip</code>: the prebuilt distribution for a GitHub release</td></tr>
+<tr><td class="mono">npm run package</td><td><code>release/mp-tikz-wasm-__VERSION__.tar.gz</code> and <code>.zip</code>: the prebuilt distribution for a GitHub release</td></tr>
 <tr><td class="mono">npm run build:guide, build:standalone</td><td>this page, and the single-file demo with everything inlined</td></tr>
 </tbody></table></div>
 <p>The design documents in <code>docs/</code> record every decision; <code>docs/14-implementation-notes.md</code> records what was learned building it, including the upstream defects.</p>

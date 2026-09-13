@@ -1,6 +1,6 @@
 # Licences
 
-MetaPost-WASM is a build of several upstream programs plus its own glue.
+mp-tikz-wasm is a build of several upstream programs plus its own glue.
 Each part keeps its licence; the table says what applies to what.
 
 | Part | Licence | Notes |

@@ -1,7 +1,7 @@
 # Sample outputs
 
 Ground truth, generated during scoping on 2026-09-11. Use these as the first
-golden files: if MetaPost-WASM cannot reproduce them (modulo the creation-date
+golden files: if mp-tikz-wasm cannot reproduce them (modulo the creation-date
 comment), something is wrong.
 
 Source for the `latex-math.*` family: `../mpx-samples/latex-math.mp`, a figure

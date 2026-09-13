@@ -67,8 +67,8 @@ find "$OUT/tex" \( -name '*.dtx' -o -name '*.ins' -o -name '*.pdf' -o -name 'REA
 # latex.ltx run and intercepts its final \dump to load the packages first.
 # Only behaviour-neutral packages go in: nothing here changes the output of a
 # document that does not use it.
-mkdir -p "$OUT/tex/latex/metapost-wasm"
-cat > "$OUT/tex/latex/metapost-wasm/tikz-snapshot.tex" <<'INI'
+mkdir -p "$OUT/tex/latex/mp-tikz-wasm"
+cat > "$OUT/tex/latex/mp-tikz-wasm/tikz-snapshot.tex" <<'INI'
 % tikz-snapshot.tex — read by tikz.ini in place of latex.ltx's final \dump.
 % pgf loads its own dependencies with \usepackage, which latex.ltx forbids
 % before \documentclass; \documentclass re-establishes the real \usepackage.
@@ -88,7 +88,7 @@ cat > "$OUT/tex/latex/metapost-wasm/tikz-snapshot.tex" <<'INI'
 \global\pgf@sys@id@count=0 \global\pgf@sys@svg@objectcount=0 \global\pgf@sys@svg@scopecount=0 \global\pgf@sys@svg@type@count=0
 \makeatother
 INI
-cat > "$OUT/tex/latex/metapost-wasm/tikz.ini" <<'INI'
+cat > "$OUT/tex/latex/mp-tikz-wasm/tikz.ini" <<'INI'
 % tikz.ini — like latex.ini, but load tikz-snapshot.tex before dumping
 \catcode`\{=1 \catcode`\}=2 \catcode`\#=6
 \ifx\pdfoutput\undefined \else \ifx\pdfoutput\relax \else \input pdftexconfig \pdfoutput=0 \fi\fi

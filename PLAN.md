@@ -1,4 +1,4 @@
-# MetaPost-WASM — Master Plan
+# mp-tikz-wasm — Master Plan
 
 **Audience:** the engineer (human or model) implementing this. Read this file,
 then `docs/13-verified-findings.md` (so you know what is established fact
@@ -13,7 +13,7 @@ write the inconvenience down.
 
 ## 1. Goal
 
-Ship `metapost-wasm`: an npm package and a set of `.wasm` artifacts that let a
+Ship `mp-tikz-wasm`: an npm package and a set of `.wasm` artifacts that let a
 browser or Node process compile MetaPost source to vector graphics, with
 feature parity against the `mpost` command-line program as shipped in TeX Live,
 including `btex ... etex` typesetting via TeX and LaTeX.
@@ -57,7 +57,7 @@ Three WebAssembly modules, one TypeScript orchestrator, one asset system.
 
 ```
                    ┌─────────────────────────────────────────────┐
-                   │  @metapost-wasm/core  (TypeScript, Worker)  │
+                   │  @mp-tikz-wasm/core  (TypeScript, Worker)  │
                    │  ─────────────────────────────────────────  │
    source.mp  ───► │  1. scan for btex/verbatimtex + inputs      │
                    │  2. TeX Bridge: batch-typeset misses        │ ◄──┐

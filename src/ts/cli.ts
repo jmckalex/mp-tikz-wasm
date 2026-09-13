@@ -95,7 +95,7 @@ async function main() {
     texmfDir: o.texmf || undefined, bundleBaseUrl: o.bundles ? 'file://' + path.resolve(o.bundles) + '/' : undefined,
     deterministic: false,
   });
-  if (o.version) { console.log(`MetaPost ${mp.version.metapost} (metapost-wasm) with ${mp.version.tex}`); mp.dispose(); return; }
+  if (o.version) { console.log(`MetaPost ${mp.version.metapost} (mp-tikz-wasm) with ${mp.version.tex}`); mp.dispose(); return; }
   if (o.troff) console.error('mpost-wasm: warning: troff mode is not supported; continuing in TeX mode');
   if (o.latex) {
     if (!o.file) { console.error('mpost-wasm: --latex needs a .tex file'); process.exit(1); }

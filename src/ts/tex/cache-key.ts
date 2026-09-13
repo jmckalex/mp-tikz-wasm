@@ -70,8 +70,8 @@ class Encoder {
 }
 
 /** Version the encodings so a change in layout can never alias an old key. */
-const SNIPPET_TAG = 'metapost-wasm:snippet:1';
-const DOCUMENT_TAG = 'metapost-wasm:document:1';
+const SNIPPET_TAG = 'mp-tikz-wasm:snippet:1';
+const DOCUMENT_TAG = 'mp-tikz-wasm:document:1';
 
 /** L2 key: H(engineId, formatId, verbatimtex chain, body, texscriptmode). */
 export function snippetKey(parts: SnippetKeyParts): string {

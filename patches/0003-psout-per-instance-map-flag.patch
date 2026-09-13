@@ -4,7 +4,7 @@
  
  @ @<Glob...@>=
  mapitem *mitem;
-+int psname_table_read; /* MetaPost-WASM patch 0003: per-instance, not static */
++int psname_table_read; /* mp-tikz-wasm patch 0003: per-instance, not static */
  fm_entry *fm_cur;
  fm_entry *loaded_tfm_found;
  fm_entry *avail_tfm_found;
@@ -31,7 +31,7 @@
 -  if (isread == 0) {
 -    isread++;
 +  if (mp->ps->psname_table_read == 0) {
-+    /* MetaPost-WASM patch 0003: upstream keeps this flag in a function-scope
++    /* mp-tikz-wasm patch 0003: upstream keeps this flag in a function-scope
 +       static, so a second |MP| instance in the same process never reads the
 +       font map and crashes in the Type 1 code. Keep it per instance. */
 +    mp->ps->psname_table_read = 1;

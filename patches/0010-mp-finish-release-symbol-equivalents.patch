@@ -13,7 +13,7 @@
  if (mp->frozen_symbols != NULL)
    avl_destroy (mp->frozen_symbols);
 +
-+@ MetaPost-WASM patch 0010. Destroying the symbol table frees the symbol
++@ mp-tikz-wasm patch 0010. Destroying the symbol table frees the symbol
 +structures only; what they point to (macro bodies, the values and dependency
 +lists of variables) stayed allocated, some 300\,KB per instance for the
 +definitions in \.{plain.mp} alone. That is invisible to a process that runs

@@ -247,7 +247,7 @@ Two layers, both content-addressed with SHA-256.
   format file. Both must be in the key: a new LaTeX release changes output.
 * L1 turns "recompile an unchanged document" into zero TeX runs.
 * L2 turns "edit one label out of forty" into one TeX run for one snippet.
-* In Node, back the cache with a directory under `~/.cache/metapost-wasm/`.
+* In Node, back the cache with a directory under `~/.cache/mp-tikz-wasm/`.
 * In the browser, IndexedDB, with an LRU cap (default 64 MB) and a
   `cache.clear()` in the API.
 * Cache the *`.mpx` chunk text*, not the DVI — it is smaller and skips
@@ -311,7 +311,7 @@ generated TeX. Support it: `options.texPreamble` (a string) and
 
 ## 11. Acceptance tests for this document
 
-1. `reference/mpx-samples/latex-math.mp` compiled by MetaPost-WASM produces an
+1. `reference/mpx-samples/latex-math.mp` compiled by mp-tikz-wasm produces an
    SVG identical (modulo the creation-date comment) to native `mpost -tex=latex`.
 2. A document with 40 identical `btex $x$ etex` blocks runs TeX **once** and
    hits L2 for 39 of them.

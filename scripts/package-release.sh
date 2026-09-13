@@ -3,11 +3,11 @@
 # release: dist/ (the three wasm engines, the JavaScript, auto.js, and the
 # bundles) plus the demo pages, so users need neither TeX Live nor Emscripten.
 #
-#   scripts/package-release.sh            -> release/metapost-wasm-<version>.tar.gz and .zip
+#   scripts/package-release.sh            -> release/mp-tikz-wasm-<version>.tar.gz and .zip
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(node -p "require('$REPO/package.json').version")"
-NAME="metapost-wasm-$VERSION"
+NAME="mp-tikz-wasm-$VERSION"
 OUT="$REPO/release"
 STAGE="$OUT/$NAME"
 for f in dist/mplib.wasm dist/tex.wasm dist/dvisvgm.wasm dist/index.js dist/auto.js dist/bundles/index.json; do
@@ -21,7 +21,7 @@ cp "$REPO"/site/index.html "$REPO"/site/app.js "$REPO"/site/examples.js "$REPO"/
 cp "$REPO/README.md" "$REPO/LICENSE.md" "$STAGE/" 2>/dev/null || true
 cp "$REPO/scripts/serve.mjs" "$STAGE/serve.mjs"
 cat > "$STAGE/START.md" <<'TXT'
-metapost-wasm — prebuilt distribution
+mp-tikz-wasm — prebuilt distribution
 
   dist/           the library: index.js (API), auto.js (drop-in tags), worker.js,
                   mplib.wasm, tex.wasm, dvisvgm.wasm, bundles/ (fonts, formats, packages)

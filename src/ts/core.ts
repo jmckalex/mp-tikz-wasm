@@ -289,13 +289,13 @@ export class MetaPostCore {
    */
   async latex(source: string, lo: LatexRunOptions = {}): Promise<LatexResult> {
     const t0 = now();
-    if (!this.env.texFactory) throw new Error('metapost-wasm: tex.wasm is not available in this build');
-    if (!this.env.dvisvgmFactory) throw new Error('metapost-wasm: dvisvgm.wasm is not available in this build');
+    if (!this.env.texFactory) throw new Error('mp-tikz-wasm: tex.wasm is not available in this build');
+    if (!this.env.dvisvgmFactory) throw new Error('mp-tikz-wasm: dvisvgm.wasm is not available in this build');
     const job = lo.jobName ?? 'doc';
     let engine = lo.engine ?? 'latex';
     if (engine === 'auto') engine = needsLuaTeX(source) ? 'lualatex' : /\\bye\b/.test(source) ? 'plain' : 'latex';
     const lua = engine === 'lualatex' || engine === 'luatex';
-    if (lua && !this.env.luatexFactory) throw new Error('metapost-wasm: luatex.wasm is not available in this build');
+    if (lua && !this.env.luatexFactory) throw new Error('mp-tikz-wasm: luatex.wasm is not available in this build');
     // 'plain' is plain TeX with e-TeX (TeX Live's etex), which PGF requires;
     // 'tex' is Knuth-compatible plain.fmt without it; the LuaTeX engines use
     // TeX Live's DVI-mode formats dvilualatex / dviluatex.

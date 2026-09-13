@@ -6,7 +6,7 @@ choices behind it.
 ## 1. Shape
 
 ```ts
-import { MetaPost } from 'metapost-wasm';
+import { MetaPost } from 'mp-tikz-wasm';
 
 const mp = await MetaPost.create({
   bundles: ['core', 'cm-tfm', 'cm-type1', 'latex'],

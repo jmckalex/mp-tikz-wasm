@@ -87,7 +87,7 @@ export class BundleSet {
   fetchSyncFile(f: BundleFile): Uint8Array {
     const hit = this.cache.get(f.path);
     if (hit) return hit;
-    if (!this.io.fetchSync) throw new Error(`metapost-wasm: ${f.path} was not prefetched and this environment cannot load files synchronously (run in a Worker, or call preload())`);
+    if (!this.io.fetchSync) throw new Error(`mp-tikz-wasm: ${f.path} was not prefetched and this environment cannot load files synchronously (run in a Worker, or call preload())`);
     const data = this.io.fetchSync(f.url);
     this.cache.set(f.path, data);
     return data;

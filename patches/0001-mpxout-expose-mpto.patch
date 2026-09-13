@@ -19,7 +19,7 @@
      return retcode;
  }
  
-+@ MetaPost-WASM patch 0001: run only the \.{mpto} step. The classic
++@ mp-tikz-wasm patch 0001: run only the \.{mpto} step. The classic
 +|mpx_makempx| insists on spawning \TeX\ and running \.{dvitomp} in the same
 +call, which an embedding without subprocesses cannot do. This wrapper writes
 +the generated \TeX\ file to |opt->texname| and returns the history value.

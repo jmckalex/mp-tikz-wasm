@@ -6,7 +6,7 @@ import path from 'node:path';
 const REPO = path.resolve(new URL('../..', import.meta.url).pathname);
 const built = fs.existsSync(path.join(REPO, 'dist/index.js')) && fs.existsSync(path.join(REPO, 'dist/mplib.wasm')) && fs.existsSync(path.join(REPO, 'dist/bundles/core/manifest.json'));
 
-describe.skipIf(!built)('metapost-wasm end to end', () => {
+describe.skipIf(!built)('mp-tikz-wasm end to end', () => {
   let mp: any;
   beforeAll(async () => {
     const { MetaPost } = await import(path.join(REPO, 'dist/index.js'));

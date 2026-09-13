@@ -1,5 +1,5 @@
 /**
- * metapost-wasm — proposed public API.
+ * mp-tikz-wasm — proposed public API.
  *
  * This is a specification, not an implementation. It is the contract M7 must
  * meet. Rationale for each decision is in docs/08-javascript-api.md.

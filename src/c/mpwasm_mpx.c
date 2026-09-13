@@ -49,7 +49,7 @@ int mpwasm_dvitomp(const char *dvi_path, const char *mpx_path, const char *banne
   o.mode = mpx_tex_mode;
   o.mpname = (char *) dvi_path;
   o.mpxname = (char *) mpx_path;
-  o.banner = (char *) (banner ? banner : "% Written by metapost-wasm");
+  o.banner = (char *) (banner ? banner : "% Written by mp-tikz-wasm");
   o.find_file = mpx_find;
   o.debug = 0;
   mpx_err[0] = 0;

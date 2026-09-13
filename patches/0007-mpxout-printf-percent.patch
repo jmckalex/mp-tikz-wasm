@@ -6,7 +6,7 @@
  static const char *mpx_pretex1[] = { 
 -    "\\gdef\\mpxshipout{\\shipout\\hbox\\bgroup%\n"
 -    "  \\setbox0=\\hbox\\bgroup}%\n"
-+    /* MetaPost-WASM patch 0007: these are printf formats, so the two |%|
++    /* mp-tikz-wasm patch 0007: these are printf formats, so the two |%|
 +       below must be |%%|. glibc printed a bare |%\n| verbatim, BSD libc
 +       dropped the |%|, and musl (Emscripten) prints nothing at all. */
 +    "\\gdef\\mpxshipout{\\shipout\\hbox\\bgroup%%\n"

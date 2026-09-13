@@ -18,7 +18,7 @@ whole tree for wasm" route for `tex.wasm` — see §4.2.
 ## 2. Repository layout
 
 ```
-metapost-wasm/
+mp-tikz-wasm/
 ├── vendor/
 │   ├── SOURCES.lock            # tarball names + SHA-256
 │   └── texlive-source/         # sparse checkout (submodule or script-populated)
@@ -174,7 +174,7 @@ emconfigure ../vendor/texlive-source/configure \
     --host=wasm32-unknown-emscripten --build=$(../vendor/.../config.guess) \
     --disable-all-pkgs --enable-web2c --enable-pdftex --disable-shared \
     --disable-largefile --without-x \
-    --with-banner-add=/metapost-wasm \
+    --with-banner-add=/mp-tikz-wasm \
     ac_cv_func_mmap_fixed_mapped=no
 emmake make -C texk/web2c pdftex
 ```
@@ -246,7 +246,7 @@ Publish one npm package with subpath exports:
 
 ```json
 {
-  "name": "metapost-wasm",
+  "name": "mp-tikz-wasm",
   "exports": {
     ".":            { "import": "./dist/index.mjs",  "require": "./dist/index.cjs", "types": "./dist/index.d.ts" },
     "./worker":     "./dist/worker.mjs",
@@ -258,5 +258,5 @@ Publish one npm package with subpath exports:
 ```
 
 Bundles (texmf assets) go in **separate** packages —
-`@metapost-wasm/bundle-core`, `-plain`, `-latex`, `-cm-fonts` — so a user who
+`@mp-tikz-wasm/bundle-core`, `-plain`, `-latex`, `-cm-fonts` — so a user who
 only draws geometry never downloads a 3.6 MB format file. See `docs/06` §4.

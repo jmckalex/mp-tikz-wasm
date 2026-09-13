@@ -47,7 +47,7 @@ o->make_text        = mpwasm_make_text;
 o->run_script       = mpwasm_run_script;
 o->run_make_mpx     = mpwasm_run_make_mpx;   /* classic path, see docs/05 §7   */
 o->run_editor       = mpwasm_run_editor;     /* must be a no-op                */
-o->banner           = "MetaPost-WASM";
+o->banner           = "mp-tikz-wasm";
 ```
 
 **`mem_name` is not optional.** With `mem_name == NULL`, `mp_execute` reaches

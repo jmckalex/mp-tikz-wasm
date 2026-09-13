@@ -1,5 +1,5 @@
 // golden.mjs — L2 golden tests (docs/09 §2): compile every test/golden/cases/*.mp
-// with metapost-wasm and with the oracle `mpost`, and compare EPS and SVG byte
+// with mp-tikz-wasm and with the oracle `mpost`, and compare EPS and SVG byte
 // for byte after normalising the creation-date lines.
 //
 //   node scripts/golden.mjs            compare against the oracle (regenerating expectations)

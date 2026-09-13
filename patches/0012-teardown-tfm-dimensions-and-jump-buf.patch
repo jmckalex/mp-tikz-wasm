@@ -4,7 +4,7 @@
  #include <w2c/config.h>
  #include <stdio.h>
  #include <stdlib.h>
-+#include <stdint.h>            /* MetaPost-WASM patch 0012: |uintptr_t| */
++#include <stdint.h>            /* mp-tikz-wasm patch 0012: |uintptr_t| */
  #include <string.h>
  #include <stdarg.h>
  #include <assert.h>
@@ -12,7 +12,7 @@
  static void mp_free (MP mp) {
    int k;        /* loop variable */
    @<Release what the symbol table points to@>;
-+  @<Free table entries@>; /* MetaPost-WASM patch 0012: this hands nodes back to the
++  @<Free table entries@>; /* mp-tikz-wasm patch 0012: this hands nodes back to the
 +                             free lists, so it has to run before the deallocation
 +                             code drains them; upstream ran it afterwards and the
 +                             nodes (|bad_vardef|, |dep_head|, the list heads) leaked */
@@ -28,7 +28,7 @@
  @ @<Release what the symbol table points to@>=
  if (mp->symbols != NULL)
    avl_walk (mp->symbols, mp_release_symbol_equivalent, mp);
-+mp_release_tfm_dimensions (mp); /* MetaPost-WASM patch 0012; must precede the |zero_val| and |inf_val| release below */
++mp_release_tfm_dimensions (mp); /* mp-tikz-wasm patch 0012; must precede the |zero_val| and |inf_val| release below */
  if (mp->temp_val != NULL) { /* allocated at initialization, never released */
    mp_free_value_node (mp, mp->temp_val);
    mp->temp_val = NULL;
@@ -36,7 +36,7 @@
    mp->mem_file = NULL;
  }
  xfree (mp->name_of_file);
-+xfree (mp->metric_file_name); /* MetaPost-WASM patch 0012: set by |@<Finish the \.{TFM} file@>|, never freed */
++xfree (mp->metric_file_name); /* mp-tikz-wasm patch 0012: set by |@<Finish the \.{TFM} file@>|, never freed */
  
 +@ Every \&{shipout} stores four value nodes (the \&{charwd}, \&{charht},
 +\&{chardp} and \&{charic} of the figure) in |tfm_width|, |tfm_height|,
@@ -45,7 +45,7 @@
 +arrays point into the shared |dimen_head| lists (and at |zero_val|), so
 +freeing them entry by entry double-frees. Freeing each distinct pointer once,
 +and leaving |zero_val| and |inf_val| alone, is right in both states.
-+(MetaPost-WASM patch 0012.)
++(mp-tikz-wasm patch 0012.)
 +
 +@<Declarations@>=
 +static void mp_release_tfm_dimensions (MP mp);
@@ -86,7 +86,7 @@
 -  if (mp->char_exists[k])
 -    mp->tfm_width[k] = mp_sort_in (mp, value_number (mp->tfm_width[k]));
 +  if (mp->char_exists[k]) {
-+    mp_node pd = mp->tfm_width[k]; /* MetaPost-WASM patch 0012: |sort_in| copies the value; the node was leaked */
++    mp_node pd = mp->tfm_width[k]; /* mp-tikz-wasm patch 0012: |sort_in| copies the value; the node was leaked */
 +    mp->tfm_width[k] = mp_sort_in (mp, value_number (pd));
 +    mp_free_value_node (mp, pd);
 +  }
@@ -98,7 +98,7 @@
  for (k = mp->bc; k <= mp->ec; k++) {
    if (mp->char_exists[k]) {
 -    if (number_zero(value_number (mp->tfm_height[k])))
-+    mp_node pd = mp->tfm_height[k]; /* MetaPost-WASM patch 0012 */
++    mp_node pd = mp->tfm_height[k]; /* mp-tikz-wasm patch 0012 */
 +    if (number_zero(value_number (pd)))
        mp->tfm_height[k] = mp->zero_val;
      else
@@ -113,7 +113,7 @@
  for (k = mp->bc; k <= mp->ec; k++) {
    if (mp->char_exists[k]) {
 -    if (number_zero(value_number (mp->tfm_depth[k])))
-+    mp_node pd = mp->tfm_depth[k]; /* MetaPost-WASM patch 0012 */
++    mp_node pd = mp->tfm_depth[k]; /* mp-tikz-wasm patch 0012 */
 +    if (number_zero(value_number (pd)))
        mp->tfm_depth[k] = mp->zero_val;
      else
@@ -128,7 +128,7 @@
  for (k = mp->bc; k <= mp->ec; k++) {
    if (mp->char_exists[k]) {
 -    if (number_zero(value_number (mp->tfm_ital_corr[k])))
-+    mp_node pd = mp->tfm_ital_corr[k]; /* MetaPost-WASM patch 0012 */
++    mp_node pd = mp->tfm_ital_corr[k]; /* mp-tikz-wasm patch 0012 */
 +    if (number_zero(value_number (pd)))
        mp->tfm_ital_corr[k] = mp->zero_val;
      else
@@ -144,7 +144,7 @@
    mp_pen_info *pen = NULL;
    MP mp = hh->parent;
    if (standalone) {
-+     mp_xfree(mp->jump_buf); /* MetaPost-WASM patch 0012: the buffer left by |mp_execute| was leaked */
++     mp_xfree(mp->jump_buf); /* mp-tikz-wasm patch 0012: the buffer left by |mp_execute| was leaked */
       mp->jump_buf = malloc(sizeof(jmp_buf));
       if (mp->jump_buf == NULL || setjmp(*(mp->jump_buf)))
         return 0;
@@ -154,7 +154,7 @@
    int prologues, procset;
    MP mp = hh->parent;
    if (standalone) {
-+     mp_xfree(mp->jump_buf); /* MetaPost-WASM patch 0012: the buffer left by |mp_execute| was leaked */
++     mp_xfree(mp->jump_buf); /* mp-tikz-wasm patch 0012: the buffer left by |mp_execute| was leaked */
       mp->jump_buf = malloc(sizeof(jmp_buf));
       if (mp->jump_buf == NULL || setjmp(*(mp->jump_buf)))
         return 0;
@@ -164,7 +164,7 @@
    }
    c = round_unscaled(internal_value (mp_char_code));
    if (standalone) {
-+     mp_xfree(mp->jump_buf); /* MetaPost-WASM patch 0012: the buffer left by |mp_execute| was leaked */
++     mp_xfree(mp->jump_buf); /* mp-tikz-wasm patch 0012: the buffer left by |mp_execute| was leaked */
       mp->jump_buf = malloc(sizeof(jmp_buf));
       if (mp->jump_buf == NULL || setjmp(*(mp->jump_buf)))
         return 0;

@@ -1,4 +1,4 @@
-# MetaPost-WASM top-level Makefile.
+# mp-tikz-wasm top-level Makefile.
 #
 #   make tangle     tangle the vendored CWEB into build/gen (after applying patches)
 #   make native     build build/native/libmplib.a with the host compiler

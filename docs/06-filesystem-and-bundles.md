@@ -60,7 +60,7 @@ A bundle is a **manifest + a content-addressed blob store**, not a tar.
 
 ```json
 {
-  "name": "@metapost-wasm/bundle-latex",
+  "name": "@mp-tikz-wasm/bundle-latex",
   "version": "2025.1",
   "texlive": "2025",
   "files": {
@@ -172,7 +172,7 @@ Two build-time responsibilities beyond copying:
 * **Build the format with `tex.wasm` itself**, not the host's TeX
   (`docs/03` §4.5).
 * **Emit a `font → package` index** so a missing-font error can say *"cmbx12
-  not in this bundle; it is in `cm`. Add `@metapost-wasm/bundle-cm-tfm`."*
+  not in this bundle; it is in `cm`. Add `@mp-tikz-wasm/bundle-cm-tfm`."*
 
 ### 5.1 Trimming `psfonts.map`
 

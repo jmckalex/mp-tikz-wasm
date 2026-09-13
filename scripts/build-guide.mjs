@@ -9,7 +9,7 @@ import { MetaPost } from '../dist/index.js';
 import { GUIDE } from './guide-examples.mjs';
 
 const REPO = path.resolve(new URL('..', import.meta.url).pathname);
-const REPO_URL = process.env.REPO_URL ?? 'https://github.com/YOUR-GITHUB-USER/metapost-wasm';
+const REPO_URL = process.env.REPO_URL ?? 'https://github.com/YOUR-GITHUB-USER/mp-tikz-wasm';
 const VERSION = JSON.parse(fs.readFileSync(path.join(REPO, 'package.json'), 'utf8')).version;
 const esc = (s) => s.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
 const MB = (n) => (n / 1048576).toFixed(1);
@@ -43,7 +43,7 @@ for (const ex of GUIDE) {
 </figure>`;
   console.log(`  ${ex.id.padEnd(12)} ${ms}`);
 }
-const wordmark = (await mp.run('prologues:=3; beginfig(1); draw "MetaPost" infont "cmbx10" scaled 4.5; endfig; end.', { format: 'svg', svg: { idPrefix: 'wm-' } })).figures[0].svg;
+const wordmark = (await mp.run('prologues:=3; beginfig(1); draw "mp-tikz-wasm" infont "cmbx10" scaled 4.5; endfig; end.', { format: 'svg', svg: { idPrefix: 'wm-' } })).figures[0].svg;
 mp.dispose();
 
 const sz = (f) => fs.statSync(path.join(REPO, 'dist', f)).size;
