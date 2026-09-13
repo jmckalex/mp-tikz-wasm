@@ -14,9 +14,9 @@ CLI, drop-in HTML tags, ten lazily fetched texmf bundles, five demo pages and
 a feature guide. Output is byte-identical to TeX Live 2025 on both golden
 corpora and the 1181-page PGF manual. 207 tests pass, the 46-check native
 contract harness passes, there is no per-instance memory leak. The demos are
-live at <https://jmckalex.org/software/mp-tikz-wasm/>. **Two things are open:
-the GitHub Actions CI has never gone green (see "CI", the next task), and six
-commits are on `main` but not yet pushed.**
+live at <https://jmckalex.org/software/mp-tikz-wasm/>. **The GitHub Actions CI
+is now green** (fixed 2026-09-13, session 4; see "CI" below), and `main` is
+fully pushed.
 
 ## What happened this session (2026-09-13)
 
@@ -50,37 +50,75 @@ commits are on `main` but not yet pushed.**
    parallel at start-up, and figure placeholders that say what is being
    fetched. `test/e2e/prefetch.test.ts`.
 
-## CI — the next task
+## CI — green as of 2026-09-13 (session 4)
 
-`.github/workflows/ci.yml` runs two jobs on every push: `native` (TeX Live
-from apt, vendor download, `make contract`, `npm test`) and `wasm`
-(Emscripten 6.0.9, every engine, texmf, formats, bundles, both golden
-suites). Three runs so far, all red, each further than the last:
+`.github/workflows/ci.yml` runs two jobs on every push, both green:
 
-| Run | Failed at | Cause | State |
-| --- | --- | --- | --- |
-| 1 | vendor download | `ftp.math.utah.edu` unreachable from the runners | fixed and pushed: mirror fallback in `scripts/extract-vendor.sh` + `actions/cache` for the tarball |
-| 2, native | `make contract` | `mp.c` compiled before `mpmath.w` was tangled: `GEN_H` listed four of twelve generated headers; and the vpath-based object rule cannot build on a clean tree under macOS make 3.81 either | **fixed locally (commit f822ff3), not pushed**; verified with a clean rebuild here |
-| 2, wasm | `scripts/native-texlive.sh` | unknown: it died with "exit code 2" while building kpathsea or pdftex natively, and the make output went to a log file the runner does not show | **not yet diagnosed.** Commit 9f5eef2 makes the native scripts print the failing log's tail, so the next run shows the reason |
+- **native** (ubuntu-latest): apt TeX Live as the oracle, the pinned vendor
+  tree, `make contract` (the 46-check harness), and the unit tests
+  (`npx vitest run test/unit`).
+- **wasm** (ubuntu-latest, Emscripten 6.0.9): builds all four engines
+  (`mplib`, `tex`, `dvisvgm`, `luatex`), the texmf tree, formats and
+  bundles, the TypeScript, then the e2e tests (`test/e2e`: API, memory,
+  prefetch) and the **MetaPost** golden `--check`.
 
-Do this first:
+Green run: <https://github.com/jmckalex/mp-tikz-wasm/actions/runs/34769341698>
+(commit c24dbb3). The README badge is green.
+
+What was wrong and what fixed it (session 4, five commits f822ff3 →
+c24dbb3, all pushed):
+
+1. **vendor download** — `ftp.math.utah.edu` unreachable from the runners.
+   Fixed in session 3: mirror fallback in `scripts/extract-vendor.sh` and
+   `actions/cache` for the tarball.
+2. **`make contract` tangling order** and a vpath object rule that could not
+   build on a clean tree. Fixed in session 3 (commit f822ff3); the Makefile
+   lists every generated header and uses no vpath.
+3. **wasm build died in `native-texlive.sh`** with "No such file or
+   directory": TeX Live's top-level configure prepares only
+   `auxdir/auxsub`, `libs`, `utils` and `texk`; the packages below them
+   (`texk/kpathsea`, `libs/zlib`, `texk/web2c`, …) are created and
+   configured lazily by the `recurse` rule of `am/recurse.am` when make runs
+   in `libs/` or `texk/`. The local tree only had them because session 1 ran
+   a full top-level make once. `scripts/native-common.sh` now reproduces the
+   recursion's per-package configure (from `subsubdir-conf.cmd`), and the
+   three native scripts configure and build only what pdfTeX, LuaTeX and
+   dvisvgm need. The top-level configure names the source by a relative path
+   so the tangled C is identical between machines.
+4. **native contract** failed one check: the `.mpx` oracle sample
+   (`reference/mpx-samples/latex-math.mpx`) was never committed — the
+   `*.mpx` ignore rule swallowed it. Un-ignored and committed.
+5. **luatex.wasm** failed on a clean tree (stale objects masked it on the
+   Mac): (a) the native LuaTeX build was recorded with `make -j8 V=1` and two
+   verbose command lines interleaved in the log, corrupting a flag
+   (`-DLUAI_HASHLIMIT=6` → `-DLUAI_HA) __DSHLIMIT=6`) — now recorded serially
+   (GNU make ≥ 4 keeps parallel speed with `-Otarget`, Apple's 3.81 uses
+   `-j1`); (b) the replay compiled the native mplib tangles whose recorded
+   VPATH-fallback path does not exist, then again from the patched tangle —
+   `build-luatex-wasm.sh` now skips the native mplib (keeping `lmplib.c`).
+6. **texmf build** aborted because Ubuntu's TeX Live lacks Latin Modern in
+   `TEXMFDIST`. The apt lists install `lmodern`, and `build-texmf.sh`
+   searches every configured TeX tree (`kpsewhich -expand-path '$TEXMF'`)
+   and tolerates absent optional fonts.
+
+**The TikZ/LaTeX golden (`node scripts/golden-tikz.mjs --check`) is a dev
+gate, not on CI.** Its SVG output tracks the system pgf and font versions,
+and the runner's `texlive-pictures` is Ubuntu's 2023 pgf, not TeX Live
+2025's; `03-shading-clip` differed by a fraction of a point in its bounding
+box for that reason (the MetaPost golden, reproducible from the pinned mplib
+and Computer Modern, passes on the runner). Run `npm run test:golden:tikz`
+(no `--check`) on a TeX Live 2025 machine to regenerate `tikz-expected/`
+before committing, then `--check` locally. The CI e2e step exercises the
+LaTeX/TikZ pipeline for behaviour.
+
+To watch a run:
 
 ```sh
-git push origin main                      # 6 commits; CI starts by itself
-gh run list --limit 3                     # wait for the new run
+gh run list --limit 3
 gh run view <run-id> --json jobs --jq '.jobs[] | "\(.name): \(.conclusion) — " + ([.steps[] | select(.conclusion=="failure") | .name] | join(", "))'
-gh api repos/jmckalex/mp-tikz-wasm/actions/jobs/<job-id>/logs > /tmp/job.log   # gh run view --log was empty for me
+gh api repos/jmckalex/mp-tikz-wasm/actions/jobs/<job-id>/logs > /tmp/job.log   # gh run view --log was empty
 grep -n -i "error" /tmp/job.log | tail -30
 ```
-
-Then fix what `native-texlive.sh` reports. Plausible suspects, none confirmed:
-a library the TeX Live tree expects on Linux that the apt list lacks (the
-list is texlive-* packages plus dvisvgm; it has no `-dev` packages, and
-`--disable-all-pkgs` still configures `libs/`), or `make -j8` ordering in
-`texk/kpathsea`. The same script has only ever run on this Mac. After the
-wasm job, `native-luatex.sh` and the golden suites have also never run on
-Linux and may need their own fixes. Expect two or three iterations. The
-badge in the README goes green when a run passes.
 
 ## The website
 
@@ -156,8 +194,8 @@ you publish there. Then restage and sync the website.
 
 ## Loose ends, honestly
 
-1. **CI red** — above.
-2. **Six commits unpushed** (`git log origin/main..main`).
+1. ~~**CI red**~~ — fixed 2026-09-13 (session 4); see "CI" above. Green.
+2. ~~**Six commits unpushed**~~ — pushed; `main` is clean.
 3. **`~/emsdk`** (1.8 GB) was installed there by the assistant on 2026-09-12
    without asking. It is relocatable (its config uses `$CFGDIR`). Move it
    into the project as `tools/emsdk` (add `tools/` to `.gitignore`) or
@@ -168,9 +206,10 @@ you publish there. Then restage and sync the website.
 5. **Bluehost is slow** — above; move to the droplet when ready.
 6. **One unexplained hang**: one of five API runs of the 1181-page manual
    hung at 0 % CPU after the TeX phase (Node, in-process). Never reproduced.
-7. **Fresh-machine build untested since LuaTeX**: `scripts/native-luatex.sh`
-   relies on libraries (`libs/lua53`, `pplib`, `zziplib`) that the native
-   configure happened to prepare in `vendor/native-build`; CI will tell.
+7. ~~**Fresh-machine build untested since LuaTeX**~~ — resolved: CI now
+   builds all four engines from a clean checkout on Ubuntu each run
+   (`libs/lua53`, `pplib`, `zziplib` are configured explicitly by
+   `scripts/native-common.sh`).
 8. **No OpenType font loading**: LuaTeX runs without luaotfload; `fontspec`,
    `unicode-math` and system fonts are out. Text uses the Type 1 fonts.
 9. **pplib's licence** is not stated in the vendored source; NOTICE.md
