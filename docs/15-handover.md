@@ -186,11 +186,18 @@ gh release create v<version> release/mp-tikz-wasm-<version>.tar.gz release/mp-ti
   --title "mp-tikz-wasm <version>" --notes-file <notes>
 ```
 
-No release exists yet. The guide's "Get it" and the README point at the
-releases page, and `dist/` is not committed, so until a release is uploaded
-a visitor can only build from source. Bump `version` in `package.json` first.
-`package.json` is `private: true`: nothing is on npm; remove that line if
-you publish there. Then restage and sync the website.
+**v0.1.0 is released** (2026-09-13, session 4):
+<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.1.0>, tag `v0.1.0`,
+with `mp-tikz-wasm-0.1.0.tar.gz` (36 MB) and `.zip` (38 MB). Verified: the
+GitHub-hosted tarball's sha256 matches the local build, and a clean extraction
+both renders through the Node API (MetaPost + TikZ) and serves via `node
+serve.mjs` with the engines running in the browser. For the next release, bump
+`version` in `package.json`, then `npm run build && npm run build:guide &&
+npm run build:pages && npm run build:standalone && npm run package`, `git tag
+v<version> && git push origin v<version>`, and `gh release create`. `dist/` is
+not committed, so a source clone still has to build. `package.json` is
+`private: true`: nothing is on npm; remove that line to publish there. Restage
+and sync the website (`make sync-all`) after a release.
 
 ## Loose ends, honestly
 
@@ -202,7 +209,7 @@ you publish there. Then restage and sync the website.
    delete it (CI installs its own; reinstalling is `git clone
    https://github.com/emscripten-core/emsdk && ./emsdk install 6.0.9 &&
    ./emsdk activate 6.0.9`). The user has not said which.
-4. **No GitHub release yet** — above.
+4. ~~**No GitHub release yet**~~ — released v0.1.0; see "Publishing a release".
 5. **Bluehost is slow** — above; move to the droplet when ready.
 6. **One unexplained hang**: one of five API runs of the 1181-page manual
    hung at 0 % CPU after the TeX phase (Node, in-process). Never reproduced.
