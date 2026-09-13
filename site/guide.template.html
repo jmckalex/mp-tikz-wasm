@@ -30,6 +30,9 @@
   code { font-family: var(--mono); font-size: 0.9em; }
   pre { margin: 12px 0 0; background: var(--code); color: var(--code-ink); font: 13px/1.5 var(--mono); padding: 14px 16px; border-radius: 6px; overflow-x: auto; max-width: 100%; }
   pre code { font-size: inherit; }
+  /* build-time syntax highlighting (scripts/highlight.mjs); code blocks are dark in both themes */
+  .tok-com { color: #8fa0b0; font-style: italic; } .tok-str, .tok-val { color: #cfe3a8; } .tok-kw, .tok-tag { color: #9cc2ff; }
+  .tok-num { color: #f2cd7b; } .tok-attr { color: #ecb07a; } .tok-cs { color: #dcb3e6; }
   .lede { font-size: 20px; line-height: 1.5; }
   .masthead { padding-block: 44px 8px; display: grid; gap: 20px; }
   .wordmark { width: min(100%, 460px); }
@@ -122,7 +125,7 @@ npm run demo                     # http://localhost:8080/site/</code></pre>
 
 <h2 id="tags">Drop-in tags</h2>
 <p>This is the tikzjax-style integration: one script, and every diagram tag on the page is replaced by its SVG.</p>
-<pre><code>&lt;script type="module" src="/path/to/dist/auto.js"&gt;&lt;/script&gt;
+<pre><code class="lang-html">&lt;script type="module" src="/path/to/dist/auto.js"&gt;&lt;/script&gt;
 
 &lt;script type="text/tikz" data-libraries="arrows.meta,calc"&gt;
   \begin{tikzpicture}
@@ -148,7 +151,7 @@ npm run demo                     # http://localhost:8080/site/</code></pre>
 <p>The engines run in a Web Worker, so the page never blocks; there is a 20 s watchdog per run.</p>
 
 <h2 id="api">Library API</h2>
-<pre><code>import { MetaPost } from './dist/index.js';   // browser (a Worker) or Node (in-process)
+<pre><code class="lang-js">import { MetaPost } from './dist/index.js';   // browser (a Worker) or Node (in-process)
 
 const mp = await MetaPost.create();          // loads the engines and the bundle manifests
 

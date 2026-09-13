@@ -7,6 +7,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { MetaPost } from '../dist/index.js';
 import { GUIDE } from './guide-examples.mjs';
+import { highlightPage } from './highlight.mjs';
 
 const REPO = path.resolve(new URL('..', import.meta.url).pathname);
 const REPO_URL = process.env.REPO_URL ?? 'https://github.com/YOUR-GITHUB-USER/mp-tikz-wasm';
@@ -58,5 +59,6 @@ html = html.replace(/__FIG:([a-z0-9-]+)__/g, (_m, id) => figures[id] ?? `<p clas
   .replace(/__WASM_MB__/g, MB(numbers.mplib + numbers.tex + numbers.dvisvgm))
   .replace(/__WASM_GZ_MB__/g, MB(numbers.gz))
   .replace(/__MPLIB_MB__/g, MB(numbers.mplib)).replace(/__TEX_MB__/g, MB(numbers.tex)).replace(/__DVISVGM_MB__/g, MB(numbers.dvisvgm)).replace(/__LUATEX_MB__/g, MB(sz('luatex.wasm')));
+html = highlightPage(html);   // the lang-html / lang-js code blocks
 fs.writeFileSync(path.join(REPO, 'site/guide.html'), html);
 console.log(`  site/guide.html: ${(html.length / 1024).toFixed(0)} KB`);
