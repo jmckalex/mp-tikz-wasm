@@ -313,7 +313,7 @@ add `data-gdlibraries` (which also implies the graphdrawing library) and
 metrics before anything can redirect it, so `fonts/tfm/jknappen/ec` (2 MB of
 TFM) is bundled now; the cm-super outlines are not.
 
-## 11. The per-instance leak (patches 0010 and 0011)
+## 11. The per-instance leak (patches 0010, 0011 and 0012)
 
 The live-graphics page renders one MetaPost instance per animation frame. It
 died after a couple of minutes: 3,000 frames in Node grew the process by
@@ -335,15 +335,43 @@ dropped its own struct. The shim leaked too: the exported edge objects were
 never tossed (`mp_gr_toss_objects`); a comment claimed `mp_finish` freed
 them, which was never true.
 
-Result: 1.2 KB per instance. What remains, with the sites resolved by
-AddressSanitizer builds and `atos`: three 144-byte value/dependency nodes
-allocated during statement processing (`mp_do_statement` at the equation
-and `addto` cases, mp.w around lines 29637 and 29717), the 208-byte
-`jump_buf` malloc'd in `mp_execute` (mp.w ~30986; `mp_free` frees
-`mp->jump_buf`, so this one is replaced somewhere without a free), and a
-16-byte `File` wrapper. At 60 instances a second that is 70 KB/s, a day of
-continuous animation before it matters; at 1 KB it was not worth more time.
-`test/e2e/memory.test.ts` guards against regression. Lessons: the plan's
-soak test was on the list and not done; and a comment asserting what a
-library frees is not evidence.
+Result: 1.2 KB per instance, and that residual was asked for too. The
+`leaks` stacks for it pointed at assignments inside `beginfig` and were a
+red herring: MetaPost recycles value nodes through a free list, so a leak
+report names where a block was *first* malloc'd, not who lost it. What
+found the real sites was bisecting the MetaPost source in the harness
+(`leaktest.c` now takes a file): a bare `shipit;` reproduced every byte.
+Patch 0012 fixes the three causes:
+
+- **Four value nodes per shipped figure.** `mp_do_ship_out` stores the
+  figure's `charwd`, `charht`, `chardp` and `charic` in the `tfm_width`,
+  `tfm_height`, `tfm_depth` and `tfm_ital_corr` arrays for a possible TFM
+  file. The loop that freed them at teardown is commented out upstream
+  ("double free errors, bug tracker id 831"): once `fontmaking` has massaged
+  the arrays they point into shared sorted lists and at `zero_val`, so
+  freeing entry by entry double-frees. The patch frees each *distinct*
+  pointer once, skipping `zero_val` and `inf_val`, which is right in both
+  states; it also frees the originals that the massaging replaced and the
+  TFM file name, so a `fontmaking:=1` job is clean too.
+- **The `jump_buf`.** The standalone entry points `mp_svg_ship_out`,
+  `mp_ps_ship_out` and `mp_png_ship_out` — what the shim calls to render a
+  figure after the run — install a fresh `jump_buf` for their own error
+  recovery without freeing the one `mp_execute` left: 208 bytes per figure.
+- **`mp_free` order.** It ran `@<Free table entries@>` (`bad_vardef`,
+  `dep_head`, the list heads, `temp_val` and friends) *after*
+  `@<Dealloc variables@>` had drained the node free lists, so those nodes
+  were pushed onto lists nobody would walk again. The block now runs before
+  the drain; 0010's explicit release of `temp_val`, `zero_val` and `inf_val`
+  became redundant and is harmless.
+
+Measured: `leaks` reports 0 bytes over 31 instances, also for a fontmaking
+job and an empty job; AddressSanitizer is clean; 200,000 consecutive jobs on
+one wasm engine leave the allocator's bytes in use unchanged
+(`scripts/soak-memory.mjs`, which reads the new `mpwasm_heap_in_use`
+export). `test/e2e/memory.test.ts` now asserts that 300 runs leave nothing
+allocated. The live page keeps recycling each animation's engine every
+30,000 frames as a safeguard only. Lessons: the plan's soak test was on the
+list and not done; a comment asserting what a library frees is not
+evidence; and a leak tool's allocation stack is the block's first owner,
+not its last.
 

@@ -78,6 +78,7 @@ const char *mpwasm_mpx_last_error(void);
 /* ---- misc --------------------------------------------------------------- */
 const char *mpwasm_version(void);       /* MetaPost version string */
 const char *mpwasm_build_id(void);      /* build identifier for cache keys */
+unsigned long mpwasm_heap_in_use(void); /* bytes allocated in the wasm heap (0 natively) */
 
 /* ---- host hooks --------------------------------------------------------- */
 /* Implemented by the JavaScript side (src/c/mpwasm_library.js) in the wasm

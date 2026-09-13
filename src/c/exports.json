@@ -3,4 +3,4 @@
  "_mpwasm_opened_files_json","_mpwasm_figure_count","_mpwasm_figure_charcode","_mpwasm_figure_dim",
  "_mpwasm_figure_svg","_mpwasm_figure_ps","_mpwasm_figure_json","_mpwasm_get_numeric","_mpwasm_get_boolean",
  "_mpwasm_get_string","_mpwasm_mpto","_mpwasm_dvitomp","_mpwasm_mpx_add_path","_mpwasm_mpx_last_error",
- "_mpwasm_version","_mpwasm_build_id","_malloc","_free"]
+ "_mpwasm_version","_mpwasm_build_id","_mpwasm_heap_in_use","_malloc","_free"]

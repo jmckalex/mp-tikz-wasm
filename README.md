@@ -301,14 +301,15 @@ Every patch is a unified diff in `patches/`, applied by
 | 0009 | `psout.w`, `mp.w` | record the `prologues`/`mpprocset` internals per figure at shipout time, so deferred rendering matches immediate rendering |
 | 0010 | `mp.w` | **upstream leak:** `mp_finish` freed the symbol table but not what it points to (macro bodies, variable values, dependency lists), nor the preload file handle, the log wrapper, `name_of_file`, and a few initialisation nodes — about 300 KB per instance, invisible to a one-instance process, fatal to an embedder creating an instance per job |
 | 0011 | `mpstrings.w` | **upstream leak:** `mp_make_string` inserted a copy into the string tree and dropped its own struct, 32 bytes per new string |
+| 0012 | `mp.w`, `svgout.w`, `psout.w`, `pngout.w` | **upstream leak:** every `shipout` stored four `charwd`/`charht`/`chardp`/`charic` nodes that were never freed (the teardown loop is commented out upstream because it double-freed after TFM output); `mp_free` returned its table nodes to free lists it had already drained; the standalone `mp_svg_ship_out`/`mp_ps_ship_out`/`mp_png_ship_out` entry points replaced `jump_buf` without freeing the old one; the TFM file name was never freed |
 
-0003, 0004, 0005, 0007, 0010 and 0011 are genuine upstream defects worth
-reporting. After 0010 and 0011 an instance leaks about 1.2 KB (measured with
-macOS `leaks` on `test/leak/leaktest.c`), down from 319 KB; the remainder is
-three 144-byte nodes created by statement processing, the 208-byte
-`jump_buf` of `mp_execute`, and a 16-byte file wrapper, listed in
-[docs/14](docs/14-implementation-notes.md) §11. `test/e2e/memory.test.ts`
-fails if 300 runs grow the wasm heap by more than a few megabytes.
+0003, 0004, 0005, 0007, 0010, 0011 and 0012 are genuine upstream defects worth
+reporting. With 0010–0012 an instance leaks nothing: macOS `leaks` on
+`test/leak/leaktest.c` reports 0 bytes over 31 instances (319 KB each before
+0010, 1.2 KB after 0011), and `scripts/soak-memory.mjs` shows the wasm
+allocator's bytes in use unchanged over 200,000 consecutive jobs on one
+engine ([docs/14](docs/14-implementation-notes.md) §11). `test/e2e/memory.test.ts`
+fails if 300 runs leave anything allocated.
 
 ## Status against the plan
 

@@ -1,0 +1,170 @@
+--- a/mp.w
++++ b/mp.w
+@@ -179,6 +179,7 @@
+ #include <w2c/config.h>
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <stdint.h>            /* MetaPost-WASM patch 0012: |uintptr_t| */
+ #include <string.h>
+ #include <stdarg.h>
+ #include <assert.h>
+@@ -400,11 +401,14 @@
+ static void mp_free (MP mp) {
+   int k;        /* loop variable */
+   @<Release what the symbol table points to@>;
++  @<Free table entries@>; /* MetaPost-WASM patch 0012: this hands nodes back to the
++                             free lists, so it has to run before the deallocation
++                             code drains them; upstream ran it afterwards and the
++                             nodes (|bad_vardef|, |dep_head|, the list heads) leaked */
+   @<Dealloc variables@>;
+   if (mp->noninteractive)
+     @<Finish non-interactive use@>@;
+   xfree (mp->jump_buf);
+-  @<Free table entries@>;
+   free_math();
+   xfree (mp);
+ }
+@@ -4848,6 +4852,7 @@
+ @ @<Release what the symbol table points to@>=
+ if (mp->symbols != NULL)
+   avl_walk (mp->symbols, mp_release_symbol_equivalent, mp);
++mp_release_tfm_dimensions (mp); /* MetaPost-WASM patch 0012; must precede the |zero_val| and |inf_val| release below */
+ if (mp->temp_val != NULL) { /* allocated at initialization, never released */
+   mp_free_value_node (mp, mp->temp_val);
+   mp->temp_val = NULL;
+@@ -4871,7 +4876,46 @@
+   mp->mem_file = NULL;
+ }
+ xfree (mp->name_of_file);
++xfree (mp->metric_file_name); /* MetaPost-WASM patch 0012: set by |@<Finish the \.{TFM} file@>|, never freed */
+ 
++@ Every \&{shipout} stores four value nodes (the \&{charwd}, \&{charht},
++\&{chardp} and \&{charic} of the figure) in |tfm_width|, |tfm_height|,
++|tfm_depth| and |tfm_ital_corr|. Upstream never frees them: the loop in the
++deallocation code is commented out because after the \.{TFM} massaging the
++arrays point into the shared |dimen_head| lists (and at |zero_val|), so
++freeing them entry by entry double-frees. Freeing each distinct pointer once,
++and leaving |zero_val| and |inf_val| alone, is right in both states.
++(MetaPost-WASM patch 0012.)
++
++@<Declarations@>=
++static void mp_release_tfm_dimensions (MP mp);
++
++@ @c
++static int mp_compare_node_pointers (const void *a, const void *b) {
++  uintptr_t x = (uintptr_t) *(const mp_node *) a;
++  uintptr_t y = (uintptr_t) *(const mp_node *) b;
++  return (x < y) ? -1 : (x > y);
++}
++static void mp_release_tfm_dimensions (MP mp) {
++  mp_node *all = mp_xmalloc (mp, 4 * TFM_ITEMS, sizeof (mp_node));
++  int n = 0, k;
++  for (k = 0; k < TFM_ITEMS; k++) {
++    if (mp->tfm_width[k] != NULL)     { all[n++] = mp->tfm_width[k];     mp->tfm_width[k] = NULL; }
++    if (mp->tfm_height[k] != NULL)    { all[n++] = mp->tfm_height[k];    mp->tfm_height[k] = NULL; }
++    if (mp->tfm_depth[k] != NULL)     { all[n++] = mp->tfm_depth[k];     mp->tfm_depth[k] = NULL; }
++    if (mp->tfm_ital_corr[k] != NULL) { all[n++] = mp->tfm_ital_corr[k]; mp->tfm_ital_corr[k] = NULL; }
++  }
++  qsort (all, (size_t) n, sizeof (mp_node), mp_compare_node_pointers);
++  for (k = 0; k < n; k++) {
++    if ((k > 0 && all[k] == all[k - 1]) || all[k] == mp->zero_val || all[k] == mp->inf_val)
++      continue;
++    mp_free_value_node (mp, all[k]);
++  }
++  mp_xfree (all);
++  for (k = 1; k <= 4; k++)
++    mp->dimen_head[k] = NULL;
++}
++
+ @ Actually creating symbols is done by |id_lookup|, but in order to
+ do so it needs a way to create a new, empty symbol structure.
+ 
+@@ -33911,8 +33955,11 @@
+ @<Massage the \.{TFM} widths@>=
+ clear_the_list;
+ for (k = mp->bc; k <= mp->ec; k++) {
+-  if (mp->char_exists[k])
+-    mp->tfm_width[k] = mp_sort_in (mp, value_number (mp->tfm_width[k]));
++  if (mp->char_exists[k]) {
++    mp_node pd = mp->tfm_width[k]; /* MetaPost-WASM patch 0012: |sort_in| copies the value; the node was leaked */
++    mp->tfm_width[k] = mp_sort_in (mp, value_number (pd));
++    mp_free_value_node (mp, pd);
++  }
+ }
+ mp->nw = (short) (mp_skimp (mp, 255) + 1);
+ mp->dimen_head[1] = mp_link (mp->temp_head);
+@@ -33931,10 +33978,12 @@
+ clear_the_list;
+ for (k = mp->bc; k <= mp->ec; k++) {
+   if (mp->char_exists[k]) {
+-    if (number_zero(value_number (mp->tfm_height[k])))
++    mp_node pd = mp->tfm_height[k]; /* MetaPost-WASM patch 0012 */
++    if (number_zero(value_number (pd)))
+       mp->tfm_height[k] = mp->zero_val;
+     else
+-      mp->tfm_height[k] = mp_sort_in (mp, value_number (mp->tfm_height[k]));
++      mp->tfm_height[k] = mp_sort_in (mp, value_number (pd));
++    mp_free_value_node (mp, pd);
+   }
+ }
+ mp->nh = (short) (mp_skimp (mp, 15) + 1);
+@@ -33944,10 +33993,12 @@
+ clear_the_list;
+ for (k = mp->bc; k <= mp->ec; k++) {
+   if (mp->char_exists[k]) {
+-    if (number_zero(value_number (mp->tfm_depth[k])))
++    mp_node pd = mp->tfm_depth[k]; /* MetaPost-WASM patch 0012 */
++    if (number_zero(value_number (pd)))
+       mp->tfm_depth[k] = mp->zero_val;
+     else
+-      mp->tfm_depth[k] = mp_sort_in (mp, value_number (mp->tfm_depth[k]));
++      mp->tfm_depth[k] = mp_sort_in (mp, value_number (pd));
++    mp_free_value_node (mp, pd);
+   }
+ }
+ mp->nd = (short) (mp_skimp (mp, 15) + 1);
+@@ -33957,10 +34008,12 @@
+ clear_the_list;
+ for (k = mp->bc; k <= mp->ec; k++) {
+   if (mp->char_exists[k]) {
+-    if (number_zero(value_number (mp->tfm_ital_corr[k])))
++    mp_node pd = mp->tfm_ital_corr[k]; /* MetaPost-WASM patch 0012 */
++    if (number_zero(value_number (pd)))
+       mp->tfm_ital_corr[k] = mp->zero_val;
+     else
+-      mp->tfm_ital_corr[k] = mp_sort_in (mp, value_number (mp->tfm_ital_corr[k]));
++      mp->tfm_ital_corr[k] = mp_sort_in (mp, value_number (pd));
++    mp_free_value_node (mp, pd);
+   }
+ }
+ mp->ni = (short) (mp_skimp (mp, 63) + 1);
+--- a/svgout.w
++++ b/svgout.w
+@@ -1222,6 +1222,7 @@
+   mp_pen_info *pen = NULL;
+   MP mp = hh->parent;
+   if (standalone) {
++     mp_xfree(mp->jump_buf); /* MetaPost-WASM patch 0012: the buffer left by |mp_execute| was leaked */
+      mp->jump_buf = malloc(sizeof(jmp_buf));
+      if (mp->jump_buf == NULL || setjmp(*(mp->jump_buf)))
+        return 0;
+--- a/psout.w
++++ b/psout.w
+@@ -6211,6 +6211,7 @@
+   int prologues, procset;
+   MP mp = hh->parent;
+   if (standalone) {
++     mp_xfree(mp->jump_buf); /* MetaPost-WASM patch 0012: the buffer left by |mp_execute| was leaked */
+      mp->jump_buf = malloc(sizeof(jmp_buf));
+      if (mp->jump_buf == NULL || setjmp(*(mp->jump_buf)))
+        return 0;
+--- a/pngout.w
++++ b/pngout.w
+@@ -823,6 +823,7 @@
+   }
+   c = round_unscaled(internal_value (mp_char_code));
+   if (standalone) {
++     mp_xfree(mp->jump_buf); /* MetaPost-WASM patch 0012: the buffer left by |mp_execute| was leaked */
+      mp->jump_buf = malloc(sizeof(jmp_buf));
+      if (mp->jump_buf == NULL || setjmp(*(mp->jump_buf)))
+        return 0;

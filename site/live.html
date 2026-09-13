@@ -133,11 +133,12 @@ const drawHarm = makeQueue(async (p) => {
 });
 harm.c.addEventListener('input', () => drawHarm(harm.values())); drawHarm(harm.values());
 
-// An animation runs one MetaPost instance per frame. Patches 0010/0011 removed
-// the leak that made that die in minutes, but about 1 KB per instance remains
-// (docs/14 §11), which would reach the wasm memory ceiling after some twelve
-// hours at 60 fps. So each animation card retires its engine every 30,000
-// frames, after the replacement is ready, and no frame is lost.
+// An animation runs one MetaPost instance per frame. Patches 0010–0012 removed
+// the per-instance leaks that made that die in minutes (docs/14 §11: 319 KB,
+// then 1.2 KB, now 0 bytes per instance), so an engine can run indefinitely.
+// Retiring it every 30,000 frames stays as a safeguard against regressions: the
+// replacement is created first, so no frame is lost, and it costs one engine
+// start per eight minutes at 60 fps.
 const RECYCLE_AFTER = 30000;
 function recycling(engine) {
   const ref = { engine, runs: 0, swapping: null };

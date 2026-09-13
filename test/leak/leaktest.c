@@ -12,7 +12,9 @@ int main(int argc, char **argv) {
   int n = argc > 1 ? atoi(argv[1]) : 20, i;
   { FILE *f = fopen("job.mp", "w"); if (!f) { perror("job.mp"); return 1; } }
   const char *texmf = "/usr/local/texlive/2025/texmf-dist";
+  static char filebuf[65536];
   const char *src = argc > 2 && !strcmp(argv[2], "circle") ? "beginfig(1); draw fullcircle scaled 10; endfig;\nend."
+    : argc > 2 && strchr(argv[2], '/') ? (filebuf[fread(filebuf, 1, sizeof filebuf - 1, fopen(argv[2], "r"))] = 0, filebuf)
     : "beginfig(1); numeric a, b, s; a := 12.5; b := 300; s := 52; pair v[]; numeric k; k := 0;\n"
       "for i = -1, 1: for j = -1, 1: for l = -1, 1: v[k] := (i*s, j*s); k := k + 1; endfor endfor endfor\n"
       "for e = 0 upto 7: for f = e + 1 upto 7: draw v[e] -- v[f] withpen pencircle scaled 1.1 withcolor (0.1, 0.3, 0.7); endfor endfor\n"
@@ -32,7 +34,7 @@ int main(int argc, char **argv) {
     int h = mpwasm_run(c, "input job; end.");
     if (i == 0 && (h < 0 || h > 1)) fprintf(stderr, "term: %s\n", mpwasm_term_out(c));
     if (h < 0 || h > 1) { fprintf(stderr, "run %d: history %d: %s\n", i, h, mpwasm_last_error(c)); }
-    if (i == 0) { const char *svg = mpwasm_figure_svg(c, 0, 3); fprintf(stderr, "svg %zu bytes, figures %d\n", svg ? strlen(svg) : 0, mpwasm_figure_count(c)); }
+    if (getenv("NOSVG")) ; else if (i == 0) { const char *svg = mpwasm_figure_svg(c, 0, 3); fprintf(stderr, "svg %zu bytes, figures %d\n", svg ? strlen(svg) : 0, mpwasm_figure_count(c)); }
     else mpwasm_figure_svg(c, 0, 3);
     mpwasm_free(c);
   }

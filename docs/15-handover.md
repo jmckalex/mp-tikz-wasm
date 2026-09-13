@@ -21,7 +21,11 @@ Fidelity: MetaPost golden corpus 15/15 and TikZ corpus 8/8 byte-identical to
 TeX Live 2025; the complete 1181-page PGF manual byte-identical in DVI and
 page-identical after dvisvgm (`scripts/stress-pgfmanual.mjs`); the `mtrap`
 half of MetaPost's trap test identical to native. 204 unit/e2e tests, a
-46-check native contract harness.
+46-check native contract harness. No per-instance memory leak: `leaks`
+reports 0 bytes over 31 MetaPost instances and 200,000 consecutive jobs on
+one wasm engine leave the allocator's bytes in use unchanged
+(`scripts/soak-memory.mjs`; docs/14 §11 tells the story of patches
+0010–0012).
 
 ## Build and test, from scratch
 
@@ -47,28 +51,20 @@ the guide link in the single-file pages.
 
 ## Known issues, honestly
 
-1. **Residual per-instance leak, ~1 KB.** Patches 0010/0011 took it from
-   319 KB to about 1 KB per MetaPost instance (docs/14 §11 has the remaining
-   sites with line numbers). A 200,000-frame soak in Node showed 0.8 KB of
-   heap growth per frame and no errors: at 60 instances a second the wasm
-   ceiling would be reached after some twelve hours. The live page's
-   animation cards therefore recycle their engine every 30,000 frames
-   (replacement created first, no frame lost; verified over 70,000 frames
-   with two swaps). `test/e2e/memory.test.ts` guards the fix itself.
-2. **One unexplained hang.** One of five API runs of the 1181-page manual
+1. **One unexplained hang.** One of five API runs of the 1181-page manual
    hung at 0 % CPU after the TeX phase (Node, in-process). Never reproduced.
-3. **CI unverified on Linux.** `.github/workflows/ci.yml` was extended
+2. **CI unverified on Linux.** `.github/workflows/ci.yml` was extended
    (texlive-luatex, the luatex.wasm step) without a run; the apt package set
    for the URW and EC fonts is a guess.
-4. **Fresh-machine build untested since LuaTeX.** `scripts/native-luatex.sh`
+3. **Fresh-machine build untested since LuaTeX.** `scripts/native-luatex.sh`
    relies on libraries (`libs/lua53`, `pplib`, `zziplib`) that the existing
    native configure happened to prepare in `vendor/native-build`.
-5. **No OpenType font loading.** LuaTeX runs without luaotfload; `fontspec`,
+4. **No OpenType font loading.** LuaTeX runs without luaotfload; `fontspec`,
    `unicode-math` and system fonts are out. Text uses the Type 1 fonts.
-6. **Licence texts not vendored.** `LICENSE.md` links to the LGPL-3.0 and
+5. **Licence texts not vendored.** `LICENSE.md` links to the LGPL-3.0 and
    GPL-3.0 texts; copy them in before a release. pplib's licence is not
    stated in the vendored source.
-7. **Artifact viewer quirks** (claude.ai only): a freshly published ~8 MB page
+6. **Artifact viewer quirks** (claude.ai only): a freshly published ~8 MB page
    can take up to a minute to render; Emscripten glue must be in
    `<script type="module">` (it uses `import.meta`); blob Workers need a
    `locateFile` so the glue does not resolve the wasm name against the blob
@@ -79,12 +75,13 @@ the guide link in the single-file pages.
 - `docs/14-implementation-notes.md` — what was learned, section per subsystem:
   §7 TikZ pipeline, §8 tags and snapshot, §9 the PGF manual test, §10 LuaTeX,
   §11 the leak.
-- `patches/` — eleven unified diffs against the vendored MetaPost sources,
+- `patches/` — twelve unified diffs against the vendored MetaPost sources,
   each explained in the code; `scripts/apply-patches.sh` applies them into
-  `build/patched/`. Six are real upstream bugs (0003, 0004, 0005, 0007, 0010,
-  0011) worth reporting to the MetaPost maintainers.
+  `build/patched/`. Seven are real upstream bugs (0003, 0004, 0005, 0007,
+  0010, 0011, 0012) worth reporting to the MetaPost maintainers.
 - `scripts/` — the whole pipeline; each script's header says what it does.
-- `test/leak/` — the leak harnesses and how to run them (README there).
+- `test/leak/` — the native leak harness and how to run it (README there);
+  `scripts/soak-memory.mjs` is the wasm-side soak.
 
 ## Published artifacts (private to the account, for viewing)
 
@@ -98,4 +95,4 @@ the guide link in the single-file pages.
 PDF export through pdfTeX's PDF backend (already compiled in; two style files
 and an option); `luamplib` for MetaPost inside LuaLaTeX; more packages
 (beamer, babel, siunitx, circuitikz, chemfig — one recipe line each); a
-Linux CI run; reporting the six upstream bugs.
+Linux CI run; reporting the seven upstream bugs.

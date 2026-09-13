@@ -11,6 +11,9 @@
 #include "mplibsvg.h"
 #include "mpwasm_api.h"
 #include "mpwasm_sb.h"
+#ifdef __EMSCRIPTEN__
+#include <malloc.h>   /* mallinfo, for mpwasm_heap_in_use */
+#endif
 
 char *mpwasm_figure_to_json(mp_edge_object *e);   /* mpwasm_figure.c */
 
@@ -337,3 +340,16 @@ const char *mpwasm_version(void) { return metapost_version; }
 #define MPWASM_BUILD_ID "dev"
 #endif
 const char *mpwasm_build_id(void) { return MPWASM_BUILD_ID; }
+
+/* Bytes currently allocated from the wasm heap (dlmalloc's uordblks). The leak
+ * test and scripts/soak-memory.mjs compare it across runs: a long-lived engine
+ * that creates one MetaPost instance per job must return to the same number.
+ * 0 where mallinfo is unavailable (native builds use `leaks`/ASan instead). */
+unsigned long mpwasm_heap_in_use(void) {
+#ifdef __EMSCRIPTEN__
+  struct mallinfo mi = mallinfo();
+  return (unsigned long) mi.uordblks;
+#else
+  return 0;
+#endif
+}

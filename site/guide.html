@@ -256,7 +256,7 @@ npx mpost-wasm --latex --engine=lualatex graph.tex                # or --engine=
   <path d="M161.52 62.322C171.52 12.322,211.52 12.322,221.52 62.322" style="stroke:rgb(0%,0%,0%); stroke-width: 0.5;stroke-linecap: round;stroke-dasharray: 3 3 ;stroke-linejoin: round;stroke-miterlimit: 10;fill: none;"></path>
 </svg>
 </div>
-  <figcaption><b>Paths, tension and curl</b> — MetaPost's path syntax: <code>..</code> for smooth curves solved by Hobby's algorithm, <code>--</code> for straight lines, tension and curl control, explicit controls, cycles. <span class="ms">14 ms MetaPost</span></figcaption>
+  <figcaption><b>Paths, tension and curl</b> — MetaPost's path syntax: <code>..</code> for smooth curves solved by Hobby's algorithm, <code>--</code> for straight lines, tension and curl control, explicit controls, cycles. <span class="ms">16 ms MetaPost</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>beginfig(1);
   draw (0,0)..(30,40)..(60,0) withcolor (0.1,0.3,0.8);
   draw (0,50)..tension 2..(30,90)..(60,50);
@@ -892,7 +892,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>Labels typeset by LaTeX</b> — A <code>verbatimtex</code> preamble with <code>\documentclass</code> switches the label engine to LaTeX automatically. amsmath, amssymb, tabular, any package in the bundles. <span class="ms">2 ms MetaPost, 137 ms TeX</span></figcaption>
+  <figcaption><b>Labels typeset by LaTeX</b> — A <code>verbatimtex</code> preamble with <code>\documentclass</code> switches the label engine to LaTeX automatically. amsmath, amssymb, tabular, any package in the bundles. <span class="ms">2 ms MetaPost, 145 ms TeX</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>verbatimtex
 \documentclass{article}
 \usepackage{amsmath,amssymb}
@@ -1030,7 +1030,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>boxes.mp</b> — The standard macro packages ship in the core bundle: boxes, rboxes, graph, format, sarith, string, metaobj, featpost, metauml and more. <span class="ms">3 ms MetaPost, 49 ms TeX</span></figcaption>
+  <figcaption><b>boxes.mp</b> — The standard macro packages ship in the core bundle: boxes, rboxes, graph, format, sarith, string, metaobj, featpost, metauml and more. <span class="ms">3 ms MetaPost, 52 ms TeX</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>input boxes;
 prologues := 3;
 beginfig(1);
@@ -1203,7 +1203,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>graph.mp</b> — John Hobby's graph package with TeX-typeset tick labels; MetaPost chooses the ticks. <span class="ms">5 ms MetaPost, 43 ms TeX</span></figcaption>
+  <figcaption><b>graph.mp</b> — John Hobby's graph package with TeX-typeset tick labels; MetaPost chooses the ticks. <span class="ms">6 ms MetaPost, 55 ms TeX</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>input graph;
 prologues := 3;
 beginfig(1);
@@ -1326,7 +1326,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Shadings</b> — Axis, radial and ball shadings become SVG gradients, through PGF's own dvisvgm driver. This is where a JavaScript DVI reader gives up. <span class="ms">79 ms TeX, 28 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Shadings</b> — Axis, radial and ball shadings become SVG gradients, through PGF's own dvisvgm driver. This is where a JavaScript DVI reader gives up. <span class="ms">87 ms TeX, 32 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{shadings}
 \begin{document}
@@ -1401,7 +1401,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Patterns, opacity, clipping, decorations</b> — Fill patterns become SVG patterns; opacity, clipping scopes and path decorations all survive intact. <span class="ms">118 ms TeX, 26 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Patterns, opacity, clipping, decorations</b> — Fill patterns become SVG patterns; opacity, clipping scopes and path decorations all survive intact. <span class="ms">122 ms TeX, 27 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{patterns,decorations.pathmorphing,decorations.markings}
 \begin{document}
@@ -1560,7 +1560,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Nodes, shapes, arrows</b> — positioning, shapes.geometric and arrows.meta; bent and curved edges; every library that ships with PGF in TeX Live 2025 is available. <span class="ms">133 ms TeX, 35 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Nodes, shapes, arrows</b> — positioning, shapes.geometric and arrows.meta; bent and curved edges; every library that ships with PGF in TeX Live 2025 is available. <span class="ms">136 ms TeX, 36 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{positioning,shapes.geometric,arrows.meta}
 \begin{document}
@@ -1766,7 +1766,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Commutative diagrams (tikz-cd)</b> <span class="ms">145 ms TeX, 37 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Commutative diagrams (tikz-cd)</b> <span class="ms">150 ms TeX, 39 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[border=3pt]{standalone}
 \usepackage{tikz-cd,amssymb}
 \begin{document}
@@ -2081,7 +2081,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>pgfplots</b> — The real pgfplots package: axes, grids, legends, sampled functions, data coordinates, filled areas. <span class="ms">260 ms TeX, 47 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>pgfplots</b> — The real pgfplots package: axes, grids, legends, sampled functions, data coordinates, filled areas. <span class="ms">257 ms TeX, 48 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[border=3pt]{standalone}
 \usepackage{amsmath,pgfplots}
 \pgfplotsset{compat=1.18}
@@ -2240,7 +2240,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Latin Modern, T1 encoding, amsmath</b> — Text is glyph outlines in the SVG, so it renders identically everywhere; <code>fonts: 'woff2'</code> embeds web fonts instead if you prefer selectable text. <span class="ms">139 ms TeX, 68 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Latin Modern, T1 encoding, amsmath</b> — Text is glyph outlines in the SVG, so it renders identically everywhere; <code>fonts: 'woff2'</code> embeds web fonts instead if you prefer selectable text. <span class="ms">155 ms TeX, 70 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usepackage{lmodern}
 \usepackage[T1]{fontenc}
@@ -2514,7 +2514,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Trees, matrices, decorations</b> <span class="ms">147 ms TeX, 38 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Trees, matrices, decorations</b> <span class="ms">149 ms TeX, 39 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{trees,decorations.pathreplacing}
 \begin{document}
@@ -2686,7 +2686,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Plain TeX too</b> — <code>engine: 'plain'</code> runs plain TeX with e-TeX (TeX Live's <code>etex</code>), which is what PGF needs. <span class="ms">86 ms TeX, 57 ms dvisvgm</span></figcaption>
+  <figcaption><b>Plain TeX too</b> — <code>engine: 'plain'</code> runs plain TeX with e-TeX (TeX Live's <code>etex</code>), which is what PGF needs. <span class="ms">88 ms TeX, 62 ms dvisvgm</span></figcaption>
   <details><summary>source (plain TeX)</summary><pre><code>\input tikz
 \nopagenumbers
 \tikzpicture
@@ -3294,7 +3294,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Graph drawing (LuaTeX)</b> — The <code>graphdrawing</code> library computes layouts in Lua, so it needs LuaTeX. <code>engine: 'auto'</code> (and the tags) switch to <code>luatex.wasm</code> when a document uses it; layered, spring, tree, circular and phylogenetic layouts all run. This is the library tikzjax could never offer. <span class="ms">508 ms LuaTeX, 47 ms dvisvgm</span></figcaption>
+  <figcaption><b>Graph drawing (LuaTeX)</b> — The <code>graphdrawing</code> library computes layouts in Lua, so it needs LuaTeX. <code>engine: 'auto'</code> (and the tags) switch to <code>luatex.wasm</code> when a document uses it; layered, spring, tree, circular and phylogenetic layouts all run. This is the library tikzjax could never offer. <span class="ms">557 ms LuaTeX, 52 ms dvisvgm</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{graphs,graphs.standard,graphdrawing,quotes}
 \usegdlibrary{trees,layered,force,circular}
@@ -3358,7 +3358,7 @@ endfig; end.</code></pre></details>
   <li><b>Golden corpus, TikZ:</b> 8 documents — plots, graphs, shadings/patterns/clip, pgfplots, Latin Modern text, plain TeX, a two-page article, and graph drawing with <code>\directlua</code> under LuaTeX — byte-identical to <code>latex</code> / <code>dvilualatex</code> + <code>dvisvgm</code>, with and without the snapshot.</li>
   <li><b>Conformance:</b> the <code>mtrap</code> half of MetaPost's official trap test produces the same figures as native MetaPost 2.11; <code>tex.wasm</code> reproduces the oracle's DVI byte for byte; the <code>.mpx</code> round trip through our <code>mpto</code> and <code>dvitomp</code> matches the committed sample.</li>
   <li><b>Unit and end-to-end:</b> 200+ tests, including the scanner diffed against the C <code>mpto</code> on a 24-case corpus and 60 fuzz inputs, and a native contract harness of 46 checks that would catch a TeX Live bump changing mplib's API.</li>
-  <li><b>Upstream bugs found and patched</b> (eleven small, explained patches in <code>patches/</code>): a process-global flag that crashed the second MetaPost instance in a process; two defects in the <code>extensions=1</code> scanner (an <code>etex</code> at the end of a line was never matched, and TeX Live's own <code>texnum.mp</code> writes <code>btex$-$etex</code>); <code>stroke-miterlimit</code> for <code>filldraw</code> read from uninitialised memory; a printf format with a bare <code>%</code> in <code>mpto</code>'s prologue; font subset tags that differed between 32- and 64-bit builds; and two memory leaks in the instance lifecycle (about 300 KB per MetaPost instance, found when an animation ran one instance per frame) that only an embedder creating many instances could see.</li>
+  <li><b>Upstream bugs found and patched</b> (twelve small, explained patches in <code>patches/</code>): a process-global flag that crashed the second MetaPost instance in a process; two defects in the <code>extensions=1</code> scanner (an <code>etex</code> at the end of a line was never matched, and TeX Live's own <code>texnum.mp</code> writes <code>btex$-$etex</code>); <code>stroke-miterlimit</code> for <code>filldraw</code> read from uninitialised memory; a printf format with a bare <code>%</code> in <code>mpto</code>'s prologue; font subset tags that differed between 32- and 64-bit builds; and two memory leaks in the instance lifecycle (319 KB per MetaPost instance, found when an animation ran one instance per frame; now zero) that only an embedder creating many instances could see.</li>
 </ul>
 
 <h2 id="tikzjax">Compared with tikzjax</h2>
