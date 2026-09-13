@@ -1,0 +1,45 @@
+\documentclass[border=8pt]{standalone}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\begin{document}
+% A paragraph set inside a circle. \parshape takes one (indent, width) pair
+% per line; pgfmath computes each width as a chord of the circle.
+\def\R{130.9}               % radius in pt (4.6cm)
+\def\B{12}                  % \baselineskip in pt
+\newcount\n \n=20           % lines: the text block is n\B = 240pt tall
+\newcount\i
+\def\shape{}
+\i=1
+\loop
+  \pgfmathsetmacro\yy{(\n*\B/2-(\i-0.5)*\B)/10}    % line centre, relative to circle centre, in 10pt units
+  \pgfmathsetmacro\hw{10*sqrt(\R/10*\R/10-\yy*\yy)-6} % half chord, 6pt inside the rim (pgfmath overflows above 16383, hence the /10)
+  \pgfmathsetmacro\ind{\R-\hw}
+  \pgfmathsetmacro\lw{2*\hw}
+  \edef\shape{\shape\ind pt \lw pt }
+  \advance\i 1
+\ifnum\i<\numexpr\n+1\relax\repeat
+\hbox{%
+  \rlap{\tikz[baseline=0pt]{\fill[blue!6] (\R pt,-111.6pt) circle (\R pt); \draw[blue!50!black,line width=.5pt] (\R pt,-111.6pt) circle (\R pt);}}%
+  \vtop{\hsize=2\dimexpr\R pt\relax \baselineskip=\B pt \parindent=0pt \tolerance=3000 \emergencystretch=1.5em \hyphenpenalty=10
+    \parshape \n \shape
+    The ratio of a circle's circumference to its diameter,
+    $\pi\approx3.14159\ldots$, is the same for every circle
+    \tikz[baseline=-0.6ex]{\draw (0,0) circle (0.8ex); \draw (-0.8ex,0)--(0.8ex,0);}.
+    Archimedes squeezed it between inscribed and circumscribed polygons
+    \tikz[baseline=-0.6ex]{\draw (0,0) circle (0.8ex); \draw (0:0.8ex) \foreach \a in {60,120,...,300} {-- (\a:0.8ex)} -- cycle;},
+    proving $3\tfrac{10}{71}<\pi<3\tfrac17$; two thousand years later Leibniz found
+    \[ \frac{\pi}{4}=\sum_{k=0}^{\infty}\frac{(-1)^k}{2k+1}=1-\frac13+\frac15-\frac17+\cdots, \]
+    and Euler tied $\pi$ to the primes through $\sum_{n\ge1}n^{-2}=\pi^2/6$
+    and to $e$ through $e^{i\pi}+1=0$; Wallis wrote $\frac{\pi}{2}=\prod_{n\ge1}\frac{4n^2}{4n^2-1}$.
+    The Gaussian integral
+    $\int_{-\infty}^{\infty}e^{-x^2}\,dx=\sqrt{\pi}$
+    \tikz[baseline=-0.3ex]{\draw[thick] plot[domain=-2.2:2.2,samples=30] ({\x*0.42em},{exp(-\x*\x)*1.4ex});}
+    carries it into probability and statistics, and it hides in Stirling's
+    formula $n!\sim\sqrt{2\pi n}\,(n/e)^n$. This paragraph is set by
+    \TeX's \texttt{\char`\\parshape} primitive: twenty line widths
+    computed by pgfmath as chords of the circle, with the
+    display and the inline TikZ pictures flowing
+    through the same shape as the prose.\par}}
+\end{document}

@@ -223,6 +223,10 @@ __FIG:tz-patterns__
 __FIG:tz-pgfplots__
 <div class="grid2">__FIG:tz-text__ __FIG:tz-tree__</div>
 <div class="grid2">__FIG:tz-plain__</div>
+<h3>Whole documents, not just pictures</h3>
+<p>The TikZ road is a real LaTeX road: the engine typesets the entire document, so paragraphs, fonts, hyphenation, amsmath and TeX's low-level primitives all come along. These two examples use <code>\parshape</code>, the primitive that gives every line of a paragraph its own indent and width, with inline TikZ pictures and displayed mathematics flowing through the shape.</p>
+__FIG:tz-parshape-circle__
+__FIG:tz-parshape-wrap__
 <h3>LuaTeX</h3>
 <p>A second engine, <code>luatex.wasm</code>, runs the same DVI pipeline with LuaTeX 1.21 in DVI mode (TeX Live's <code>dvilualatex</code> and <code>dviluatex</code>). It exists for the parts of TikZ that are written in Lua, above all the <code>graphdrawing</code> library with its layered, force-directed, tree, circular and phylogenetic layouts, plus <code>\directlua</code>, <code>luacode</code> and pgfplots' Lua backends. <code>engine: 'auto'</code> and the drop-in tags choose it whenever a document uses any of these; nothing else changes, and the 4.4 MB module and its 6.5 MB format are only fetched then. Text is set in the Type 1 fonts: no OpenType font loader is bundled, so <code>fontspec</code> is not available, and LaTeX's own fallback message about luaotfload is filtered from the diagnostics.</p>
 __FIG:tz-graphdrawing__

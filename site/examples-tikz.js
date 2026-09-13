@@ -86,6 +86,103 @@ export const TIKZ_EXAMPLES = [
 \\end{document}`,
   },
   {
+    id: 'latex-parshape-circle', title: 'A paragraph in a circle', tier: 'LaTeX',
+    blurb: 'A whole LaTeX document: prose with inline and displayed amsmath and inline TikZ pictures, set inside a circle by \\parshape with twenty line widths computed by pgfmath.',
+    src: `\\documentclass[border=8pt]{standalone}
+\\usepackage{lmodern}
+\\usepackage[T1]{fontenc}
+\\usepackage{amsmath,amssymb}
+\\usepackage{tikz}
+\\begin{document}
+% A paragraph set inside a circle. \\parshape takes one (indent, width) pair
+% per line; pgfmath computes each width as a chord of the circle.
+\\def\\R{130.9}               % radius in pt (4.6cm)
+\\def\\B{12}                  % \\baselineskip in pt
+\\newcount\\n \\n=20           % lines: the text block is n\\B = 240pt tall
+\\newcount\\i
+\\def\\shape{}
+\\i=1
+\\loop
+  \\pgfmathsetmacro\\yy{(\\n*\\B/2-(\\i-0.5)*\\B)/10}    % line centre, relative to circle centre, in 10pt units
+  \\pgfmathsetmacro\\hw{10*sqrt(\\R/10*\\R/10-\\yy*\\yy)-6} % half chord, 6pt inside the rim (pgfmath overflows above 16383, hence the /10)
+  \\pgfmathsetmacro\\ind{\\R-\\hw}
+  \\pgfmathsetmacro\\lw{2*\\hw}
+  \\edef\\shape{\\shape\\ind pt \\lw pt }
+  \\advance\\i 1
+\\ifnum\\i<\\numexpr\\n+1\\relax\\repeat
+\\hbox{%
+  \\rlap{\\tikz[baseline=0pt]{\\fill[blue!6] (\\R pt,-111.6pt) circle (\\R pt); \\draw[blue!50!black,line width=.5pt] (\\R pt,-111.6pt) circle (\\R pt);}}%
+  \\vtop{\\hsize=2\\dimexpr\\R pt\\relax \\baselineskip=\\B pt \\parindent=0pt \\tolerance=3000 \\emergencystretch=1.5em \\hyphenpenalty=10
+    \\parshape \\n \\shape
+    The ratio of a circle's circumference to its diameter,
+    $\\pi\\approx3.14159\\ldots$, is the same for every circle
+    \\tikz[baseline=-0.6ex]{\\draw (0,0) circle (0.8ex); \\draw (-0.8ex,0)--(0.8ex,0);}.
+    Archimedes squeezed it between inscribed and circumscribed polygons
+    \\tikz[baseline=-0.6ex]{\\draw (0,0) circle (0.8ex); \\draw (0:0.8ex) \\foreach \\a in {60,120,...,300} {-- (\\a:0.8ex)} -- cycle;},
+    proving $3\\tfrac{10}{71}<\\pi<3\\tfrac17$; two thousand years later Leibniz found
+    \\[ \\frac{\\pi}{4}=\\sum_{k=0}^{\\infty}\\frac{(-1)^k}{2k+1}=1-\\frac13+\\frac15-\\frac17+\\cdots, \\]
+    and Euler tied $\\pi$ to the primes through $\\sum_{n\\ge1}n^{-2}=\\pi^2/6$
+    and to $e$ through $e^{i\\pi}+1=0$; Wallis wrote $\\frac{\\pi}{2}=\\prod_{n\\ge1}\\frac{4n^2}{4n^2-1}$.
+    The Gaussian integral
+    $\\int_{-\\infty}^{\\infty}e^{-x^2}\\,dx=\\sqrt{\\pi}$
+    \\tikz[baseline=-0.3ex]{\\draw[thick] plot[domain=-2.2:2.2,samples=30] ({\\x*0.42em},{exp(-\\x*\\x)*1.4ex});}
+    carries it into probability and statistics, and it hides in Stirling's
+    formula $n!\\sim\\sqrt{2\\pi n}\\,(n/e)^n$. This paragraph is set by
+    \\TeX's \\texttt{\\char\`\\\\parshape} primitive: twenty line widths
+    computed by pgfmath as chords of the circle, with the
+    display and the inline TikZ pictures flowing
+    through the same shape as the prose.\\par}}
+\\end{document}`,
+  },
+  {
+    id: 'latex-parshape-wrap', title: 'Text around a figure', tier: 'LaTeX',
+    blurb: 'Nine narrow \\parshape lines beside a TikZ plot of Fourier partial sums hung from the first baseline, then the full measure: wrapfig by hand, with real math in the text.',
+    src: `\\documentclass[border=8pt]{standalone}
+\\usepackage{lmodern}
+\\usepackage[T1]{fontenc}
+\\usepackage{amsmath,amssymb}
+\\usepackage{tikz}
+\\begin{document}
+% Text flowing around a figure, by hand: \\parshape narrows the first k
+% lines, and the figure hangs from the first baseline in a zero-width box.
+\\newdimen\\W \\W=11.5cm      % the measure
+\\newdimen\\F \\F=4.4cm       % width reserved for the figure
+\\newcount\\k \\k=9           % lines beside it
+\\def\\shape{}\\newcount\\i \\i=1
+\\loop \\edef\\shape{\\shape 0pt \\the\\dimexpr\\W-\\F\\relax\\space}\\advance\\i 1 \\ifnum\\i<\\numexpr\\k+1\\relax\\repeat
+\\edef\\shape{\\shape 0pt \\the\\W}
+\\vtop{\\hsize=\\W \\parindent=0pt \\tolerance=2000 \\emergencystretch=1em
+  \\parshape \\numexpr\\k+1\\relax \\shape
+  % \\vtop{\\kern0pt ...} puts the whole picture below the baseline; \\smash hides
+  % that depth from the line spacing; \\raise lines its top up with the first line.
+  \\rlap{\\hskip\\dimexpr\\W-\\F+3mm\\relax\\smash{\\raise\\ht\\strutbox\\vtop{\\kern0pt\\hbox{%
+    \\begin{tikzpicture}[x=0.55cm,y=0.95cm,font=\\scriptsize]
+      \\draw[->] (-0.3,0) -- (6.9,0) node[right] {$x$};
+      \\draw[->] (0,-1.45) -- (0,1.55) node[left] {$S_N(x)$};
+      \\draw[gray!70,line width=1.2pt] (0,1) -- (3.1416,1) -- (3.1416,-1) -- (6.2832,-1);
+      \\draw[blue!70!black,domain=0:6.2832,samples=90] plot (\\x,{4/pi*sin(\\x r)});
+      \\draw[red!80!black,domain=0:6.2832,samples=200] plot (\\x,{4/pi*(sin(\\x r)+sin(3*\\x r)/3+sin(5*\\x r)/5)});
+      \\draw[violet!80!black,thick,domain=0:6.2832,samples=500] plot (\\x,{4/pi*(sin(\\x r)+sin(3*\\x r)/3+sin(5*\\x r)/5+sin(7*\\x r)/7+sin(9*\\x r)/9+sin(11*\\x r)/11+sin(13*\\x r)/13+sin(15*\\x r)/15+sin(17*\\x r)/17+sin(19*\\x r)/19+sin(21*\\x r)/21)});
+      \\foreach \\t/\\l in {3.1416/$\\pi$,6.2832/$2\\pi$} \\draw (\\t,2pt) -- (\\t,-2pt) node[below=1pt,fill=white,inner sep=1pt] {\\l};
+      \\node[anchor=north west,align=left,inner sep=1pt] at (3.4,1.55) {\\textcolor{blue!70!black}{$N=1$}\\\\ \\textcolor{red!80!black}{$N=5$}\\\\ \\textcolor{violet!80!black}{$N=21$}};
+    \\end{tikzpicture}}}}}%
+  Any reasonable periodic function is a sum of sines and cosines. For the square wave
+  \\tikz[baseline=-0.5ex]\\draw (0,-0.7ex)--(0,0.7ex)--(0.9em,0.7ex)--(0.9em,-0.7ex)--(1.8em,-0.7ex);
+  $f(x)=\\operatorname{sgn}(\\sin x)$ the cosine coefficients
+  $a_n=\\frac1\\pi\\int_{-\\pi}^{\\pi}f(x)\\cos nx\\,dx$ all vanish, while
+  $b_n=\\frac{2}{\\pi n}\\,(1-\\cos n\\pi)$, so only the odd harmonics survive:
+  \\[ f(x)=\\frac{4}{\\pi}\\sum_{k=0}^{\\infty}\\frac{\\sin\\bigl((2k+1)x\\bigr)}{2k+1}. \\]
+  The partial sums $S_N$ on the right overshoot each jump by about nine per cent
+  however large $N$ becomes: the Gibbs phenomenon,
+  $\\lim_{N\\to\\infty}S_N\\!\\left(\\tfrac{\\pi}{2N}\\right)=\\tfrac{2}{\\pi}\\operatorname{Si}(\\pi)\\approx1.179$.
+  Parseval's identity $\\frac1\\pi\\int_{-\\pi}^{\\pi}f^2=\\sum_n b_n^2$ then yields
+  $\\sum_{k\\ge0}(2k+1)^{-2}=\\pi^2/8$, from which Euler's $\\zeta(2)=\\pi^2/6$ follows in one line.
+  The gap the text flows around is a \\texttt{\\char\`\\\\parshape} too: nine narrow lines beside the
+  figure, then the full measure, with the figure itself hung from the first baseline in a
+  zero-width \\texttt{\\char\`\\\\rlap} box.\\par}
+\\end{document}`,
+  },
+  {
     id: 'tikz-graphdrawing', title: 'Graph drawing (LuaTeX)', tier: 'TikZ',
     blurb: 'The graphdrawing library lays graphs out in Lua, so this document runs on luatex.wasm — picked automatically. Layered, spring and circular layouts.',
     src: `\\documentclass[tikz,border=3pt]{standalone}
