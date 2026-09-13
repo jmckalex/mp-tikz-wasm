@@ -50,7 +50,8 @@
     "build:guide": "node scripts/build-guide.mjs",
     "build:pages": "node scripts/build-pages.mjs",
     "pages": "./scripts/publish-pages.sh",
-    "build:hot": "node scripts/make-hotlists.mjs"
+    "build:hot": "node scripts/make-hotlists.mjs",
+    "build:manual": "node scripts/build-manual-viewer.mjs"
   },
   "devDependencies": {
     "@types/node": "^22",
