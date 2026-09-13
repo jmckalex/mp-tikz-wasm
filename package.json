@@ -27,7 +27,7 @@
   "type": "module",
   "license": "LGPL-3.0-or-later",
   "scripts": {
-    "build": "npm run build:mplib && npm run build:tex && npm run build:luatex && npm run build:dvisvgm && npm run build:texmf && npm run build:formats && npm run build:bundles && npm run build:ts",
+    "build": "npm run build:mplib && npm run build:tex && npm run build:luatex && npm run build:dvisvgm && npm run build:texmf && npm run build:formats && npm run build:bundles && npm run build:ts && npm run build:hot",
     "build:mplib": "make wasm",
     "build:tex": "./scripts/build-tex-wasm.sh",
     "build:texmf": "./scripts/build-texmf.sh",
@@ -49,7 +49,8 @@
     "package": "./scripts/package-release.sh",
     "build:guide": "node scripts/build-guide.mjs",
     "build:pages": "node scripts/build-pages.mjs",
-    "pages": "./scripts/publish-pages.sh"
+    "pages": "./scripts/publish-pages.sh",
+    "build:hot": "node scripts/make-hotlists.mjs"
   },
   "devDependencies": {
     "@types/node": "^22",

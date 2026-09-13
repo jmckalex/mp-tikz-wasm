@@ -15,11 +15,12 @@ import { findOracle, repoRoot, runOracle } from './oracle.js';
 /**
  * Upstream's prologue format string contains the malformed conversion `%\n`
  * (see PrintfLibc in mpto.ts). The committed goldens were produced by the
- * oracle on macOS, i.e. with Apple's libc, and a live oracle renders it the
- * way the host libc does.
+ * unpatched oracle on macOS, i.e. with Apple's libc. The live oracle is built
+ * from the patched sources (patch 0007 writes `%%`), so its output is the
+ * same on every libc: what the TS port calls `glibc` semantics.
  */
 const GOLDEN_LIBC: PrintfLibc = 'bsd';
-const hostLibc: PrintfLibc = ['darwin', 'freebsd', 'openbsd', 'netbsd'].includes(process.platform) ? 'bsd' : 'glibc';
+const ORACLE_LIBC: PrintfLibc = 'glibc';
 
 const fixtures = join(repoRoot, 'test', 'unit', 'fixtures', 'mpto');
 const cases = readdirSync(fixtures)
@@ -74,17 +75,15 @@ describe('scanner + mpto vs committed oracle goldens', () => {
 
 const oracle = findOracle();
 
-describe.skipIf(oracle === null)(`scanner + mpto vs the live C oracle (${hostLibc} printf semantics)`, () => {
+describe.skipIf(oracle === null)('scanner + mpto vs the live C oracle (patched: %% in the prologue)', () => {
   for (const c of cases) {
     it(`${c.name}: byte-for-byte TeX output and stderr`, () => {
       const bytes = readFileSync(join(fixtures, c.file));
       const r = runOracle(oracle!, bytes, c.file);
-      const ours = Buffer.from(buildTexJob(scanTexBlocks(c.source, c.file), { libc: hostLibc }), 'utf8');
+      const ours = Buffer.from(buildTexJob(scanTexBlocks(c.source, c.file), { libc: ORACLE_LIBC }), 'utf8');
       expect(ours.toString('utf8')).toBe(r.tex.toString('utf8'));
       expect(ours.equals(r.tex)).toBe(true);
       expect(formatErrors(c.source, c.file)).toBe(r.stderr);
-      // and the committed golden has not drifted from upstream
-      if (hostLibc === GOLDEN_LIBC) expect(r.tex.equals(readFileSync(join(fixtures, `${c.name}.tex`)))).toBe(true);
     });
     it(`${c.name}: byte-for-byte troff output`, () => {
       const bytes = readFileSync(join(fixtures, c.file));
@@ -98,7 +97,7 @@ describe.skipIf(oracle === null)(`scanner + mpto vs the live C oracle (${hostLib
     const c = cases.find((x) => x.name === '20-latex-math')!;
     const pre = 'no newline at the end';
     const r = runOracle(oracle!, c.source, c.file, { mptexpre: pre });
-    const ours = buildTexJob(scanTexBlocks(c.source, c.file), { mptexpre: pre, libc: hostLibc });
+    const ours = buildTexJob(scanTexBlocks(c.source, c.file), { mptexpre: pre, libc: ORACLE_LIBC });
     expect(Buffer.from(ours, 'utf8').equals(r.tex)).toBe(true);
   });
 
@@ -119,7 +118,7 @@ describe.skipIf(oracle === null)(`scanner + mpto vs the live C oracle (${hostLib
       const len = 5 + rnd(40);
       for (let j = 0; j < len; j++) src += atoms[rnd(atoms.length)];
       const r = runOracle(oracle!, src, 'fuzz.mp');
-      const ours = buildTexJob(scanTexBlocks(src, 'fuzz.mp'), { libc: hostLibc });
+      const ours = buildTexJob(scanTexBlocks(src, 'fuzz.mp'), { libc: ORACLE_LIBC });
       expect(ours, JSON.stringify(src)).toBe(r.tex.toString('utf8'));
       expect(formatErrors(src, 'fuzz.mp'), JSON.stringify(src)).toBe(r.stderr);
     }

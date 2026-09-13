@@ -7,7 +7,7 @@ import { BundleSet, browserIO } from './vfs/bundle.js';
 import { resolveBundleSpecs, DEFAULT_BUNDLES } from './bundles-config.js';
 import type { MetaPostOptions, RunOptions, LatexRunOptions } from './types.js';
 
-export interface WorkerRequest { id: number; op: 'init' | 'run' | 'latex' | 'addFiles' | 'clearCache' | 'preload' | 'dispose'; [k: string]: unknown }
+export interface WorkerRequest { id: number; op: 'init' | 'run' | 'latex' | 'addFiles' | 'clearCache' | 'preload' | 'prefetch' | 'dispose'; [k: string]: unknown }
 export interface WorkerResponse { id: number; ok: boolean; result?: unknown; error?: string }
 export interface WorkerEvent { event: 'progress' | 'log'; data: unknown }
 
@@ -30,6 +30,7 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
           await bundles.add(spec);
         }
         await bundles.prefetchEager();
+        { const b = options.bundleBaseUrl ?? new URL('./bundles/', baseUrl).href; await bundles.loadHot((b.endsWith('/') ? b : b + '/') + 'hot.json'); }
         if (!bundles.canFetchSync) await bundles.prefetchAll();
         const mplibFactory = (await import(/* @vite-ignore */ new URL('./mplib.mjs', baseUrl).href)).default;
         let texFactory, luatexFactory, dvisvgmFactory;
@@ -68,6 +69,7 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         post({ id: req.id, ok: true });
         break;
       }
+      case 'prefetch': { const n = await bundles!.prefetchHot(req.kinds as string[]); post({ id: req.id, ok: true, result: n }); break; }
       case 'dispose': post({ id: req.id, ok: true }); (self as any).close(); break;
     }
   } catch (e: any) {

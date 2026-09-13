@@ -61,7 +61,8 @@ interface MetaPostOptions {
   troff?: boolean;                    // default false; unsupported, see PLAN §1.2
 
   memoryLimitBytes?: number;          // default 512 MiB
-  timeoutMs?: number;                 // default 20 000
+  timeoutMs?: number;                 // default 20 000: a stall limit (no progress event for this long), not a total
+  prefetch?: PrefetchKind[];          // 'metapost' | 'latex' | 'lualatex' | 'plain': fetch a first run's files in parallel after create()
   maxTexRuns?: number;                // default 5 (the fixpoint cap)
 
   runScript?: (code: string) => string;   // enables `runscript`; off if absent

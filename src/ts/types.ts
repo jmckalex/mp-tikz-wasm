@@ -21,6 +21,8 @@ export type MpFileType =
   | 'terminal' | 'error' | 'program' | 'log' | 'postscript' | 'bitmap'
   | 'memfile' | 'metrics' | 'fontmap' | 'font' | 'encoding' | 'text';
 
+export type PrefetchKind = 'metapost' | 'latex' | 'lualatex' | 'plain';
+
 export interface MetaPostOptions {
   /** Bundles to load. Default: ['core', 'cm-tfm', 'cm-type1', 'tex-plain', 'latex-core'] when a bundleBaseUrl is known. */
   bundles?: (BundleName | BundleSpec)[];
@@ -44,7 +46,14 @@ export interface MetaPostOptions {
   autoEnd?: boolean;
 
   memoryLimitBytes?: number;
-  timeoutMs?: number;                   // default 20_000 (worker only)
+  /** A run is terminated when it makes no progress (no engine phase change, no file fetched) for this long.
+   *  Default 20 000 ms; worker only. It is a stall limit, not a total: a first run on a slow host may fetch
+   *  a hundred files one after another and is not cut short for it. */
+  timeoutMs?: number;
+  /** Fetch, in parallel, the bundle files a first run of these kinds needs, right after the engine starts
+   *  (from `bundles/hot.json`, recorded at build time). On a high-latency host this turns ~90 serial
+   *  round trips into a few seconds. The drop-in tags do it automatically for the kinds the page contains. */
+  prefetch?: PrefetchKind[];
   texTimeoutMs?: number;                // default 15_000
   maxTexRuns?: number;                  // default 5
 
@@ -138,7 +147,8 @@ export interface Diagnostic {
 }
 
 export interface ProgressEvent {
-  phase: 'loading' | 'scanning' | 'typesetting' | 'running' | 'rendering';
+  /** `fetching`: a bundle file is being fetched on demand (Worker only); `detail` is its name. */
+  phase: 'loading' | 'fetching' | 'scanning' | 'typesetting' | 'running' | 'rendering';
   detail?: string;
   current?: number;
   total?: number;

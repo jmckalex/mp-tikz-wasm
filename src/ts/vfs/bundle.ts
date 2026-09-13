@@ -38,6 +38,8 @@ export class BundleSet {
   readonly manifests: { spec: BundleSpec; manifest: BundleManifest; base: string }[] = [];
   private cache = new Map<string, Uint8Array>();       // in-memory copy of fetched files
   private negative = new Set<string>();
+  /** The files a first run of each kind touches (`bundles/hot.json`, written by scripts/make-hotlists.mjs). */
+  hot: Record<string, string[]> = {};
 
   constructor(private io: BundleIO) {}
 
@@ -55,6 +57,27 @@ export class BundleSet {
       const list = this.byName.get(name);
       if (list) list.push(f); else this.byName.set(name, [f]);
     }
+  }
+
+  /** Load the hot lists; optional, so a missing file is not an error. */
+  async loadHot(url: string): Promise<void> {
+    try {
+      const h = (await this.io.fetchJson(url)) as { kinds?: Record<string, string[]> } | null;
+      if (h && h.kinds) this.hot = h.kinds;
+    } catch { /* no hot.json: prefetch() is a no-op */ }
+  }
+
+  /** Fetch, in parallel, every file the hot lists name for these kinds that is not in memory yet. Returns how many. */
+  async prefetchHot(kinds: string[], concurrency = 16): Promise<number> {
+    const paths = new Set<string>();
+    for (const k of kinds) for (const p of this.hot[k] ?? []) paths.add(p);
+    const wanted: BundleFile[] = [];
+    for (const p of paths) { const f = this.files.get(p); if (f && !this.cache.has(f.path)) wanted.push(f); }
+    let i = 0;
+    await Promise.all(Array.from({ length: Math.min(concurrency, wanted.length) }, async () => {
+      while (i < wanted.length) { const f = wanted[i++]; try { await this.fetchAsync(f); } catch { /* the run reports it */ } }
+    }));
+    return wanted.length;
   }
 
   /** Every manifest's `eager` list, fetched into memory. */
@@ -202,6 +225,8 @@ export function browserIO(): BundleIO {
   };
   if (inWorker && typeof XMLHttpRequest !== 'undefined') {
     io.fetchSync = (url) => {
+      // one progress event per on-demand file, so the caller's stall watchdog sees a slow host at work
+      try { (globalThis as any).postMessage({ event: 'progress', data: { phase: 'fetching', detail: url.slice(url.lastIndexOf('/') + 1) } }); } catch { /* not a worker */ }
       const xhr = new XMLHttpRequest();
       xhr.open('GET', url, false);
       xhr.responseType = 'arraybuffer';

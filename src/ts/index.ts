@@ -2,7 +2,7 @@
  * mp-tikz-wasm — public API (docs/08). `MetaPost.create()` starts a Web
  * Worker in browsers and runs in-process in Node (or when `worker: false`).
  */
-import type { MetaPostOptions, RunOptions, RunResult, ProgressEvent, BundleName, LatexRunOptions, LatexResult } from './types.js';
+import type { MetaPostOptions, RunOptions, RunResult, ProgressEvent, BundleName, LatexRunOptions, LatexResult, PrefetchKind } from './types.js';
 import { MetaPostCore } from './core.js';
 import { BundleSet, browserIO } from './vfs/bundle.js';
 import { resolveBundleSpecs, DEFAULT_BUNDLES } from './bundles-config.js';
@@ -23,6 +23,7 @@ interface Backend {
   addFiles(files: Record<string, string | Uint8Array>): Promise<void>;
   clearCache(): Promise<void>;
   preload(bundles: BundleName[]): Promise<void>;
+  prefetch(kinds: PrefetchKind[]): Promise<number>;
   dispose(): void;
 }
 
@@ -40,6 +41,7 @@ class InProcessBackend implements Backend {
       const base = o.bundleBaseUrl ?? new URL('./bundles/', here).href;
       for (const spec of resolveBundleSpecs(o.bundles ?? DEFAULT_BUNDLES, base)) await this.bundles.add(spec);
       await this.bundles.prefetchEager();
+      await this.bundles.loadHot((base.endsWith('/') ? base : base + '/') + 'hot.json');
       if (!this.bundles.canFetchSync) await this.bundles.prefetchAll();
     }
     const mplibFactory = o.modules?.mplib ?? (await import(/* @vite-ignore */ new URL('./mplib.mjs', here).href)).default;
@@ -74,6 +76,7 @@ class InProcessBackend implements Backend {
     for (const spec of resolveBundleSpecs(bundles, base)) if (!this.bundles.manifests.some((m) => m.spec.name === spec.name)) await this.bundles.add(spec);
     await this.bundles.prefetchAll((f) => bundles.includes(f.bundle));
   }
+  async prefetch(kinds: PrefetchKind[]) { return this.bundles ? this.bundles.prefetchHot(kinds) : 0; }
   dispose() { /* nothing to terminate */ }
 }
 
@@ -115,6 +118,7 @@ class WorkerBackend implements Backend {
   addFiles(files: Record<string, string | Uint8Array>) { return this.call<void>('addFiles', { files }); }
   clearCache() { return this.call<void>('clearCache'); }
   preload(bundles: BundleName[]) { return this.call<void>('preload', { bundles }); }
+  prefetch(kinds: PrefetchKind[]) { return this.call<number>('prefetch', { kinds }); }
   dispose() { this.worker.terminate(); }
 }
 
@@ -137,42 +141,47 @@ export class MetaPost {
     mp = new MetaPost(backend, options);
     const { version } = await backend.init();
     Object.assign(mp.version, version);
+    if (options.prefetch?.length) await backend.prefetch(options.prefetch);
     return mp;
   }
 
+  /**
+   * The stall watchdog (worker only): the run is killed when `timeoutMs` pass without a progress
+   * event. Every engine phase and every on-demand file fetch is one, so a first run on a slow host
+   * that spends a minute fetching files one after another is left alone; a hung engine is not.
+   */
+  private watchdog<T>(p: Promise<T>, what: string, signal?: AbortSignal): Promise<T> {
+    const timeout = this.options.timeoutMs ?? 20_000;
+    if (!(this.backend instanceof WorkerBackend) || !timeout) return p;
+    return new Promise<T>((resolve, reject) => {
+      let t: ReturnType<typeof setTimeout> | undefined;
+      const off = this.on('progress', () => arm());
+      const done = () => { if (t) clearTimeout(t); off(); };
+      const kill = (why: string) => { done(); this.backend.dispose(); reject(new Error(why)); };
+      const arm = () => { if (t) clearTimeout(t); t = setTimeout(() => kill(`mp-tikz-wasm: ${what} made no progress for ${timeout} ms; worker terminated`), timeout); };
+      arm();
+      p.then((r) => { done(); resolve(r); }, (e) => { done(); reject(e); });
+      signal?.addEventListener('abort', () => kill('aborted'));
+    });
+  }
   /** Compile MetaPost source. Calls are serialised on this instance. */
   run(source: string, options: RunOptions = {}): Promise<RunResult> {
-    const timeout = this.options.timeoutMs ?? 20_000;
-    const task = () => {
-      const p = this.backend.run(source, options);
-      if (!(this.backend instanceof WorkerBackend) || !timeout) return p;
-      return new Promise<RunResult>((resolve, reject) => {
-        const t = setTimeout(() => { this.backend.dispose(); reject(new Error(`mp-tikz-wasm: run exceeded ${timeout} ms; worker terminated`)); }, timeout);
-        p.then((r) => { clearTimeout(t); resolve(r); }, (e) => { clearTimeout(t); reject(e); });
-        options.signal?.addEventListener('abort', () => { clearTimeout(t); this.backend.dispose(); reject(new Error('aborted')); });
-      });
-    };
+    const task = () => this.watchdog(this.backend.run(source, options), 'run', options.signal);
     const next = this.queue.then(task, task);
     this.queue = next.catch(() => undefined);
     return next;
   }
   /** Typeset a whole LaTeX/TikZ (or plain TeX) document to one SVG per page. */
   latex(source: string, options: LatexRunOptions = {}): Promise<LatexResult> {
-    const timeout = this.options.timeoutMs ?? 20_000;
-    const task = () => {
-      const p = this.backend.latex(source, options);
-      if (!(this.backend instanceof WorkerBackend) || !timeout) return p;
-      return new Promise<LatexResult>((resolve, reject) => {
-        const t = setTimeout(() => { this.backend.dispose(); reject(new Error(`mp-tikz-wasm: latex exceeded ${timeout} ms; worker terminated`)); }, timeout);
-        p.then((r) => { clearTimeout(t); resolve(r); }, (e) => { clearTimeout(t); reject(e); });
-      });
-    };
+    const task = () => this.watchdog(this.backend.latex(source, options), 'latex');
     const next = this.queue.then(task, task);
     this.queue = next.catch(() => undefined);
     return next;
   }
   addFiles(files: Record<string, string | Uint8Array>): Promise<void> { return this.backend.addFiles(files); }
   preload(bundles: BundleName[]): Promise<void> { return this.backend.preload(bundles); }
+  /** Fetch in parallel the files a first run of these kinds needs (see `MetaPostOptions.prefetch`). Resolves to the number fetched. */
+  prefetch(kinds: PrefetchKind[]): Promise<number> { return this.backend.prefetch(kinds); }
   clearCache(): Promise<void> { return this.backend.clearCache(); }
   on(event: 'progress', fn: (e: ProgressEvent) => void): () => void;
   on(event: 'log', fn: (line: string) => void): () => void;

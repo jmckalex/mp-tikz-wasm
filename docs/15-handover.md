@@ -70,9 +70,12 @@ The archives are what the guide's "Get it" section points users at; `dist/`
 is not committed, so a clone alone has no wasm. Bump `version` in
 `package.json` first (the archive name and the guide take it from there).
 
-`npm run pages` (`scripts/publish-pages.sh`) publishes the demo pages and
-`dist/` to the `gh-pages` branch for GitHub Pages; the README's demo and
-guide links point there. Run it after every rebuild of the pages.
+The demos are served from https://jmckalex.org/software/mp-tikz-wasm/ (the
+README's links). `scripts/stage-site.sh ~/Sites/jmckalex/software/mp-tikz-wasm`
+refreshes that directory from the build outputs and `make sync` there
+rsyncs it to Bluehost (the Makefile follows the website's convention; dry-run
+with `ARGS=-n`). Run both after every rebuild of the pages. `npm run pages`
+is the GitHub Pages alternative.
 
 ## Known issues, honestly
 

@@ -29,10 +29,11 @@
  *
  * Loader script attributes: data-base (bundle/wasm base URL), data-worker="off",
  * data-observe="off" (no MutationObserver for later-added elements),
- * data-snapshot="on" (use the pre-warmed tikz.fmt; see README for the trade-off).
+ * data-snapshot="on" (use the pre-warmed tikz.fmt; see README for the trade-off),
+ * data-prefetch="off" (do not prefetch the files the page's diagrams need in parallel).
  */
 import { MetaPost } from './index.js';
-import type { LatexRunOptions, MetaPostOptions, RunResult, LatexResult } from './types.js';
+import type { LatexRunOptions, MetaPostOptions, RunResult, LatexResult, PrefetchKind } from './types.js';
 import { sha256Hex } from './tex/cache-key.js';
 
 type Kind = 'tikz' | 'metapost';
@@ -99,13 +100,27 @@ async function cachePut(key: string, svg: string): Promise<void> {
   await new Promise<void>((resolve) => { const t = db.transaction(STORE, 'readwrite'); t.objectStore(STORE).put(svg, key); t.oncomplete = () => resolve(); t.onerror = () => resolve(); });
 }
 
+/** Status spans of figures waiting for the engine; progress events update them (a slow host shows what it is fetching). */
+const statusSpans = new Set<HTMLElement>();
+
 export class AutoRenderer {
   private engine: Promise<MetaPost> | null = null;
   private version = 'mp-tikz-wasm';
   constructor(private options: MetaPostOptions & { cacheResults?: boolean } = {}) {}
 
   private get mp(): Promise<MetaPost> {
-    if (!this.engine) this.engine = MetaPost.create(this.options).then((m) => { this.version = `${m.version.metapost}/${m.version.build}`; return m; });
+    if (!this.engine) {
+      // prefetch the files the page's diagrams will need, in parallel, before the first render
+      const options = { ...this.options, prefetch: this.options.prefetch ?? prefetchKinds() };
+      this.engine = MetaPost.create(options).then((m) => {
+        this.version = `${m.version.metapost}/${m.version.build}`;
+        m.on('progress', (e) => {
+          const text = e.phase === 'fetching' ? `fetching ${e.detail ?? ''}…` : e.phase === 'typesetting' ? `typesetting${e.detail ? ` (${e.detail})` : ''}…` : `${e.phase}…`;
+          for (const s of statusSpans) s.textContent = text;
+        });
+        return m;
+      });
+    }
     return this.engine;
   }
 
@@ -152,6 +167,23 @@ function sourceOf(el: Element): string {
   // script bodies are raw; custom elements hold HTML text, so entities are decoded by the parser already
   return (el.textContent ?? '').replace(/^\s*\n/, '').replace(/\s+$/, '');
 }
+/** Which kinds of run the page's diagrams will need, for the engine's parallel prefetch. */
+function prefetchKinds(): PrefetchKind[] {
+  const kinds = new Set<PrefetchKind>();
+  for (const el of Array.from(document.querySelectorAll(SELECTOR))) {
+    const a = attrsOf(el), src = sourceOf(el);
+    if (kindOf(el) === 'tikz') {
+      const engine = a.engine ?? 'auto';
+      if (engine === 'plain') kinds.add('plain');
+      else if (engine === 'lualatex' || engine === 'luatex' || a.gdlibraries || /graphdrawing|\\directlua|luacode/.test(src)) kinds.add('lualatex');
+      else kinds.add('latex');
+    } else {
+      kinds.add('metapost');
+      if (a.tex === 'latex' || /documentclass/.test(src)) kinds.add('latex');
+    }
+  }
+  return [...kinds];
+}
 
 export async function renderElement(el: Element): Promise<void> {
   if (pending.has(el)) return;
@@ -164,6 +196,8 @@ export async function renderElement(el: Element): Promise<void> {
   if (attrs.alt) host.setAttribute('aria-label', attrs.alt);
   host.innerHTML = `<span class="mpw-status">rendering ${kind === 'tikz' ? 'TikZ' : 'MetaPost'}…</span>`;
   if (isScript) el.replaceWith(host); else { el.innerHTML = ''; el.appendChild(host); }
+  const status = host.querySelector<HTMLElement>('.mpw-status');
+  if (status) statusSpans.add(status);
   try {
     renderer ??= new AutoRenderer(loaderOptions());
     const r = await renderer.render({ kind, source, attrs });
@@ -180,6 +214,8 @@ export async function renderElement(el: Element): Promise<void> {
     host.className = `mpw-figure mpw-${kind} mpw-error`;
     const msg = typeof e === 'string' ? e : e?.message ?? e?.error ?? (() => { try { return JSON.stringify(e); } catch { return String(e); } })();
     host.innerHTML = `<pre class="mpw-console">${String(msg).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!))}</pre>`;
+  } finally {
+    if (status) statusSpans.delete(status);
   }
 }
 
@@ -192,6 +228,7 @@ function loaderOptions(): MetaPostOptions & { cacheResults?: boolean } {
   if (ds.cache === 'off') o.cacheResults = false;
   if (ds.bundles) o.bundles = ds.bundles.split(/[,\s]+/).filter(Boolean);
   if (ds.snapshot === 'on' || ds.snapshot === 'auto') o.snapshot = 'auto';   // opt in: 5.8 MB format, faster after the first figure
+  if (ds.prefetch === 'off') o.prefetch = [];                                  // default: the kinds the page contains
   return o;
 }
 
