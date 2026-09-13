@@ -15,7 +15,7 @@ import { MetaPost } from '../dist/index.js';
 
 const REPO = path.resolve(new URL('..', import.meta.url).pathname);
 const DIST = path.join(REPO, 'dist'), BUNDLES = path.join(DIST, 'bundles'), SITE = path.join(REPO, 'site'), OUT = path.join(REPO, 'build/pages');
-const REPO_URL = process.env.REPO_URL ?? 'https://github.com/YOUR-GITHUB-USER/mp-tikz-wasm';
+const REPO_URL = process.env.REPO_URL ?? 'https://github.com/jmckalex/mp-tikz-wasm';
 const only = process.argv[2];
 fs.mkdirSync(OUT, { recursive: true }); fs.mkdirSync(path.join(REPO, 'build/vendor'), { recursive: true });
 

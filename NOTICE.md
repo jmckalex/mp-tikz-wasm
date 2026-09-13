@@ -1,4 +1,4 @@
-# Licences
+# Licences (NOTICE)
 
 mp-tikz-wasm is a build of several upstream programs plus its own glue.
 Each part keeps its licence; the table says what applies to what.
@@ -15,6 +15,6 @@ Each part keeps its licence; the table says what applies to what.
 | Computer Modern, AMS and Latin Modern fonts (`bundles/`) | Knuth's licence / AMS / GUST Font License | |
 | LaTeX, PGF/TikZ, pgfplots and the other macro packages (`bundles/`) | LPPL 1.3c and package-specific free licences | see each package's header in TeX Live |
 
-The full text of the LGPL-3.0 is at <https://www.gnu.org/licenses/lgpl-3.0.txt>
-and of the GPL-3.0 at <https://www.gnu.org/licenses/gpl-3.0.txt>; copy them
-into `LICENSE-LGPL` and `LICENSE-GPL` before publishing a release.
+The full texts are in the repository: `LICENSE` (LGPL-3.0, this project's own
+licence) and `licenses/GPL-3.0.txt` / `licenses/LGPL-3.0.txt`, copied from
+<https://www.gnu.org/licenses/>.

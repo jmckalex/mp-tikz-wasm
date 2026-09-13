@@ -2,18 +2,21 @@
 
 ## 1. Prerequisites
 
-| Tool | Version | Notes |
-| --- | --- | --- |
-| Emscripten SDK | pin one, e.g. 4.0.x | `emsdk install <ver> && emsdk activate <ver>`. Record in `.emsdk-version` and in CI. |
-| Node | ≥ 20 | 22+ preferred for `--experimental-wasm-jspi` experiments |
-| CMake + Ninja | ≥ 3.25 | |
-| A native C toolchain | any | for `ctangle`, `tangle`, `web2c` and the contract harness |
-| TeX Live | 2025 (or whatever is pinned) | the **oracle** for tests. CI installs it via `tlmgr` with a restricted scheme. |
-| `python3` | ≥ 3.10 | bundle/manifest tooling |
+What the build as implemented actually uses (the README's "Building from
+source" section has the install commands):
 
-Not required: autoconf/automake, if you drive the builds from CMake as below.
-TeX Live's own autotools build is only needed if you take the "configure the
-whole tree for wasm" route for `tex.wasm` — see §4.2.
+| Tool | Version | Used for |
+| --- | --- | --- |
+| Emscripten SDK | 6.0.9, pinned in `.emsdk-version` | every `.wasm`; `emcc` on PATH is enough, `emsdk_env.sh` is not needed |
+| Node + npm | ≥ 20 (22 in CI, 23 on the build machine) | build scripts, formats, bundles, tests |
+| C and C++17 compilers, `make`, `patch` | any recent | `ctangle`, the native mplib and the contract harness, the native web2c pass for pdfTeX, the native LuaTeX build whose compile commands are replayed with `emcc`, dvisvgm's configure |
+| `curl`, xz-capable `tar`, `shasum` | | `scripts/extract-vendor.sh` fetches and verifies the pinned TeX Live source |
+| `python3` | 3.x | `scripts/native-luatex.sh` parses the native build log into compile commands |
+| `zip`, `gzip` | | release archives, size measurements |
+| TeX Live | 2025, full | the **oracle** (`mpost`, `latex`, `dvilualatex`, `dvisvgm`) and, through `kpsewhich`, the source of every macro package and font copied into the bundles. `makeindex` only for the PGF-manual stress test. CI installs the Debian packages listed in `.github/workflows/ci.yml`. |
+
+Not used: CMake, Ninja, autoconf/automake (TeX Live's tarball ships its
+`configure` scripts).
 
 ## 2. Repository layout
 

@@ -18,7 +18,8 @@ cp -R "$REPO/dist" "$STAGE/dist"
 rm -f "$STAGE"/dist/*.map "$STAGE"/dist/*/*.map
 mkdir -p "$STAGE/site"
 cp "$REPO"/site/index.html "$REPO"/site/app.js "$REPO"/site/examples.js "$REPO"/site/examples-tikz.js "$REPO"/site/tags.html "$REPO"/site/guide.html "$REPO"/site/minimal.html "$REPO"/site/minimal-sources.js "$REPO"/site/live.html "$REPO"/site/live-sources.js "$REPO"/site/page-common.js "$STAGE/site/" 2>/dev/null || true
-cp "$REPO/README.md" "$REPO/LICENSE.md" "$STAGE/" 2>/dev/null || true
+cp "$REPO/README.md" "$REPO/NOTICE.md" "$REPO/LICENSE" "$STAGE/" 2>/dev/null || true
+cp -R "$REPO/licenses" "$STAGE/licenses"
 cp "$REPO/scripts/serve.mjs" "$STAGE/serve.mjs"
 cat > "$STAGE/START.md" <<'TXT'
 mp-tikz-wasm — prebuilt distribution

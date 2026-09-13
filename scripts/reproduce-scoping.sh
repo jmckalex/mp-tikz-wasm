@@ -100,5 +100,5 @@ What you just proved:
     make_text intercepted btex, and the run produced a structured figure.
   * prologues:=3 yields real glyph outlines with no TeX in the loop.
 
-Next: read START-HERE.md, then docs/05-tex-bridge.md.
+Next: read docs/00-START-HERE.md, then docs/05-tex-bridge.md.
 DONE

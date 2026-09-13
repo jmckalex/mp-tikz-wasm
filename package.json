@@ -3,6 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "description": "MetaPost (mplib 2.11), pdfTeX, LuaTeX and dvisvgm compiled to WebAssembly: MetaPost to SVG/EPS/JSON, and LaTeX/TikZ documents (graph drawing included) to SVG, in the browser and Node",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jmckalex/mp-tikz-wasm.git"
+  },
+  "homepage": "https://github.com/jmckalex/mp-tikz-wasm#readme",
+  "bugs": {
+    "url": "https://github.com/jmckalex/mp-tikz-wasm/issues"
+  },
+  "author": "J. McKenzie Alexander",
+  "keywords": [
+    "metapost",
+    "tikz",
+    "pgf",
+    "latex",
+    "luatex",
+    "dvisvgm",
+    "webassembly",
+    "wasm",
+    "svg",
+    "tikzjax"
+  ],
   "type": "module",
   "license": "LGPL-3.0-or-later",
   "scripts": {

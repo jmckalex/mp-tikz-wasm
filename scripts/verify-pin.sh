@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # verify-pin.sh — assert that the vendored MetaPost still has the API this
-# project relies on (docs/02 §1.1, START-HERE §7). Runs in CI.
+# project relies on (docs/02 §1.1, docs/00-START-HERE §7). Runs in CI.
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MPD="$REPO/vendor/texlive-source/texk/web2c/mplibdir"

@@ -35,9 +35,11 @@ one wasm engine leave the allocator's bytes in use unchanged
 
 ## Build and test, from scratch
 
-Prerequisites: C compiler, Node ≥ 20, Emscripten 6.0.9 (`.emsdk-version`;
-this machine has it at `~/emsdk`, `export PATH=$HOME/emsdk/upstream/emscripten:$PATH`),
-TeX Live 2025 at `/usr/local/texlive/2025` (oracle and source of bundled files).
+Prerequisites are listed in the README ("Building from source"): a C/C++
+toolchain, Node ≥ 20, Emscripten 6.0.9 (`.emsdk-version`; on this machine at
+`~/emsdk`, `export PATH=$HOME/emsdk/upstream/emscripten:$PATH`) and a full
+TeX Live 2025 (the oracle for the tests and the source of the bundled files;
+here at `/usr/local/texlive/2025`).
 
 ```sh
 ./scripts/extract-vendor.sh && ./scripts/verify-pin.sh
@@ -51,9 +53,22 @@ npm run build:guide; npm run build:pages; npm run build:standalone
 npm run package
 ```
 
-`REPO_URL=https://github.com/<you>/mp-tikz-wasm` on `build:guide` and
-`build:pages` replaces the placeholder links. `GUIDE_URL` does the same for
-the guide link in the single-file pages.
+The pages link to <https://github.com/jmckalex/mp-tikz-wasm> (the default in
+`build:guide` and `build:pages`; `REPO_URL` and `GUIDE_URL` override it).
+
+## Publishing a release
+
+```sh
+npm run build && npm run build:guide && npm run build:pages && npm run build:standalone
+npm run package                                   # release/mp-tikz-wasm-<version>.{tar.gz,zip}
+git tag v<version> && git push origin main --tags
+gh release create v<version> release/mp-tikz-wasm-<version>.tar.gz release/mp-tikz-wasm-<version>.zip \
+  --title "mp-tikz-wasm <version>" --notes-file <notes>
+```
+
+The archives are what the guide's "Get it" section points users at; `dist/`
+is not committed, so a clone alone has no wasm. Bump `version` in
+`package.json` first (the archive name and the guide take it from there).
 
 ## Known issues, honestly
 
@@ -67,10 +82,9 @@ the guide link in the single-file pages.
    native configure happened to prepare in `vendor/native-build`.
 4. **No OpenType font loading.** LuaTeX runs without luaotfload; `fontspec`,
    `unicode-math` and system fonts are out. Text uses the Type 1 fonts.
-5. **Licence texts not vendored.** `LICENSE.md` links to the LGPL-3.0 and
-   GPL-3.0 texts; copy them in before a release. pplib's licence is not
-   stated in the vendored source.
-6. **Artifact viewer quirks** (claude.ai only): a freshly published ~8 MB page
+5. **pplib's licence** is not stated in the vendored TeX Live source; NOTICE.md
+   describes it as permissive on the strength of its README upstream.
+6. **Artifact viewer quirks (claude.ai only): a freshly published ~8 MB page
    can take up to a minute to render; Emscripten glue must be in
    `<script type="module">` (it uses `import.meta`); blob Workers need a
    `locateFile` so the glue does not resolve the wasm name against the blob
