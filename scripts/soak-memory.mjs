@@ -16,7 +16,8 @@ const mp = await MetaPost.create({ log: () => {}, tex: tikz ? 'auto' : 'none' })
 const M = mp.backend.core.M;
 const inUse = () => (M._mpwasm_heap_in_use ? M._mpwasm_heap_in_use() : NaN);
 const heapMB = () => M.HEAPU8.length / 1048576;
-const rssMB = () => process.memoryUsage().rss / 1048576;
+const rssMB = () => { globalThis.gc?.(); return process.memoryUsage().rss / 1048576; };  // run with node --expose-gc for a GC-settled number
+const mem = () => { globalThis.gc?.(); const m = process.memoryUsage(); return `rss ${(m.rss / 1048576).toFixed(0)} heap ${(m.heapUsed / 1048576).toFixed(0)} ext ${(m.external / 1048576).toFixed(0)} ab ${(m.arrayBuffers / 1048576).toFixed(0)} MB`; };
 const mpSrc = 'beginfig(1); numeric a; a := 37; pair v[]; for i = 0 upto 7: v[i] := (10i, 5i); endfor for i = 1 upto 7: draw v[i-1] -- v[i] withpen pencircle scaled 1.1 withcolor (0.1,0.3,0.7); endfor fill fullcircle scaled 4 shifted v[3]; endfig; end.';
 const texSrc = '\\documentclass{standalone}\\usepackage{tikz}\\begin{document}\\begin{tikzpicture}\\draw[thick,blue] (0,0) -- (1,1) circle (0.3);\\node at (0.5,0.5) {$x$};\\end{tikzpicture}\\end{document}';
 const run = () => (tikz ? mp.latex(texSrc, { engine: 'latex' }) : mp.run(mpSrc, { format: 'svg' }));
@@ -29,7 +30,7 @@ for (let i = 0; i < runs; i++) {
   const r = await run();
   if (r.status !== 'ok') errors++;
   if ((i + 1) % every === 0) {
-    if (tikz) console.log(`${String(i + 1).padStart(7)} runs  rss ${rssMB().toFixed(1)} MB  (${(rssMB() - start.rss >= 0 ? '+' : '')}${(rssMB() - start.rss).toFixed(1)} MB)`);
+    if (tikz) console.log(`${String(i + 1).padStart(7)} runs  ${mem()}  (rss ${(rssMB() - start.rss >= 0 ? '+' : '')}${(rssMB() - start.rss).toFixed(1)} MB)`);
     else console.log(`${String(i + 1).padStart(7)} runs  in use ${inUse()} B  (${inUse() - start.inUse >= 0 ? '+' : ''}${inUse() - start.inUse} B)  heap ${heapMB().toFixed(0)} MB`);
   }
 }

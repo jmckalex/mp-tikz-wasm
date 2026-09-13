@@ -369,8 +369,13 @@ job and an empty job; AddressSanitizer is clean; 200,000 consecutive jobs on
 one wasm engine leave the allocator's bytes in use unchanged
 (`scripts/soak-memory.mjs`, which reads the new `mpwasm_heap_in_use`
 export). `test/e2e/memory.test.ts` now asserts that 300 runs leave nothing
-allocated. The live page keeps recycling each animation's engine every
-30,000 frames as a safeguard only. Lessons: the plan's soak test was on the
+allocated. The TikZ path was checked the same way (`--tikz`, under
+`node --expose-gc`): TeX and dvisvgm are instantiated fresh per job and
+dropped, and over 600 documents the JS heap, external memory and
+ArrayBuffers stay flat while process RSS levels off (the last 300 runs added
+21 MB after the first 300 added 317 MB) — reclamation lag, not retention.
+The live page keeps recycling each animation's engine every 30,000 frames
+as a safeguard only. Lessons: the plan's soak test was on the
 list and not done; a comment asserting what a library frees is not
 evidence; and a leak tool's allocation stack is the block's first owner,
 not its last.
