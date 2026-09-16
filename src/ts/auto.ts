@@ -30,10 +30,12 @@
  * Loader script attributes: data-base (bundle/wasm base URL), data-worker="off",
  * data-observe="off" (no MutationObserver for later-added elements),
  * data-snapshot="on" (use the pre-warmed tikz.fmt; see README for the trade-off),
- * data-prefetch="off" (do not prefetch the files the page's diagrams need in parallel).
+ * data-prefetch="off" (do not prefetch the files the page's diagrams need in parallel),
+ * data-log="debug" (how much reaches the browser console: silent, error, warn (default), info,
+ * debug — the engines' output as it runs — or trace; `mpTikzWasm.setLogLevel()` changes it later).
  */
-import { MetaPost } from './index.js';
-import type { LatexRunOptions, MetaPostOptions, RunResult, LatexResult, PrefetchKind } from './types.js';
+import { MetaPost, LOG_LEVELS } from './index.js';
+import type { LatexRunOptions, MetaPostOptions, RunResult, LatexResult, PrefetchKind, LogLevel } from './types.js';
 import { sha256Hex } from './tex/cache-key.js';
 
 type Kind = 'tikz' | 'metapost';
@@ -127,6 +129,12 @@ export class AutoRenderer {
       });
     }
     return this.engine;
+  }
+
+  /** How much reaches the console (see `MetaPostOptions.logLevel`), for the engine now and later. */
+  setLogLevel(level: LogLevel): void {
+    this.options.logLevel = level;
+    void this.engine?.then((m) => { m.logLevel = level; });
   }
 
   async render(req: RenderRequest): Promise<RenderOutput> {
@@ -227,13 +235,14 @@ export async function renderElement(el: Element): Promise<void> {
 function loaderOptions(): MetaPostOptions & { cacheResults?: boolean } {
   const me = (document.currentScript as HTMLScriptElement | null) ?? document.querySelector('script[src*="auto.js"]');
   const ds = (me as HTMLElement | null)?.dataset ?? {};
-  const o: MetaPostOptions & { cacheResults?: boolean } = { log: () => {} };
+  const o: MetaPostOptions & { cacheResults?: boolean } = {};
   if (ds.base) o.bundleBaseUrl = new URL('bundles/', new URL(ds.base, location.href)).href;
   if (ds.worker === 'off') o.worker = false;
   if (ds.cache === 'off') o.cacheResults = false;
   if (ds.bundles) o.bundles = ds.bundles.split(/[,\s]+/).filter(Boolean);
   if (ds.snapshot === 'on' || ds.snapshot === 'auto') o.snapshot = 'auto';   // opt in: 5.8 MB format, faster after the first figure
   if (ds.prefetch === 'off') o.prefetch = [];                                  // default: the kinds the page contains
+  if (ds.log && (LOG_LEVELS as string[]).includes(ds.log)) o.logLevel = ds.log as LogLevel;
   return o;
 }
 
@@ -262,5 +271,9 @@ if (typeof document !== 'undefined' && typeof customElements !== 'undefined') {
     }
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
-  (globalThis as any).mpTikzWasm = { render: (req: RenderRequest) => (renderer ??= new AutoRenderer(loaderOptions())).render(req), autoRender, wrapTikz, wrapMetaPost };
+  (globalThis as any).mpTikzWasm = {
+    render: (req: RenderRequest) => (renderer ??= new AutoRenderer(loaderOptions())).render(req),
+    setLogLevel: (level: LogLevel) => (renderer ??= new AutoRenderer(loaderOptions())).setLogLevel(level),
+    autoRender, wrapTikz, wrapMetaPost,
+  };
 }

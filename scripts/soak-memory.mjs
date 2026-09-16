@@ -12,7 +12,7 @@ import { MetaPost } from '../dist/index.js';
 
 const runs = Number(process.argv.find((a) => /^\d+$/.test(a)) ?? 3000);
 const tikz = process.argv.includes('--tikz');
-const mp = await MetaPost.create({ log: () => {}, tex: tikz ? 'auto' : 'none' });
+const mp = await MetaPost.create({ logLevel: 'silent', tex: tikz ? 'auto' : 'none' });
 const M = mp.backend.core.M;
 const inUse = () => (M._mpwasm_heap_in_use ? M._mpwasm_heap_in_use() : NaN);
 const heapMB = () => M.HEAPU8.length / 1048576;

@@ -50,7 +50,7 @@ function oracle(caseFile, fmt) {
 
 fs.mkdirSync(OUT, { recursive: true });
 fs.mkdirSync(EXPECTED, { recursive: true });
-const mp = await MetaPost.create({ log: () => {} });
+const mp = await MetaPost.create({ logLevel: 'silent' });
 let pass = 0, fail = 0;
 const files = fs.readdirSync(CASES).filter((f) => f.endsWith('.mp') && (only.length === 0 || only.some((o) => f.includes(o)))).sort();
 for (const f of files) {

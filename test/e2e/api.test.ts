@@ -10,7 +10,7 @@ describe.skipIf(!built)('mp-tikz-wasm end to end', () => {
   let mp: any;
   beforeAll(async () => {
     const { MetaPost } = await import(path.join(REPO, 'dist/index.js'));
-    mp = await MetaPost.create({ log: () => {} });
+    mp = await MetaPost.create({ logLevel: 'silent' });
   }, 60_000);
   afterAll(() => mp?.dispose());
 
@@ -83,7 +83,7 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
   let mp: any;
   beforeAll(async () => {
     const { MetaPost } = await import(path.join(REPO, 'dist/index.js'));
-    mp = await MetaPost.create({ log: () => {} });
+    mp = await MetaPost.create({ logLevel: 'silent' });
   }, 60_000);
   afterAll(() => mp?.dispose());
 

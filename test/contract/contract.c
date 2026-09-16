@@ -43,6 +43,15 @@ char *mpwasm_host_run_script(const char *script, int len) {
   run_script_calls++;
   return xstrdup("\"scripted\"");
 }
+/* the streamed terminal, one line per call, to compare with mpwasm_term_out */
+static int term_lines = 0;
+static char term_stream[65536];
+static void term_stream_reset(void) { term_lines = 0; term_stream[0] = 0; }
+void mpwasm_host_term_line(const char *line, int len) {
+  size_t n = strlen(term_stream);
+  term_lines++;
+  if (n + (size_t) len + 2 < sizeof term_stream) { memcpy(term_stream + n, line, (size_t) len); term_stream[n + len] = '\n'; term_stream[n + len + 1] = 0; }
+}
 
 /* ---- helpers ------------------------------------------------------------ */
 static char texmf[1024], texmfvar[1024];
@@ -113,8 +122,13 @@ static void test_one_line_contract(void) {
 
   write_file("job.mp", "% a multi-line MetaPost document with a comment\nprologues := 3;\nbeginfig(1);\n  draw fullcircle scaled 100;\n  label.top(\"MetaPost\", (0,50));\nendfig;\nbeginfig(2);\n  fill unitsquare scaled 40 withcolor (1,0,0);\nendfig;\nend.\n");
   c = new_ctx();
+  term_stream_reset();
   h = mpwasm_run(c, "input job");
   CHECK(h == 0, "the same document via a VFS file + 'input job' is spotless (got %d)", h);
+  CHECK(term_lines > 0 && strncmp(term_stream, "This is MetaPost", 16) == 0, "the terminal is streamed a line at a time as it is written, banner first (%d lines)", term_lines);
+  { const char *t = mpwasm_term_out(c); size_t l = strlen(t);
+    CHECK(l > 0 && (strcmp(term_stream, t) == 0 || (t[l - 1] != '\n' && strncmp(term_stream, t, l) == 0 && term_stream[l] == '\n' && term_stream[l + 1] == 0)),
+          "...and the streamed lines are exactly mpwasm_term_out"); }
   CHECK(mpwasm_figure_count(c) == 2, "...and produces 2 figures (got %d)", mpwasm_figure_count(c));
   CHECK(mpwasm_figure_charcode(c, 0) == 1 && mpwasm_figure_charcode(c, 1) == 2, "...with charcodes 1 and 2");
   CHECK(mpwasm_run(c, "input job") == -1, "a second mpwasm_run on the same context is refused (one job per instance)");

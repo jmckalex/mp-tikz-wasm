@@ -29,7 +29,7 @@ for (const ex of GUIDE) {
 const out = {};
 for (const [kind, examples] of Object.entries(kinds)) {
   seen.clear();
-  const mp = await MetaPost.create({ log: () => {}, snapshot: 'none' });
+  const mp = await MetaPost.create({ logLevel: 'silent', snapshot: 'none' });
   for (const ex of examples) {
     if (kind === 'metapost' && /documentclass/.test(ex.src)) continue;
     const r = ex.kind === 'mp' ? await mp.run(ex.src, { format: 'svg' }) : await mp.latex(ex.src, { engine: ex.engine ?? (ex.plain ? 'plain' : 'latex'), snapshot: 'none' });

@@ -37,6 +37,9 @@ char *mpwasm_host_run_script(const char *script, int len) {
   (void) script; (void) len;
   return NULL;
 }
+void mpwasm_host_term_line(const char *line, int len) {
+  (void) line; (void) len;
+}
 
 int main(int argc, char **argv) {
   const char *mptexpre;

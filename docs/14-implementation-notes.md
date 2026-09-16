@@ -380,3 +380,40 @@ list and not done; a comment asserting what a library frees is not
 evidence; and a leak tool's allocation stack is the block's first owner,
 not its last.
 
+## 12. Logging (session 5)
+
+What was learned adding the levelled console log (`docs/08` §4 has the
+user-facing table).
+
+- **mplib does not let the embedder see the terminal as it goes.** In
+  non-interactive mode `mp_initialize` applies `set_callback_option` for
+  every I/O callback and *then* overwrites them all with the `mplib_*`
+  in-memory versions (`@<Prepare function pointers for non-interactive
+  use@>`), so an `opt->write_ascii_file` is silently discarded. The only
+  hook point is after `mp_initialize`: swap `mp->write_ascii_file` on the
+  instance (which means including `mpmp.h`, the internal header; it only
+  needs `avl.h` and `mplib.h`, both already on the include path). The
+  wrapper forwards to the saved original so `run_data.term_out` still fills,
+  and splits the terminal stream into lines because MetaPost writes it a
+  character at a time (`wterm_chr`). The banner is printed inside
+  `mp_initialize`, before the swap, so it is replayed from the buffer.
+- **The line hook is a JS-library import like the others** (`mpwasm_host_*`
+  in `src/c/mpwasm_library.js`), which keeps `-sERROR_ON_UNDEFINED_SYMBOLS`
+  honest and means every native harness needs a stub. The contract harness
+  now compares the streamed lines with `mpwasm_term_out` byte for byte.
+- **Chrome hides `console.debug`** under its "Verbose" filter, off by
+  default; someone who set `logLevel: 'debug'` to see the engines' output
+  would see nothing. The two verbose levels therefore use `console.log`.
+- **The level lives where the records are produced.** In the Worker the
+  Logger runs inside the Worker with a sink that posts `{event:'record'}`,
+  and `mp.logLevel = …` sends a `setLogLevel` message, so nothing the level
+  excludes is ever posted. The level is checked at call time, not at wiring
+  time: the engines' `onLine` callbacks and the `termLine` hook are installed
+  once, in `init()`.
+- **The CLI leaves MetaPost's own errors and warnings out of stderr** because
+  the transcript on stdout already carries them (as with `mpost`); TeX,
+  dvisvgm, bundle and host records go to stderr at the chosen level. This
+  replaced two ad-hoc `console.error` loops with the same intent.
+- **Default `warn`**, not `silent`: a page whose figure comes out blank now
+  says why in the console without any option; the tests and the build
+  scripts pass `logLevel: 'silent'`.

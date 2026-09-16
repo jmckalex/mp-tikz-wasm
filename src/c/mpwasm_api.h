@@ -87,6 +87,9 @@ unsigned long mpwasm_heap_in_use(void); /* bytes allocated in the wasm heap (0 n
 char *mpwasm_host_find_file(const char *name, int ftype, const char *mode);
 char *mpwasm_host_make_text(const char *text, int len, int mode);
 char *mpwasm_host_run_script(const char *script, int len);
+/* One completed line of MetaPost's terminal output, as it is written (the
+ * same text mpwasm_term_out returns at the end). May do nothing. */
+void mpwasm_host_term_line(const char *line, int len);
 
 #ifdef __cplusplus
 }

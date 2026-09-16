@@ -117,7 +117,7 @@ The written documentation is in the repository:
   and output, testing), then
   [`docs/14-implementation-notes.md`](docs/14-implementation-notes.md) on what
   was learned building it and
-  [`docs/15-handover.md`](docs/15-handover.md), the summary of what exists,
+  [`HANDOVER.md`](HANDOVER.md), the summary of what exists,
   how to build and test it, and what is known to be unfinished.
 - [`patches/`](patches/): the twelve upstream patches, each explained.
 - [`NOTICE.md`](NOTICE.md): what is licensed how.
@@ -169,7 +169,8 @@ label engine). Errors show their diagnostics under the figure;
 `data-show-console` keeps the log. Loader attributes on the script tag:
 `data-base` (where `bundles/` and the wasm files live, default next to the
 script), `data-worker="off"`, `data-observe="off"`, `data-snapshot="on"`,
-`data-prefetch="off"`. Before the first render the loader fetches, in
+`data-prefetch="off"`, `data-log="debug"` (what reaches the browser console;
+see "Logging" below). Before the first render the loader fetches, in
 parallel, the files the page's diagrams will need (recorded at build time in
 `bundles/hot.json`), so a host with slow responses does not pay one round trip
 per file; while it waits, each figure's placeholder shows what is being
@@ -205,6 +206,28 @@ first load is never cut short. `sanitizeSvg(svg)` is provided for
 `innerHTML` use, since MetaPost's `special` can inject arbitrary text into the
 output; `MetaPostPool` runs batch work across several workers.
 
+### Logging
+
+Every run reports to the console (the browser's, or Node's) at the level you
+choose, so you can see what MetaPost, TeX and dvisvgm are doing:
+
+```js
+const mp = await MetaPost.create({ logLevel: 'debug' });   // silent | error | warn (default) | info | debug | trace
+mp.logLevel = 'trace';                                     // at any time; from the tags: mpTikzWasm.setLogLevel('debug')
+```
+
+`warn` prints the errors and warnings of each run (a MetaPost error with its
+help text, a TeX error with its document line, a package warning); `info` adds
+one line per run and per engine pass, with timings; `debug` adds the engines'
+own terminal output, line by line as it is written, so a long MetaPost job or
+a LaTeX run can be watched as it goes; `trace` adds every file looked up or
+fetched and every label-cache lookup. Lines look like `mp-tikz-wasm tex: …`
+and go to `console.error`, `warn`, `info` or `log` by level. Pass `logger:
+(record) => …` to receive the records (`{ level, source, message, time }`)
+instead of the console, or listen with `mp.on('record', …)`, for example to
+fill a panel on the page; `mp.on('log', …)` still delivers every raw line
+whatever the level.
+
 ### Command line
 
 ```sh
@@ -213,6 +236,7 @@ npx mpost-wasm -s 'outputformat="svg"' -s prologues=3 figure.mp
 npx mpost-wasm -tex=latex -numbersystem=double figure.mp
 npx mpost-wasm --latex figure.tex                         # figure-1.svg, figure-2.svg …
 npx mpost-wasm --latex --engine=lualatex graph.tex        # --engine=auto (default) picks LuaTeX when needed
+npx mpost-wasm -vv figure.mp                              # the engines' output on stderr as it runs (-v timings, -vvv every file, -q silence)
 ```
 
 ## How it works
@@ -378,7 +402,7 @@ tag renderer and CLI; `patches/` the upstream patches; `scripts/` the build
 pipeline, each script's header saying what it does; `site/` the demo pages and
 the guide template; `test/` the contract harness, unit tests, golden corpora
 and leak harness; `docs/` the design documents and implementation notes, with
-[docs/15](docs/15-handover.md) as the hand-over summary; `bundles/texmf.cnf`
+[HANDOVER.md](HANDOVER.md) as the hand-over summary; `bundles/texmf.cnf`
 the kpathsea configuration inside the virtual filesystem.
 
 ## Credits

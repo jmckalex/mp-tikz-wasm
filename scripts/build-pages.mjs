@@ -51,7 +51,7 @@ async function recordAssets(warm, extras = true) {
   const used = new Set();
   const record = (u) => { const m = /\/bundles\/[^/]+\/files\/(.+)$/.exec(u); if (m) used.add(m[1]); };
   const io = { async fetch(u) { record(u); return new Uint8Array(fs.readFileSync(u.replace(/^file:\/\//, ''))); }, fetchSync(u) { record(u); return new Uint8Array(fs.readFileSync(u.replace(/^file:\/\//, ''))); }, async fetchJson(u) { return JSON.parse(fs.readFileSync(u.replace(/^file:\/\//, ''), 'utf8')); } };
-  const mp = await MetaPost.create({ bundleIO: io, bundleBaseUrl: 'file://' + BUNDLES + '/', log: () => {}, snapshot: 'none' });
+  const mp = await MetaPost.create({ bundleIO: io, bundleBaseUrl: 'file://' + BUNDLES + '/', logLevel: 'silent', snapshot: 'none' });
   for (const w of warm) {
     const r = w.mp ? await mp.run(w.mp, { format: 'svg' }) : await mp.latex(w.tex, { snapshot: 'none' });
     if (r.status === 'error' || r.status === 'fatal') console.log('  ! a warm-up document failed:', r.diagnostics.filter((d) => d.severity === 'error').map((d) => d.message).slice(0, 2));

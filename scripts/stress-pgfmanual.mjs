@@ -89,7 +89,7 @@ console.log(`${t()} ${Object.keys(files).length} job files; ${fromTL.length} fro
 
 // ---- 3. tex.wasm + dvisvgm.wasm through the API ---------------------------
 const src = '\\RequirePackage{lmodern}\n' + fs.readFileSync(path.join(DOC, 'pgfmanual.tex'), 'utf8');
-const mp = await MetaPost.create({ log: () => {} });
+const mp = await MetaPost.create({ logLevel: 'silent' });
 const r = await mp.latex(src, { engine: 'latex', snapshot: 'none', jobName: JOB, files });
 mp.dispose();
 const errors = r.diagnostics.filter((d) => d.severity === 'error' || d.severity === 'fatal');

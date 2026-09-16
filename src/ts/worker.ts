@@ -5,14 +5,16 @@
 import { MetaPostCore } from './core.js';
 import { BundleSet, browserIO } from './vfs/bundle.js';
 import { resolveBundleSpecs, DEFAULT_BUNDLES } from './bundles-config.js';
-import type { MetaPostOptions, RunOptions, LatexRunOptions } from './types.js';
+import { Logger, DEFAULT_LOG_LEVEL } from './logger.js';
+import type { MetaPostOptions, RunOptions, LatexRunOptions, LogLevel } from './types.js';
 
-export interface WorkerRequest { id: number; op: 'init' | 'run' | 'latex' | 'addFiles' | 'clearCache' | 'preload' | 'prefetch' | 'dispose'; [k: string]: unknown }
+export interface WorkerRequest { id: number; op: 'init' | 'run' | 'latex' | 'addFiles' | 'clearCache' | 'preload' | 'prefetch' | 'setLogLevel' | 'dispose'; [k: string]: unknown }
 export interface WorkerResponse { id: number; ok: boolean; result?: unknown; error?: string }
-export interface WorkerEvent { event: 'progress' | 'log'; data: unknown }
+export interface WorkerEvent { event: 'progress' | 'log' | 'record'; data: unknown }
 
 let core: MetaPostCore | null = null;
 let bundles: BundleSet | null = null;
+let logger: Logger | null = null;
 let baseUrl = '';
 
 const post = (m: WorkerResponse | WorkerEvent, transfer?: Transferable[]) => (self as any).postMessage(m, transfer ?? []);
@@ -26,6 +28,9 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         baseUrl = String(req.baseUrl);
         const io = browserIO();
         bundles = new BundleSet(io);
+        // records cross to the main thread, which writes them to the console (or the `logger` option)
+        logger = new Logger(options.logLevel ?? DEFAULT_LOG_LEVEL, (r) => post({ event: 'record', data: r }));
+        bundles.logger = logger;
         // manifests, hot lists and engine glue all at once: a slow host charges per round trip
         const bundleBase = options.bundleBaseUrl ?? new URL('./bundles/', baseUrl).href;
         const wantTex = (options.tex ?? 'auto') !== 'none';
@@ -41,7 +46,7 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         await bundles.prefetchEager();
         if (!bundles.canFetchSync) await bundles.prefetchAll();
         core = new MetaPostCore({
-          mplibFactory, texFactory, luatexFactory, dvisvgmFactory, bundles, options,
+          mplibFactory, texFactory, luatexFactory, dvisvgmFactory, bundles, options, logger,
           onProgress: (e) => post({ event: 'progress', data: e }),
           onLog: (line) => post({ event: 'log', data: line }),
         });
@@ -71,6 +76,7 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         break;
       }
       case 'prefetch': { const n = await bundles!.prefetchHot(req.kinds as string[]); post({ id: req.id, ok: true, result: n }); break; }
+      case 'setLogLevel': if (logger) logger.level = req.level as LogLevel; post({ id: req.id, ok: true }); break;
       case 'dispose': post({ id: req.id, ok: true }); (self as any).close(); break;
     }
   } catch (e: any) {

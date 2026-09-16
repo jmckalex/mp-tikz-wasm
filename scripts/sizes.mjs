@@ -28,7 +28,7 @@ console.log(`  JavaScript      ${MB(js)} raw, ${MB(jsgz)} gzip`);
 console.log('\nbundle files touched per scenario (each fetched once, then browser-cached):');
 for (const [name, run] of Object.entries(scenarios)) {
   used = new Map();
-  mp = await MetaPost.create({ bundleIO: io, bundleBaseUrl: 'file://' + BUNDLES + '/', log: () => {} });
+  mp = await MetaPost.create({ bundleIO: io, bundleBaseUrl: 'file://' + BUNDLES + '/', logLevel: 'silent' });
   await run();
   let raw = 0, gzs = 0; for (const [p, n] of used) { raw += n; gzs += gz(fs.readFileSync(`${BUNDLES}/${[...fs.readdirSync(BUNDLES)].find((b) => fs.existsSync(`${BUNDLES}/${b}/files/${p}`))}/files/${p}`)); }
   const fmt = [...used.keys()].filter((p) => p.endsWith('.fmt')).map((p) => p.split('/').pop()).join(',');

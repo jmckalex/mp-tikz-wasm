@@ -3,7 +3,7 @@
  * the main thread (Node). Owns one mplib.wasm instance for its lifetime and
  * creates one tex.wasm instance per TeX invocation.
  */
-import { MpJob, MpFtype, MPX_FTYPE_TFM, MPX_FTYPE_VF, mpxAddPath, mplibVersion, mplibBuildId, type MplibModule, type MplibFactory } from './mplib.js';
+import { MpJob, MpFtype, MP_FTYPE_NAMES, MPX_FTYPE_TFM, MPX_FTYPE_VF, mpxAddPath, mplibVersion, mplibBuildId, type MplibModule, type MplibFactory } from './mplib.js';
 import { runTex, type TexFactory, type TexModule } from './texengine.js';
 import { runDvisvgm, type DvisvgmFactory } from './dvisvgm.js';
 import { BundleSet, TEXMF_ROOT } from './vfs/bundle.js';
@@ -12,6 +12,7 @@ import { scanTexBlocks, scanInputs, type TexBlock } from './tex/scanner.js';
 import { TexBridge, MemorySnippetCache, resolveEngine, canonicalBody, type Snippet, type ResolvedEngine, type SnippetCache } from './tex/bridge.js';
 import { parseMetaPostLog } from './diagnostics.js';
 import { postProcessSvg } from './render/svg.js';
+import { Logger, silentLogger, ms, plural } from './logger.js';
 import type { MetaPostOptions, RunOptions, RunResult, FigureResult, Diagnostic, RunStats, Figure, OutputFormat, ProgressEvent, LatexRunOptions, LatexResult } from './types.js';
 
 /** Where MetaPost looks for each file type (docs/06 §2). */
@@ -54,6 +55,8 @@ export interface CoreEnv {
   options: MetaPostOptions;
   onProgress?: (e: ProgressEvent) => void;
   onLog?: (line: string) => void;
+  /** where every part of a run reports (docs/08 §4); silent if absent */
+  logger?: Logger;
 }
 
 export class MetaPostCore {
@@ -62,13 +65,16 @@ export class MetaPostCore {
   private bridge?: TexBridge;
   readonly version: { metapost: string; tex: string; build: string } = { metapost: '', tex: 'pdfTeX 1.40.27 (DVI)', build: '' };
   private userFiles = new Set<string>();
+  private get logger(): Logger { return this.env.logger ?? silentLogger; }
 
   constructor(private env: CoreEnv) {}
 
   async init(): Promise<void> {
     const o = this.env.options;
-    this.env.onProgress?.({ phase: 'loading', detail: 'mplib.wasm' });
-    const note = (s: string) => { this.recentOutput.push(s); if (this.recentOutput.length > 20) this.recentOutput.shift(); this.env.onLog?.(s); };
+    this.progress({ phase: 'loading', detail: 'mplib.wasm' });
+    // mplib's own stdout/stderr (dvitomp, the runtime) and, through the termLine hook, MetaPost's terminal
+    // as it is written: the raw 'log' event, the last lines for an abort message, and the debug log
+    const note = (s: string) => { this.recentOutput.push(s); if (this.recentOutput.length > 20) this.recentOutput.shift(); this.env.onLog?.(s); this.logger.debug('metapost', s); };
     this.M = await this.env.mplibFactory({
       print: note,
       printErr: note,
@@ -84,6 +90,7 @@ export class MetaPostCore {
       findFile: (name, ftype, mode) => this.findFile(name, ftype, mode),
       makeText: (text, mode) => this.makeText(text, mode),
       runScript: (script) => this.runScript(script),
+      termLine: note,
     };
     this.version.metapost = mplibVersion(this.M);
     this.version.build = mplibBuildId(this.M);
@@ -94,10 +101,26 @@ export class MetaPostCore {
         setupTexFS: (T) => { mkdirp(T.FS, '/work'); this.installTexmf(T.FS, T.NODEFS); this.copyUserFiles(T); },
         cache: this.cache,
         texPreamble: o.texPreamble,
-        onLine: this.env.onLog,
+        onLine: (l) => { this.env.onLog?.(l); this.logger.debug('tex', l); },
         engineId: this.version.build,
         formatIds: { plain: this.formatId('plain'), etex: this.formatId('etex'), latex: this.formatId('latex') },
       });
+    }
+    const b = this.env.bundles;
+    this.logger.info('host', `ready: MetaPost ${this.version.metapost}, ${this.bridge ? this.version.tex : 'no TeX'}${this.env.luatexFactory ? ', LuaTeX' : ''}${this.env.dvisvgmFactory ? ', dvisvgm' : ''}; ${b ? `${plural(b.manifests.length, 'bundle')}, ${plural(b.files.size, 'file')}` : this.env.texmfDir ? `texmf ${this.env.texmfDir}` : 'no texmf tree'}`);
+  }
+
+  private progress(e: ProgressEvent): void {
+    this.env.onProgress?.(e);
+    this.logger.debug('host', `${e.phase}${e.detail ? ` ${e.detail}` : ''}${e.current !== undefined ? ` ${e.current}` : ''}${e.total !== undefined ? ` (${e.total})` : ''}`);
+  }
+
+  /** The errors and warnings of a finished run, one record each; a MetaPost help paragraph is indented under its error. */
+  private report(diagnostics: Diagnostic[]): void {
+    for (const d of diagnostics) {
+      const where = d.file ? `${d.file}${d.line ? `:${d.line}` : ''}: ` : d.line ? `line ${d.line}: ` : '';
+      const help = d.help?.length ? '\n' + d.help.map((h) => `  ${h}`).join('\n') : '';
+      this.logger.log(d.severity === 'error' ? 'error' : 'warn', d.source, `${where}${d.message}${help}`);
     }
   }
 
@@ -129,6 +152,11 @@ export class MetaPostCore {
   /** Last-chance file resolution when the C search failed: consult bundles, then the user hook. */
   private findFile(name: string, ftype: number, mode: string): string | null {
     if (mode[0] !== 'r') return null;
+    const r = this.findFileImpl(name, ftype);
+    this.logger.trace('host', `find_file ${name} (${ftypeName(ftype)}): ${r ?? 'not found'}`);
+    return r;
+  }
+  private findFileImpl(name: string, ftype: number): string | null {
     const base = name.slice(name.lastIndexOf('/') + 1);
     const ext = DEFAULT_EXT[ftype];
     const candidates = ext && !base.endsWith(ext) ? [base, base + ext] : [base];
@@ -168,6 +196,7 @@ export class MetaPostCore {
     }
     const key = this.bridge.key(this.engine, this.chain, text);
     const hit = this.cache.get(key);
+    this.logger.trace('host', `btex ${hit !== undefined ? 'cached' : 'miss'}: ${JSON.stringify(text.length > 60 ? text.slice(0, 57) + '...' : text)}`);
     // mplib injects the returned string as a ONE-line pseudo-file, so an .mpx
     // chunk (several lines, no comments) is joined with spaces (docs/04 §5.1).
     if (hit !== undefined) { this.stats.snippetCacheHits++; return hit.replace(/\r?\n/g, ' '); }
@@ -209,10 +238,12 @@ export class MetaPostCore {
     const formats = new Set<OutputFormat>(Array.isArray(ro.format) ? ro.format : [ro.format ?? 'svg']);
 
     // 1. scan (docs/05 §3)
-    this.env.onProgress?.({ phase: 'scanning' });
+    this.progress({ phase: 'scanning' });
     const blocks = this.scanAll(source, `${jobName}.mp`);
     this.engine = resolveEngine(ro.tex ?? o.tex ?? 'auto', blocks, source);
     const useBridge = !!this.bridge && this.engine !== 'none' && (o.extensions ?? true);
+    const nBtex = blocks.filter((b) => b.kind === 'btex').length;
+    this.logger.info('host', `run ${jobName}.mp: ${source.length} bytes, ${[...formats].join('+')}${nBtex ? `, ${plural(nBtex, 'btex block')} via ${this.engine}` : ''}`);
 
     // 2. typeset the misses found by the scan
     if (useBridge && blocks.some((b) => b.kind === 'btex')) {
@@ -227,8 +258,9 @@ export class MetaPostCore {
       job?.free();
       this.chain = [];
       this.misses = [];
-      this.env.onProgress?.({ phase: 'running', current: iter + 1 });
+      this.progress({ phase: 'running', current: iter + 1 });
       job = this.runMetaPost(source, jobName, ro);
+      this.logger.debug('host', `MetaPost pass ${iter + 1}: history ${job.history}${this.misses.length ? `, ${plural(this.misses.length, 'label')} to typeset` : ''}`);
       if (this.misses.length === 0 || !useBridge) break;
       if (iter === maxRuns - 1) {
         this.texDiagnostics.push({ severity: 'error', source: 'tex', message: `btex blocks still unresolved after ${maxRuns - 1} TeX runs: ${this.misses.map((m) => JSON.stringify(m.body.slice(0, 40))).join(', ')}` });
@@ -239,7 +271,7 @@ export class MetaPostCore {
     const j = job!;
 
     // 6. render
-    this.env.onProgress?.({ phase: 'rendering' });
+    this.progress({ phase: 'rendering' });
     const figures: FigureResult[] = [];
     const n = j.figureCount;
     // prologues: an explicit option wins; otherwise the document's own value
@@ -273,9 +305,13 @@ export class MetaPostCore {
       try { artifacts[p.slice('/work/'.length)] = FS.readFile(p, { encoding: 'binary' }) as Uint8Array; } catch { /* ignore */ }
     }
     if (logOut) artifacts[`${jobName}.log`] = new TextEncoder().encode(logOut);
+    if (this.logger.enabled('trace')) for (const f of j.openedFiles) this.logger.trace('metapost', `opened ${f.name} (${ftypeName(f.type)}) = ${f.path}`);
     j.free();
     this.stats.totalMs = now() - t0;
     const status = history === 0 ? 'ok' : history === 1 ? 'warning' : history === 2 ? 'error' : 'fatal';
+    this.report(diagnostics);
+    if (history >= 3 && !diagnostics.some((d) => d.severity === 'error')) this.logger.error('metapost', `fatal error (history ${history}): ${termOut.trimEnd().split('\n').pop() ?? ''}`);
+    this.logger.info('host', `run ${jobName}.mp: ${status}, ${plural(figures.length, 'figure')} in ${ms(this.stats.totalMs)} (MetaPost ${ms(this.stats.metapostMs)}${this.stats.metapostRuns > 1 ? ` in ${this.stats.metapostRuns} passes` : ''}${this.stats.texRuns ? `, TeX ${ms(this.stats.texMs)} in ${plural(this.stats.texRuns, 'run')}` : ''}${this.stats.snippetCacheHits ? `, ${plural(this.stats.snippetCacheHits, 'cached label')}` : ''})`);
     return { status, history, figures, log: termOut, texLog: this.lastTexLog || undefined, diagnostics, stats: this.stats, artifacts };
   }
 
@@ -316,7 +352,8 @@ export class MetaPostCore {
       const line = '\\def\\pgfsysdriver{pgfsys-dvisvgm.def}';
       doc = source.startsWith('%&') ? source.replace(/^([^\n]*\n)/, `$1${line}`) : line + source;  // same first line: no line-number shift
     }
-    this.env.onProgress?.({ phase: 'typesetting', detail: engine });
+    this.logger.info('host', `latex ${job}.tex: ${source.length} bytes, engine ${engine}, format ${fmt}`);
+    this.progress({ phase: 'typesetting', detail: engine });
     // 1. TeX → DVI
     let dvi: Uint8Array | null = null;
     let texLog = '';
@@ -335,8 +372,9 @@ export class MetaPostCore {
           try { artifacts[name] = M.FS.readFile(p, { encoding: 'binary' }) as Uint8Array; } catch { /* ignore */ }
         }
       },
-      onLine: this.env.onLog,
+      onLine: (l) => { this.env.onLog?.(l); this.logger.debug('tex', l); },
     });
+    this.logger.info('host', `TeX: ${dvi ? `${(dvi as Uint8Array).length}-byte DVI` : 'no DVI'} in ${ms(tex.ms)}${tex.exitCode ? `, exit ${tex.exitCode}` : ''}`);
     const diagnostics = parseTexLogDocument(texLog || tex.log, `${job}.tex`).filter((d) => {
       // environmental noise, not the document's doing: there is never a shell here
       if (/^shellesc: Shell escape disabled/.test(d.message)) return false;
@@ -355,8 +393,9 @@ export class MetaPostCore {
     // 2. DVI → SVG
     if (dvi) {
       const dviBytes: Uint8Array = dvi;
-      this.env.onProgress?.({ phase: 'rendering', detail: 'dvisvgm' });
-      const args = ['--no-mktexmf', '--exact-bbox', '-v3', `--page=${lo.pages === undefined || lo.pages === 'all' ? '1-' : String(lo.pages)}`, '-o', `${job}-%p.svg`];
+      this.progress({ phase: 'rendering', detail: 'dvisvgm' });
+      // dvisvgm's verbosity is a bit set: 3 = errors and warnings, 7 = also its progress messages, wanted when they are being logged
+      const args = ['--no-mktexmf', '--exact-bbox', this.logger.enabled('debug') ? '-v7' : '-v3', `--page=${lo.pages === undefined || lo.pages === 'all' ? '1-' : String(lo.pages)}`, '-o', `${job}-%p.svg`];
       if (lo.fonts === 'woff2') args.push('--font-format=woff2'); else args.push('--no-fonts');
       if (lo.bbox) args.push(`--bbox=${lo.bbox}`);
       args.push(...(lo.dvisvgmArgs ?? []), `${job}.dvi`);
@@ -371,9 +410,10 @@ export class MetaPostCore {
             pages.push(lo.svg ? postProcessSvg(svg, lo.svg, i) : svg);
           }
         },
-        onLine: this.env.onLog,
+        onLine: (l) => { this.env.onLog?.(l); this.logger.debug('dvisvgm', l); },
       });
       dvisvgmLog = r.log; dvisvgmMs = r.ms;
+      this.logger.info('host', `dvisvgm: ${plural(pages.length, 'page')} in ${ms(r.ms)}${r.exitCode ? `, exit ${r.exitCode}` : ''}`);
       if (r.exitCode !== 0 && pages.length === 0) {
         status = 'error';
         diagnostics.push({ severity: 'error', source: 'host', message: `dvisvgm failed (exit ${r.exitCode}): ${r.log.split('\n').filter((l) => /error/i.test(l)).join('; ') || r.log.slice(-300)}` });
@@ -382,7 +422,10 @@ export class MetaPostCore {
       status = diagnostics.some((d) => d.severity === 'error') ? 'error' : 'fatal';
       if (!diagnostics.length) diagnostics.push({ severity: 'error', source: 'tex', message: `TeX produced no DVI (exit ${tex.exitCode})` });
     }
-    return { status, pages, log: tex.log, texLog, dvisvgmLog, diagnostics, stats: { totalMs: now() - t0, texMs: tex.ms, dvisvgmMs, texSetupMs: tex.setupMs, texMainMs: tex.mainMs, instantiateMs: tex.ms - tex.setupMs - tex.mainMs }, format: fmt, artifacts };
+    const totalMs = now() - t0;
+    this.report(diagnostics);
+    this.logger.info('host', `latex ${job}.tex: ${status}, ${plural(pages.length, 'page')} in ${ms(totalMs)} (TeX ${ms(tex.ms)}, dvisvgm ${ms(dvisvgmMs)})`);
+    return { status, pages, log: tex.log, texLog, dvisvgmLog, diagnostics, stats: { totalMs, texMs: tex.ms, dvisvgmMs, texSetupMs: tex.setupMs, texMainMs: tex.mainMs, instantiateMs: tex.ms - tex.setupMs - tex.mainMs }, format: fmt, artifacts };
   }
 
   private hasSnapshot(): boolean {
@@ -392,8 +435,9 @@ export class MetaPostCore {
   }
 
   private async typeset(misses: Snippet[]): Promise<void> {
-    this.env.onProgress?.({ phase: 'typesetting', total: misses.length });
+    this.progress({ phase: 'typesetting', total: misses.length });
     const r = await this.bridge!.typeset(this.engine as ResolvedEngine, misses);
+    this.logger.info('host', `TeX (${this.engine}): ${plural(misses.length, 'label')} in ${ms(r.ms)}${r.resolved < misses.length ? `, ${misses.length - r.resolved} unresolved` : ''}${r.exitCode ? `, exit ${r.exitCode}` : ''}`);
     this.stats.texRuns++;
     this.stats.texMs += r.ms;
     this.lastTexLog = r.texLog;
@@ -483,6 +527,8 @@ export class MetaPostCore {
 }
 
 function now(): number { return typeof performance !== 'undefined' ? performance.now() : Date.now(); }
+
+function ftypeName(t: number): string { return t === MPX_FTYPE_TFM ? 'tfm' : t === MPX_FTYPE_VF ? 'vf' : MP_FTYPE_NAMES[t] ?? String(t); }
 
 /** Errors (`! ...` + `l.N`) and package warnings from a TeX transcript, attributed to the document. */
 export function parseTexLogDocument(log: string, file: string): Diagnostic[] {

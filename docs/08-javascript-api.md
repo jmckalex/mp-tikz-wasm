@@ -70,7 +70,9 @@ interface MetaPostOptions {
 
   cache?: 'indexeddb' | 'memory' | 'fs' | false;
   cacheBudgetBytes?: number;
-  log?: (line: string) => void;
+  logLevel?: 'silent' | 'error' | 'warn' | 'info' | 'debug' | 'trace';   // default 'warn'; §4
+  logger?: (record: LogRecord) => void;   // receives the records instead of the console
+  log?: (line: string) => void;           // every raw engine line, whatever the level
 }
 
 interface RunOptions {
@@ -137,17 +139,51 @@ itself golden-tested against a corpus of deliberately broken inputs.
 For TeX errors, map DVI page → btex block → file+line using the
 `% line N file` comments `mpto` emits (`docs/05` §3.1).
 
-## 4. Streaming and progress
+## 4. Streaming, progress and logging
 
 ```ts
-mp.on('progress', e => …);   // 'scanning' | 'typesetting' | 'running' | 'rendering'
-mp.on('log', line => …);     // MetaPost's terminal output, live
+mp.on('progress', e => …);   // 'loading' | 'fetching' | 'scanning' | 'typesetting' | 'running' | 'rendering'
+mp.on('log', line => …);     // every line the engines print, live (MetaPost's terminal included)
+mp.on('record', r => …);     // the levelled log: { level, source, message, time }
+mp.logLevel = 'debug';       // silent | error | warn | info | debug | trace
 ```
 
-MetaPost writes to `term_out` as it goes, but in non-interactive mode we only
-see it after `mp_execute` returns. To stream, patch the write path in the shim
-to call a JS callback per line (an `EM_JS` trampoline) rather than buffering.
-Worth doing: a 5 000-line MetaPost job produces useful progress output.
+**MetaPost's terminal is streamed as it is written** (done in session 5).
+`mplib` in non-interactive mode buffers `term_out` until `mp_execute`
+returns, and it installs its own `write_ascii_file` *after* the options are
+applied, so setting `opt->write_ascii_file` is not enough. The shim wraps that
+writer after `mp_initialize` (`mpwasm_write_ascii_file` in
+`src/c/mpwasm_api.c`, which needs the internal `mpmp.h` for the instance
+struct) and hands each completed line to the host through
+`mpwasm_host_term_line`, a JS-library import like the other hooks; the banner,
+printed during `mp_initialize`, is replayed from the buffer. The buffer is
+still filled, so `mpwasm_term_out` is unchanged, and the contract harness
+checks that the streamed lines equal it byte for byte.
+
+**Levels.** Every part of a run reports through one `Logger`
+(`src/ts/logger.ts`): a level checked at call time (so `mp.logLevel` takes
+effect for the next line an engine prints) and a sink. The default sink
+writes to the console as `mp-tikz-wasm tex: …`, with `console.error`, `warn`
+and `info` by level and `console.log` for `debug` and `trace` (Chrome hides
+`console.debug` under "Verbose" by default, and someone who asked for the
+engines' output should see it). The `logger` option replaces the sink. In the
+Worker the records cross to the main thread, where the sink runs; a
+`setLogLevel` message changes the level inside the Worker, so what the level
+excludes is never posted.
+
+| level   | adds                                                                 |
+|---------|----------------------------------------------------------------------|
+| `error` | the errors of every run: MetaPost (with the help paragraph), TeX (with the document line), dvisvgm, bundles, the host (a failed call, the watchdog) |
+| `warn`  | warnings: MetaPost `Warning:`, LaTeX package and class warnings (the default) |
+| `info`  | engine ready; one line per run start and end, with timings; one per TeX and dvisvgm pass; prefetch summaries |
+| `debug` | the engines' terminal output, line by line, live; the phases; on-demand bundle loads |
+| `trace` | every `find_file` that reached the host, every file MetaPost opened, every label-cache lookup, every file fetched |
+
+The CLI maps `-v`, `-vv`, `-vvv` and `-q` onto `info`, `debug`, `trace` and
+`silent` (`--log-level=` names one directly), writes the records to stderr so
+stdout stays the transcript, and leaves MetaPost's own errors and warnings out
+because the transcript carries them, as with `mpost`. The tags take
+`data-log="debug"` on the loader script and `mpTikzWasm.setLogLevel()` later.
 
 ## 5. The CLI
 

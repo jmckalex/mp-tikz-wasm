@@ -9,6 +9,7 @@
 #include "mplib.h"
 #include "mplibps.h"
 #include "mplibsvg.h"
+#include "mpmp.h"        /* MP_instance: to wrap write_ascii_file (terminal streaming) */
 #include "mpwasm_api.h"
 #include "mpwasm_sb.h"
 #ifdef __EMSCRIPTEN__
@@ -39,6 +40,8 @@ struct mpwasm_ctx {
   strlist alias_names, alias_paths;
   int recorder;
   mpwasm_sb opened;
+  mpwasm_sb termline;        /* the terminal line being assembled for mpwasm_host_term_line */
+  mp_file_writer orig_write; /* mplib's own writer, wrapped by mpwasm_write_ascii_file */
   int opened_count;
   mp_edge_object **figs;
   int nfigs, figcap;
@@ -79,6 +82,7 @@ void mpwasm_free(mpwasm_ctx *c) {
   if (c->mp) { mp_rundata(c->mp)->edges = NULL; mp_finish(c->mp); }
   if (c->opt) { free(c->opt->mem_name); free(c->opt->job_name); free(c->opt->banner); free(c->opt); }
   free(c->term_out); free(c->log_out); free(c->error_out); free(c->out);
+  mpwasm_sb_free(&c->termline);
   for (i = 0; i <= N_FTYPES; i++) sl_free(&c->paths[i]);
   sl_free(&c->alias_names); sl_free(&c->alias_paths);
   mpwasm_sb_free(&c->opened);
@@ -204,6 +208,33 @@ static void mpwasm_run_editor(MP mp, char *fname, int fline) {
   (void) mp; (void) fname; (void) fline;   /* CONTRACT: must exist, must do nothing */
 }
 
+/* ------------------------------------------------------- terminal streaming */
+/* mplib buffers the terminal until mp_execute returns (noninteractive mode
+ * installs its own writer after the options are applied, so setting
+ * opt->write_ascii_file is not enough). We wrap that writer after
+ * mp_initialize: it still fills run_data.term_out, so mpwasm_term_out is
+ * unchanged, and every completed line is also handed to the host as it is
+ * written (docs/08 §4). MetaPost writes the terminal a character at a time,
+ * hence the line buffer. */
+static void term_feed(mpwasm_ctx *c, const char *s) {
+  for (;;) {
+    const char *nl = strchr(s, '\n');
+    if (!nl) { if (*s) mpwasm_sb_puts(&c->termline, s); return; }
+    mpwasm_sb_put(&c->termline, s, (size_t) (nl - s));
+    mpwasm_host_term_line(c->termline.d, (int) c->termline.n);
+    c->termline.n = 0; c->termline.d[0] = 0;
+    s = nl + 1;
+  }
+}
+static void term_flush(mpwasm_ctx *c) {
+  if (c->termline.n) { mpwasm_host_term_line(c->termline.d, (int) c->termline.n); c->termline.n = 0; c->termline.d[0] = 0; }
+}
+static void mpwasm_write_ascii_file(MP mp, void *ff, const char *s) {
+  mpwasm_ctx *c = (mpwasm_ctx *) mp_userdata(mp);
+  c->orig_write(mp, ff, s);
+  if (ff == mp->term_out && s) term_feed(c, s);
+}
+
 /* ---------------------------------------------------------------------- run */
 int mpwasm_run(mpwasm_ctx *c, const char *commands) {
   MP_options *o;
@@ -247,11 +278,15 @@ int mpwasm_run(mpwasm_ctx *c, const char *commands) {
   mp = mp_initialize(o);
   if (!mp) { seterr(c, "mp_initialize failed"); c->history = mp_system_error_stop; return c->history; }
   c->mp = mp;
+  c->orig_write = mp->write_ascii_file;
+  mp->write_ascii_file = mpwasm_write_ascii_file;
+  rd = mp_rundata(mp);
+  if (rd->term_out.used) { s = dup_stream(&rd->term_out); term_feed(c, s); free(s); }   /* the banner, printed by mp_initialize */
   /* CONTRACT (docs/04 §2b): exactly ONE line is read from this string. */
   s = xstrdup(commands);
   h = mp_execute(mp, s, strlen(s));
   free(s);
-  rd = mp_rundata(mp);
+  term_flush(c);
   c->term_out = dup_stream(&rd->term_out);
   c->log_out = dup_stream(&rd->log_out);
   c->error_out = dup_stream(&rd->error_out);

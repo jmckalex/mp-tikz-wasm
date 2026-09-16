@@ -23,6 +23,18 @@ export type MpFileType =
 
 export type PrefetchKind = 'metapost' | 'latex' | 'lualatex' | 'plain';
 
+/** How much a run writes to the console; each level includes the ones before it. */
+export type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+/** Who produced a log record: an engine's own output, the bundle loader, or the library itself. */
+export type LogSource = 'metapost' | 'tex' | 'dvisvgm' | 'bundle' | 'host';
+export interface LogRecord {
+  level: Exclude<LogLevel, 'silent'>;
+  source: LogSource;
+  message: string;
+  /** Milliseconds since the engine was created. */
+  time: number;
+}
+
 export interface MetaPostOptions {
   /** Bundles to load. Default: ['core', 'cm-tfm', 'cm-type1', 'tex-plain', 'latex-core'] when a bundleBaseUrl is known. */
   bundles?: (BundleName | BundleSpec)[];
@@ -62,6 +74,14 @@ export interface MetaPostOptions {
   onFindFile?: (name: string, type: MpFileType, mode: 'r' | 'w') => string | undefined;
 
   cache?: 'memory' | false;             // snippet cache
+  /** How much each run writes to the console (default 'warn'). 'silent': nothing. 'error': the errors of every run
+   *  (MetaPost, TeX, dvisvgm, bundles). 'warn': plus warnings. 'info': plus one line per run and per engine pass,
+   *  with timings. 'debug': plus the engines' own terminal output, line by line, as it is written. 'trace': plus
+   *  every file looked up or fetched and every label-cache lookup. `mp.logLevel = 'debug'` changes it at any time. */
+  logLevel?: LogLevel;
+  /** Receives every record the level admits, instead of the console (also the 'record' event). */
+  logger?: (record: LogRecord) => void;
+  /** Every line the engines print, whatever the level (also the 'log' event). */
   log?: (line: string) => void;
   wasmUrls?: { mplib?: string; tex?: string };
   /** Pre-loaded Emscripten module factories (e.g. for a single-file build); in-process mode only. */

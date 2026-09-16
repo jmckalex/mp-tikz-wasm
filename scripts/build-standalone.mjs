@@ -25,7 +25,7 @@ const io = {
   fetchSync(u) { record(u); return new Uint8Array(fs.readFileSync(u.replace(/^file:\/\//, ''))); },
   async fetchJson(u) { return JSON.parse(fs.readFileSync(u.replace(/^file:\/\//, ''), 'utf8')); },
 };
-const mp = await MetaPost.create({ bundleIO: io, bundleBaseUrl: 'file://' + BUNDLES + '/', log: () => {} });
+const mp = await MetaPost.create({ bundleIO: io, bundleBaseUrl: 'file://' + BUNDLES + '/', logLevel: 'silent' });
 const gallery = [];
 for (let i = 0; i < EXAMPLES.length; i++) {
   const ex = EXAMPLES[i];

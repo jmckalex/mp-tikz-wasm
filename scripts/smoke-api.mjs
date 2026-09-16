@@ -3,7 +3,7 @@
 import { MetaPost } from '../dist/index.js';
 
 const t0 = performance.now();
-const mp = await MetaPost.create({ log: () => {} });
+const mp = await MetaPost.create({ logLevel: 'silent' });
 console.log(`create: ${(performance.now() - t0).toFixed(0)} ms; version`, mp.version);
 
 async function show(label, src, opts = {}) {

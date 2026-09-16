@@ -1,11 +1,18 @@
 # Handover
 
-Written 2026-09-13 (third session), revised 2026-09-15 (fourth session).
-Everything below is verified unless marked otherwise. Read this before
-`docs/14` if you are picking the project up cold. The repository is
-`~/Source/mp-tikz-wasm`, remote <https://github.com/jmckalex/mp-tikz-wasm>
-(`origin`, branch `main`). At the end of session 4 `main` is clean and fully
-pushed, CI is green, and **v0.1.0 is released**.
+Written 2026-09-13 (third session), revised 2026-09-15 (fourth and fifth
+sessions). This file lives at the repository root; until session 5 it was
+`docs/15-handover.md`. Everything below is verified unless marked otherwise.
+Read this before `docs/14` if you are picking the project up cold. The
+repository is `~/Source/mp-tikz-wasm`, remote
+<https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
+
+**State at the end of session 5 (2026-09-15):** the last commit on `main` is
+e538a3e (session 4; pushed, CI green, **v0.1.0 released**). Session 5's work,
+levelled logging, is complete and verified but **sits uncommitted in the
+working tree** (38 files, `git status`; the user has not asked for a commit).
+It changes `mplib.wasm`, so the next release is a minor bump. The website was
+not restaged or synced.
 
 ## Where things stand, in one paragraph
 
@@ -14,8 +21,10 @@ pdfTeX 1.40 and LuaTeX 1.21 in DVI mode, dvisvgm 3.4.3) compiled to
 WebAssembly behind one TypeScript library, a Web Worker, the `mpost-wasm`
 CLI, drop-in HTML tags, ten lazily fetched texmf bundles, five demo pages and
 a feature guide. Output is byte-identical to TeX Live 2025 on both golden
-corpora and the 1181-page PGF manual. 207 tests pass, the 46-check native
-contract harness passes, there is no per-instance memory leak. The demos are
+corpora and the 1181-page PGF manual. 224 tests pass, the 48-check native
+contract harness passes, there is no per-instance memory leak. Session 5
+added levelled logging to the console (`logLevel`, six levels, MetaPost's
+terminal streamed live; see "What happened in session 5"). The demos are
 live on the fast DigitalOcean droplet at
 <https://eschatolog.ist/software/mp-tikz-wasm/> and mirrored (more slowly) on
 Bluehost at <https://jmckalex.org/software/mp-tikz-wasm/>. **CI is green** and
@@ -85,13 +94,72 @@ upside-down brace in the guide's tree figure (see "What happened in session
 7. **README** demo links repointed to eschatolog.ist (jmckalex.org noted as
    the slower mirror).
 
+## What happened in session 5 (2026-09-15)
+
+**Levelled logging to the console** (the user's request: see what a
+MetaPost, TikZ or LaTeX run is doing, at a chosen verbosity).
+
+1. **`logLevel`** on `MetaPost.create()` — `silent`, `error`, `warn`
+   (default), `info`, `debug`, `trace` — and `mp.logLevel = …` at any time;
+   `logger: (record) => …` replaces the console; `mp.on('record', …)` too.
+   `src/ts/logger.ts` is the Logger (level checked at call time, console sink
+   using `console.log` for the two verbose levels because Chrome hides
+   `console.debug`). Records look like `mp-tikz-wasm tex: …`. Documented in
+   `docs/08` §4 (the level table), the README ("Logging"), the guide and
+   `types.ts`.
+2. **MetaPost's terminal is streamed live** (the item docs/08 §4 had marked
+   "worth doing"): `mpwasm_write_ascii_file` in `src/c/mpwasm_api.c` wraps
+   mplib's non-interactive writer after `mp_initialize` (it needs the internal
+   `mpmp.h`) and hands each line to the new host hook `mpwasm_host_term_line`
+   (`src/c/mpwasm_library.js`; native stubs in the contract, leak and mpto
+   oracle harnesses). The banner is replayed from the buffer. `term_out` is
+   unchanged; two new contract checks compare the stream with it byte for
+   byte. `mp.on('log')` now delivers MetaPost's lines as they are written.
+3. **What each level shows**: `info` has the ready line, one line per run
+   start/end with timings, one per TeX and dvisvgm pass and per prefetch;
+   `debug` the three engines' terminal output, the phases and on-demand bundle
+   loads; `trace` host `find_file` calls, every file MetaPost opened, label
+   cache hits/misses, every file fetched. Diagnostics become error/warn
+   records after each run (a MetaPost help paragraph indented under its
+   error, a TeX error with its `doc.tex:N`); a rejected `run()`/`latex()` is
+   an error record from the host.
+4. **Worker**: records cross as `{event:'record'}`; `setLogLevel` is a new
+   op so the Worker filters at the source.
+5. **CLI**: `-v`/`-vv`/`-vvv`/`-q`/`--log-level=`, records on stderr; the
+   two ad-hoc diagnostic loops were replaced by the logger, which leaves
+   MetaPost's own errors out because the transcript on stdout carries them.
+6. **Tags**: `data-log="debug"` on the loader, `mpTikzWasm.setLogLevel()`.
+   **Playground**: a "log" selector next to "worker".
+7. Tests: `test/unit/logger.test.ts`, `test/e2e/logging.test.ts`; the
+   existing tests and Node scripts pass `logLevel: 'silent'` instead of the
+   old no-op `log`. `guide.html`, `standalone.html` and the demo pages were
+   regenerated (the single-file page embeds the new `mplib.mjs`).
+8. Verified beyond the tests: `make contract` (48 checks), both golden
+   corpora byte-identical with the rebuilt `mplib.wasm`, the leak and mpto
+   oracle harnesses compile with the new stub, and Chrome on the playground
+   and the tags page (Worker mode: records cross from the Worker, the
+   runtime level change takes effect). The user tried it on a local server
+   (`node scripts/serve.mjs 8791`; port 8765 was held by another process).
+9. This handover moved from `docs/15-handover.md` to `HANDOVER.md`.
+
+Not done in session 5, in the order to do them:
+
+- **Commit and push** the logging work (nothing was committed; the user had
+  not asked). The generated `site/guide.html`, `standalone.html`
+  (git-ignored) and demo pages are regenerated and current.
+- **Restage and sync the website** ("The website" below); the deployed
+  pages still run the session 4 build.
+- **Release**: bump `package.json` to 0.2.0 (the wasm and the API changed),
+  then "Publishing a release". CI rebuilds `mplib.wasm` from source and runs
+  the 48-check contract, so the C change is covered there too.
+
 ## CI — green as of 2026-09-13 (session 4)
 
 `.github/workflows/ci.yml` runs two jobs on every push, both green:
 
 - **native** (ubuntu-latest): apt TeX Live as the oracle, the pinned vendor
-  tree, `make contract` (the 46-check harness), and the unit tests
-  (`npx vitest run test/unit`).
+  tree, `make contract` (the 48-check harness since session 5), and the unit
+  tests (`npx vitest run test/unit`).
 - **wasm** (ubuntu-latest, Emscripten 6.0.9): builds all four engines
   (`mplib`, `tex`, `dvisvgm`, `luatex`), the texmf tree, formats and
   bundles, the TypeScript, then the e2e tests (`test/e2e`: API, memory,
@@ -205,7 +273,7 @@ source of the bundled files; here `/usr/local/texlive/2025`).
 ```sh
 export PATH=$HOME/emsdk/upstream/emscripten:$PATH
 ./scripts/extract-vendor.sh && ./scripts/verify-pin.sh
-make contract                    # native mplib + 46 checks
+make contract                    # native mplib + 48 checks
 scripts/native-texlive.sh        # once: web2c pass for pdfTeX
 scripts/native-dvisvgm.sh        # once: dvisvgm config
 scripts/native-luatex.sh         # once: native LuaTeX build, compile commands recorded
@@ -289,6 +357,8 @@ and sync the website (`make sync-all`) after a release.
   4 added `native-common.sh` (per-package native configure, the CI fix) and
   `build-manual-viewer.mjs` (`npm run build:manual`); `site/manual.html` is
   the manual viewer page.
+- `src/ts/logger.ts` — the levelled logger (session 5); `docs/08` §4 has the
+  level table and the terminal-streaming mechanism.
 - `test/leak/` — the native leak harness (README there).
 - `~/Sites/jmckalex/CLAUDE.md` — the website's conventions (rsync
   Makefiles, the droplet, what never to upload).
@@ -306,7 +376,9 @@ The website copies are the same pages and are what the README links to.
 
 ## Suggested next steps
 
-Done in session 4: CI, the droplet, and the v0.1.0 release. Still open:
+Done in session 4: CI, the droplet, and the v0.1.0 release. Done in session
+5: logging. First, the three "not done" items under session 5 (commit,
+sync, release). Then, still open:
 
 - **Arbitrary LaTeX from a local (or served) TeX Live.** The user asked about
   this; it is well within reach because the hard parts already exist — the

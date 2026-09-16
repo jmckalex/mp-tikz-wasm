@@ -25,7 +25,7 @@ async function engine() {
       worker: $('#worker').checked,
       tex: $('#tex').value,
       numberSystem: $('#numbers').value,
-      log: () => {},
+      logLevel: $('#loglevel').value,   // the browser console; see the log pane for the transcript itself
     }).then((m) => {
       mp = m;
       mp.on('progress', (e) => { if (running) setStatus(`<span class="spinner"></span>${e.phase}${e.detail ? ' ' + e.detail : ''}${e.total ? ` (${e.total} snippets)` : ''}`); });
@@ -140,6 +140,7 @@ document.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.
 $('#tex').onchange = run;
 $('#numbers').onchange = recreate;
 $('#worker').onchange = recreate;
+$('#loglevel').onchange = () => { if (mp) mp.logLevel = $('#loglevel').value; };
 
 // sizes footer
 fetch('../dist/bundles/index.json').then((r) => r.json()).then((idx) => {

@@ -14,7 +14,7 @@ const built = fs.existsSync(path.join(REPO, 'dist/index.js')) && fs.existsSync(p
 describe.skipIf(!built)('memory: repeated runs', () => {
   it("300 runs leave the allocator's bytes in use unchanged", async () => {
     const { MetaPost } = await import(path.join(REPO, 'dist/index.js'));
-    const mp: any = await MetaPost.create({ log: () => {}, tex: 'none' });
+    const mp: any = await MetaPost.create({ logLevel: 'silent', tex: 'none' });
     const M = mp.backend.core.M;
     const inUse = (): number => M._mpwasm_heap_in_use();
     const src = 'beginfig(1); numeric a; a := 37; pair v[]; for i = 0 upto 7: v[i] := (10i, 5i); endfor for i = 1 upto 7: draw v[i-1] -- v[i] withpen pencircle scaled 1.1 withcolor (0.1,0.3,0.7); endfor fill fullcircle scaled 4 shifted v[3]; endfig; end.';

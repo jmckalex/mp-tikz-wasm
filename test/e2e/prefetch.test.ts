@@ -18,7 +18,7 @@ describe.skipIf(!built)('prefetch: hot lists', () => {
   });
   it('create({ prefetch }) fetches them and the run still works', async () => {
     const { MetaPost } = await import(path.join(REPO, 'dist/index.js'));
-    const mp: any = await MetaPost.create({ log: () => {}, prefetch: ['latex'] });
+    const mp: any = await MetaPost.create({ logLevel: 'silent', prefetch: ['latex'] });
     const again = await mp.prefetch(['latex']);
     expect(again).toBe(0);                        // everything was already in memory
     const more = await mp.prefetch(['plain']);

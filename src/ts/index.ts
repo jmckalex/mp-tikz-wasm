@@ -2,8 +2,9 @@
  * mp-tikz-wasm — public API (docs/08). `MetaPost.create()` starts a Web
  * Worker in browsers and runs in-process in Node (or when `worker: false`).
  */
-import type { MetaPostOptions, RunOptions, RunResult, ProgressEvent, BundleName, LatexRunOptions, LatexResult, PrefetchKind } from './types.js';
+import type { MetaPostOptions, RunOptions, RunResult, ProgressEvent, BundleName, LatexRunOptions, LatexResult, PrefetchKind, LogLevel, LogRecord } from './types.js';
 import { MetaPostCore } from './core.js';
+import { Logger, DEFAULT_LOG_LEVEL, LOG_LEVELS, isLogLevel, consoleSink } from './logger.js';
 import { BundleSet, browserIO } from './vfs/bundle.js';
 import { resolveBundleSpecs, DEFAULT_BUNDLES } from './bundles-config.js';
 import { isNode, nodeIO } from './node.js';
@@ -13,6 +14,7 @@ export { sanitizeSvg, postProcessSvg } from './render/svg.js';
 export { scanTexBlocks, scanInputs } from './tex/scanner.js';
 export { parseMetaPostLog } from './diagnostics.js';
 export { splitMpx } from './tex/mpx.js';
+export { LOG_LEVELS, formatRecord, consoleSink } from './logger.js';
 
 type Listener = (e: any) => void;
 
@@ -24,20 +26,24 @@ interface Backend {
   clearCache(): Promise<void>;
   preload(bundles: BundleName[]): Promise<void>;
   prefetch(kinds: PrefetchKind[]): Promise<number>;
+  setLogLevel(level: LogLevel): void;
   dispose(): void;
 }
 
 class InProcessBackend implements Backend {
   private core!: MetaPostCore;
   private bundles?: BundleSet;
+  private logger!: Logger;
   constructor(private options: MetaPostOptions, private emit: (ev: string, data: unknown) => void) {}
   async init() {
     const o = this.options;
     const here = import.meta.url;
+    this.logger = new Logger(o.logLevel ?? DEFAULT_LOG_LEVEL, (r) => this.emit('record', r));
     const io = o.bundleIO ?? (isNode ? await nodeIO() : browserIO());
     let texmfDir: string | undefined = o.texmfDir;
     if (!texmfDir) {
       this.bundles = new BundleSet(io);
+      this.bundles.logger = this.logger;
       const base = o.bundleBaseUrl ?? new URL('./bundles/', here).href;
       await this.bundles.addAll(resolveBundleSpecs(o.bundles ?? DEFAULT_BUNDLES, base));
       await this.bundles.prefetchEager();
@@ -59,9 +65,9 @@ class InProcessBackend implements Backend {
       try { luatexFactory = (await import(/* @vite-ignore */ new URL('./luatex.mjs', here).href)).default; } catch { luatexFactory = undefined; }
     }
     this.core = new MetaPostCore({
-      mplibFactory, texFactory, luatexFactory, dvisvgmFactory, bundles: this.bundles, texmfDir, options: o,
+      mplibFactory, texFactory, luatexFactory, dvisvgmFactory, bundles: this.bundles, texmfDir, options: o, logger: this.logger,
       onProgress: (e) => this.emit('progress', e),
-      onLog: (l) => { o.log?.(l); this.emit('log', l); },
+      onLog: (l) => this.emit('log', l),
     });
     await this.core.init();
     return { version: this.core.version };
@@ -77,6 +83,7 @@ class InProcessBackend implements Backend {
     await this.bundles.prefetchAll((f) => bundles.includes(f.bundle));
   }
   async prefetch(kinds: PrefetchKind[]) { return this.bundles ? this.bundles.prefetchHot(kinds) : 0; }
+  setLogLevel(level: LogLevel) { this.logger.level = level; }
   dispose() { /* nothing to terminate */ }
 }
 
@@ -88,7 +95,7 @@ class WorkerBackend implements Backend {
     this.worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
     this.worker.onmessage = (ev: MessageEvent<WorkerResponse | WorkerEvent>) => {
       const m = ev.data as any;
-      if ('event' in m) { this.emit(m.event, m.data); if (m.event === 'log') this.options.log?.(m.data); return; }
+      if ('event' in m) { this.emit(m.event, m.data); return; }
       const p = this.pending.get(m.id);
       if (!p) return;
       this.pending.delete(m.id);
@@ -104,7 +111,7 @@ class WorkerBackend implements Backend {
     });
   }
   init() {
-    const { runScript, makeText, onFindFile, log, ...cloneable } = this.options;
+    const { runScript, makeText, onFindFile, log, logger, ...cloneable } = this.options;
     return this.call<{ version: any }>('init', { options: cloneable, baseUrl: import.meta.url });
   }
   run(source: string, options: RunOptions) {
@@ -119,24 +126,28 @@ class WorkerBackend implements Backend {
   clearCache() { return this.call<void>('clearCache'); }
   preload(bundles: BundleName[]) { return this.call<void>('preload', { bundles }); }
   prefetch(kinds: PrefetchKind[]) { return this.call<number>('prefetch', { kinds }); }
+  setLogLevel(level: LogLevel) { void this.call<void>('setLogLevel', { level }); }
   dispose() { this.worker.terminate(); }
 }
 
 export class MetaPost {
   private listeners = new Map<string, Set<Listener>>();
   private queue: Promise<unknown> = Promise.resolve();
+  private readonly t0 = now();
   readonly version: { metapost: string; tex: string; build: string } = { metapost: '', tex: '', build: '' };
   private constructor(private backend: Backend, private options: MetaPostOptions) {}
 
   static async create(options: MetaPostOptions = {}): Promise<MetaPost> {
-    if (options.snapshot === undefined) options = { ...options, snapshot: isNode ? 'auto' : 'none' };
+    options = { ...options };
+    if (options.snapshot === undefined) options.snapshot = isNode ? 'auto' : 'none';
+    if (options.logLevel !== undefined && !isLogLevel(options.logLevel)) throw new Error(`mp-tikz-wasm: unknown logLevel "${options.logLevel}" (silent, error, warn, info, debug, trace)`);
     const hasCallbacks = !!(options.runScript || options.makeText || options.onFindFile || options.modules || options.bundleIO);
     const useWorker = options.worker ?? (!isNode && typeof Worker !== 'undefined' && !hasCallbacks);
     if (!isNode && (options.runScript || options.makeText || options.onFindFile) && options.worker === undefined && typeof console !== 'undefined') {
       console.warn('mp-tikz-wasm: runScript/makeText/onFindFile callbacks require in-process mode; running on the main thread');
     }
     let mp!: MetaPost;
-    const emit = (ev: string, data: unknown) => mp.emit(ev, data);
+    const emit = (ev: string, data: unknown) => mp.handleEvent(ev, data);
     const backend = useWorker ? new WorkerBackend(options, emit) : new InProcessBackend(options, emit);
     mp = new MetaPost(backend, options);
     const { version } = await backend.init();
@@ -164,16 +175,37 @@ export class MetaPost {
       signal?.addEventListener('abort', () => kill('aborted'));
     });
   }
+  /** Events from either backend: log records reach the console (or the `logger` option), raw lines the `log` option, then any listeners. */
+  private handleEvent(event: string, data: unknown): void {
+    if (event === 'record') (this.options.logger ?? consoleSink)(data as LogRecord);
+    else if (event === 'log') this.options.log?.(data as string);
+    this.emit(event, data);
+  }
+  /** A record from this side of the worker boundary (a failed call, the watchdog), subject to the same level. */
+  private hostRecord(level: 'error' | 'warn' | 'info', message: string): void {
+    if (LOG_LEVELS.indexOf(level) > LOG_LEVELS.indexOf(this.logLevel)) return;
+    this.handleEvent('record', { level, source: 'host', message, time: Math.round((now() - this.t0) * 10) / 10 } satisfies LogRecord);
+  }
+  private failing<T>(p: Promise<T>, what: string): Promise<T> {
+    return p.catch((e) => { this.hostRecord('error', `${what} failed: ${e?.message ?? e}`); throw e; });
+  }
+  /** How much reaches the console (see `MetaPostOptions.logLevel`); can be changed at any time, also mid-run. */
+  get logLevel(): LogLevel { return this.options.logLevel ?? DEFAULT_LOG_LEVEL; }
+  set logLevel(level: LogLevel) {
+    if (!isLogLevel(level)) throw new Error(`mp-tikz-wasm: unknown logLevel "${level}" (silent, error, warn, info, debug, trace)`);
+    this.options.logLevel = level;
+    this.backend.setLogLevel(level);
+  }
   /** Compile MetaPost source. Calls are serialised on this instance. */
   run(source: string, options: RunOptions = {}): Promise<RunResult> {
-    const task = () => this.watchdog(this.backend.run(source, options), 'run', options.signal);
+    const task = () => this.failing(this.watchdog(this.backend.run(source, options), 'run', options.signal), 'run');
     const next = this.queue.then(task, task);
     this.queue = next.catch(() => undefined);
     return next;
   }
   /** Typeset a whole LaTeX/TikZ (or plain TeX) document to one SVG per page. */
   latex(source: string, options: LatexRunOptions = {}): Promise<LatexResult> {
-    const task = () => this.watchdog(this.backend.latex(source, options), 'latex');
+    const task = () => this.failing(this.watchdog(this.backend.latex(source, options), 'latex'), 'latex');
     const next = this.queue.then(task, task);
     this.queue = next.catch(() => undefined);
     return next;
@@ -185,6 +217,7 @@ export class MetaPost {
   clearCache(): Promise<void> { return this.backend.clearCache(); }
   on(event: 'progress', fn: (e: ProgressEvent) => void): () => void;
   on(event: 'log', fn: (line: string) => void): () => void;
+  on(event: 'record', fn: (r: LogRecord) => void): () => void;
   on(event: string, fn: Listener): () => void {
     let s = this.listeners.get(event); if (!s) { s = new Set(); this.listeners.set(event, s); }
     s.add(fn); return () => s!.delete(fn);
@@ -192,6 +225,8 @@ export class MetaPost {
   private emit(event: string, data: unknown) { this.listeners.get(event)?.forEach((f) => f(data)); }
   dispose(): void { this.backend.dispose(); }
 }
+
+function now(): number { return typeof performance !== 'undefined' ? performance.now() : Date.now(); }
 
 /** A pool of independent instances for batch work (docs/10 §2.3). */
 export class MetaPostPool {

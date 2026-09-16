@@ -9,6 +9,8 @@ export interface MplibHooks {
   findFile?: (name: string, ftype: number, mode: string) => string | null | undefined;
   makeText?: (text: string, mode: number) => string | null | undefined;
   runScript?: (script: string) => string | null | undefined;
+  /** one line of MetaPost's terminal output, as it is written (the same text `termOut` holds at the end) */
+  termLine?: (line: string) => void;
 }
 
 export interface MplibModule {

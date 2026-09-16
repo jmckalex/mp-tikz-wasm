@@ -5,8 +5,8 @@
  *   mpost-wasm [OPTION]... [MPNAME[.mp]] [COMMANDS]
  *   mpost-wasm --dvitomp DVINAME[.dvi] [MPXNAME[.mpx]]
  */
-import { MetaPost } from './index.js';
-import type { OutputFormat, NumberSystem, TexEngine } from './types.js';
+import { MetaPost, LOG_LEVELS } from './index.js';
+import type { OutputFormat, NumberSystem, TexEngine, LogLevel, LogRecord } from './types.js';
 
 const HELP = `Usage: mpost-wasm [OPTION]... [MPNAME[.mp]] [COMMANDS]
        mpost-wasm --latex [OPTION]... DOC.tex
@@ -32,6 +32,9 @@ const HELP = `Usage: mpost-wasm [OPTION]... [MPNAME[.mp]] [COMMANDS]
   --engine=NAME         latex | lualatex | luatex | plain | tex | auto (default auto: lualatex when
                         the document uses graphdrawing or \directlua)
   --fonts=paths|woff2   how text is emitted in --latex mode (default paths)
+  -v, -vv, -vvv         more on stderr: timings; the engines' output as it runs; every file
+  -q, --quiet           nothing on stderr (not even TeX errors)
+  --log-level=LEVEL     silent|error|warn|info|debug|trace (default warn)
   -help, -version
 `;
 
@@ -43,6 +46,7 @@ function parseArgs(argv: string[]) {
     halt: false, recorder: false, troff: false, format: '' as '' | OutputFormat, texmf: '', bundles: '',
     stdout: false, file: '', commands: '', help: false, version: false, dvitomp: false,
     latex: false, plain: false, engine: 'auto' as 'auto' | 'latex' | 'lualatex' | 'luatex' | 'plain' | 'tex', fonts: 'paths' as 'paths' | 'woff2',
+    verbose: 0, quiet: false, logLevel: '' as '' | LogLevel,
   };
   const rest: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -74,6 +78,11 @@ function parseArgs(argv: string[]) {
       case 'plain': o.plain = true; o.latex = true; o.engine = 'plain'; break;
       case 'engine': o.engine = (v ?? next()) as typeof o.engine; o.latex = true; break;
       case 'fonts': o.fonts = (v ?? next()) as 'paths' | 'woff2'; break;
+      case 'v': case 'verbose': o.verbose++; break;
+      case 'vv': o.verbose += 2; break;
+      case 'vvv': o.verbose += 3; break;
+      case 'q': case 'quiet': o.quiet = true; break;
+      case 'log-level': o.logLevel = (v ?? next()) as LogLevel; break;
       case 'ini': case 'mem': case 'progname': case 'kpathsea-debug': case 'restricted': case 'debug': case 'translate-file': case '8bit':
         console.error(`mpost-wasm: warning: option -${k} is accepted and ignored`); if (v === undefined && ['mem', 'progname', 'kpathsea-debug', 'translate-file'].includes(k)) next(); break;
       default: console.error(`mpost-wasm: unknown option ${a}`); process.exit(1);
@@ -90,10 +99,19 @@ async function main() {
   const path = await import('node:path');
   const o = parseArgs(process.argv.slice(2));
   if (o.help) { process.stdout.write(HELP); return; }
+  const logLevel: LogLevel = o.logLevel || (o.quiet ? 'silent' : o.verbose >= 3 ? 'trace' : o.verbose === 2 ? 'debug' : o.verbose === 1 ? 'info' : 'warn');
+  if (!LOG_LEVELS.includes(logLevel)) { console.error(`mpost-wasm: unknown log level ${logLevel} (${LOG_LEVELS.join(', ')})`); process.exit(1); }
+  // Everything the level admits goes to stderr, so stdout stays the transcript (and, with --stdout, the figure).
+  // MetaPost's own errors and warnings are left out: the transcript on stdout carries them, as with mpost.
+  const logger = (r: LogRecord) => {
+    if (r.source === 'metapost' && (r.level === 'error' || r.level === 'warn')) return;
+    const raw = (r.level === 'debug' || r.level === 'trace') && r.source !== 'host';
+    process.stderr.write(raw ? `${r.source}: ${r.message}\n` : `mpost-wasm: ${r.source === 'host' ? '' : r.source + ': '}${r.message}\n`);
+  };
   const mp = await MetaPost.create({
     numberSystem: o.numbersystem, tex: o.tex, interaction: o.interaction, haltOnError: o.halt,
     texmfDir: o.texmf || undefined, bundleBaseUrl: o.bundles ? 'file://' + path.resolve(o.bundles) + '/' : undefined,
-    deterministic: false,
+    deterministic: false, logLevel, logger,
   });
   if (o.version) { console.log(`MetaPost ${mp.version.metapost} (mp-tikz-wasm) with ${mp.version.tex}`); mp.dispose(); return; }
   if (o.troff) console.error('mpost-wasm: warning: troff mode is not supported; continuing in TeX mode');
@@ -109,7 +127,6 @@ async function main() {
     if (o.stdout) { if (r.pages[0]) process.stdout.write(r.pages[0]); }
     else r.pages.forEach((svg, i) => fs.writeFileSync(`${job}-${i + 1}.svg`, svg));
     fs.writeFileSync(`${job}.log`, r.texLog);
-    for (const d of r.diagnostics) if (d.severity === 'error') console.error(`${d.file ?? job + '.tex'}${d.line ? ':' + d.line : ''}: ${d.message}`);
     mp.dispose();
     process.exit(r.status === 'error' || r.status === 'fatal' ? 1 : 0);
   }
@@ -148,7 +165,6 @@ async function main() {
   }
   for (const [name, data] of Object.entries(r.artifacts)) if (name !== `${jobname}.log` || true) fs.writeFileSync(name, data);
   if (o.recorder) fs.writeFileSync(`${jobname}.fls`, r.diagnostics.map(() => '').join(''));
-  for (const d of r.diagnostics) if (d.source !== 'metapost') console.error(`${d.source}: ${d.severity}: ${d.message}${d.line ? ` (${d.file ?? jobname}.mp:${d.line})` : ''}`);
   mp.dispose();
   process.exit(r.history >= 2 ? 1 : 0);
 }

@@ -13,6 +13,7 @@
  */
 import type { BundleManifest, BundleSpec } from '../types.js';
 import { createLazyFile, mkdirp, type EmscriptenFS } from './lazyfs.js';
+import { Logger, silentLogger, plural } from '../logger.js';
 
 export interface BundleFile { bundle: string; path: string; size: number; sha?: string; url: string }
 
@@ -47,6 +48,8 @@ export class BundleSet {
   private negative = new Set<string>();
   /** The files a first run of each kind touches (`bundles/hot.json`, written by scripts/make-hotlists.mjs). */
   hot: Record<string, string[]> = {};
+  /** Where fetches are reported: prefetch summaries at info, on-demand loads at debug, every file at trace. */
+  logger: Logger = silentLogger;
 
   constructor(private io: BundleIO) {}
 
@@ -96,10 +99,11 @@ export class BundleSet {
     await Promise.all(Array.from({ length: Math.min(concurrency, wanted.length) }, async () => {
       while (i < wanted.length) {
         const f = wanted[i++];
-        try { await this.fetchAsync(f); } catch { /* the run reports it */ }
+        try { await this.fetchAsync(f); } catch (e) { this.logger.warn('bundle', `prefetch ${f.path}: ${(e as Error)?.message ?? e}`); }   // the run reports it too
         fetchingEvent(f.path.slice(f.path.lastIndexOf('/') + 1), ++done, wanted.length);
       }
     }));
+    this.logger.info('bundle', `prefetch ${kinds.join(', ')}: ${wanted.length ? `${plural(wanted.length, 'file')} fetched` : 'nothing to fetch'}`);
     return wanted.length;
   }
 
@@ -126,6 +130,7 @@ export class BundleSet {
     if (hit) return hit;
     const data = await this.io.fetch(f.url);
     this.cache.set(f.path, data);
+    this.logger.trace('bundle', `fetched ${f.path} (${data.length} bytes)`);
     return data;
   }
 
@@ -134,8 +139,10 @@ export class BundleSet {
     const hit = this.cache.get(f.path);
     if (hit) return hit;
     if (!this.io.fetchSync) throw new Error(`mp-tikz-wasm: ${f.path} was not prefetched and this environment cannot load files synchronously (run in a Worker, or call preload())`);
-    const data = this.io.fetchSync(f.url);
+    let data: Uint8Array;
+    try { data = this.io.fetchSync(f.url); } catch (e) { this.logger.error('bundle', `${f.path}: ${(e as Error)?.message ?? e}`); throw e; }
     this.cache.set(f.path, data);
+    this.logger.debug('bundle', `loaded ${f.path} (${data.length} bytes)`);   // a sync XHR in the Worker, a disk read in Node
     return data;
   }
 

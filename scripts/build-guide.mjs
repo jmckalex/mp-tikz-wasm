@@ -15,7 +15,7 @@ const VERSION = JSON.parse(fs.readFileSync(path.join(REPO, 'package.json'), 'utf
 const esc = (s) => s.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
 const MB = (n) => (n / 1048576).toFixed(1);
 
-const mp = await MetaPost.create({ log: () => {} });
+const mp = await MetaPost.create({ logLevel: 'silent' });
 const figures = {};
 for (const ex of GUIDE) {
   let svg, ms;

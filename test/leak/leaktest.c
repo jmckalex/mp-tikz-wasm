@@ -8,6 +8,7 @@
 char *mpwasm_host_find_file(const char *name, int ftype, const char *mode) { (void) name; (void) ftype; (void) mode; return NULL; }
 char *mpwasm_host_make_text(const char *text, int len, int mode) { (void) text; (void) len; (void) mode; return NULL; }
 char *mpwasm_host_run_script(const char *script, int len) { (void) script; (void) len; return NULL; }
+void mpwasm_host_term_line(const char *line, int len) { (void) line; (void) len; }
 int main(int argc, char **argv) {
   int n = argc > 1 ? atoi(argv[1]) : 20, i;
   { FILE *f = fopen("job.mp", "w"); if (!f) { perror("job.mp"); return 1; } }
