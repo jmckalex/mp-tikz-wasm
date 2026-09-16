@@ -42,8 +42,12 @@ printf '%%%% language.dat for tex.wasm: US English only\nenglish hyphen.tex\n=us
 for d in hyphen tex-ini-files pdftex unicode-data iftex kvsetkeys kvdefinekeys ltxcmds pdftexcmds infwarerr etexcmds atbegshi atveryend xkeyval gettitlestring bigintcalc bitset intcalc uniquecounter tikz-cd pdfescape stringenc luatex85; do
   [ -d "$TEXMF/tex/generic/$d" ] && cp -R "$TEXMF/tex/generic/$d" "$OUT/tex/generic/$d"
 done
+# spath3 is here for its TikZ libraries rather than for its own sake: pgf does
+# not ship `calligraphy` (or `knots`), so \usetikzlibrary{calligraphy} fails
+# without this package's four files — 284 KB, and they carry their own
+# dependency (\RequirePackage{spath3}) in the same directory.
 for d in base tex-ini-files l3kernel l3backend l3packages amsmath amsfonts amscls tools graphics graphics-cfg graphics-def latexconfig \
-         xcolor pgf tikz-cd pgfplots psnfss kvoptions etoolbox xkeyval geometry booktabs mathtools \
+         xcolor pgf tikz-cd pgfplots spath3 psnfss kvoptions etoolbox xkeyval geometry booktabs mathtools \
          ec standalone varwidth preview currfile filehook fontenc \
          hyperref hycolor kvsetkeys refcount rerunfilecheck atveryend letltxmacro auxhook url listings fp imakeidx todonotes firstaid; do
   [ -d "$TEXMF/tex/latex/$d" ] && cp -R "$TEXMF/tex/latex/$d" "$OUT/tex/latex/$d"
