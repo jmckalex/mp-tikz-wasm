@@ -19,6 +19,30 @@ through the Node API and pre-renders the tags page byte-identically to the
 shipped figures — and the website is restaged and synced to both hosts with
 the new pages and `site/figures/` (see "The website" for a cache caveat).
 
+**State at the end of session 7 (2026-09-16, evening):** three commits on
+top of 7081a15, **none tagged, pushed or released**, working tree clean:
+a2a9795 (spath3 bundled, so `\usetikzlibrary{calligraphy}` and `knots`
+work — the library is part of spath3, which pgf does not ship), adbd53b
+(a wrapped TikZ figure's SVG is the standalone page, border included:
+`renderFigure` passes `--bbox=papersize` for the bodies it wraps, because
+TikZ leaves its classic arrow tips — `>=latex`, `stealth` — out of the
+bounding box and the tight crop cut them off; `DB_VERSION` 3 drops the old
+crops; found through Clew), and aac75ff (Release 0.2.1: version, guide, the
+tags page's four TikZ saved figures re-rendered with `--force`; the engines
+are unchanged). 244 tests, both golden corpora byte-identical.
+`release/mp-tikz-wasm-0.2.1.{tar.gz,zip}` are built from aac75ff (tar.gz
+37,203,244 bytes, sha256
+2c3035392f77cdf0efe36eaa878b3f792d4ac66546ed3ad9f6a2655da0f25302) and
+`release/notes-0.2.1.md` holds the notes. To publish, from "Publishing a
+release": `git tag v0.2.1 && git push origin main --tags && gh release
+create v0.2.1 release/mp-tikz-wasm-0.2.1.tar.gz
+release/mp-tikz-wasm-0.2.1.zip --title "mp-tikz-wasm 0.2.1" --notes-file
+release/notes-0.2.1.md`. **Upload exactly those files**: Clew's
+`src/shared/mptikz-manifest.json` is already pinned to that tarball's
+digest, so a rebuilt archive means a re-pin there. CI has not run on these
+commits. The website is NOT restaged: its tags page still serves the
+tight-crop saved figures until `site/` is synced.
+
 ## Where things stand, in one paragraph
 
 The port is complete and released as a tree: four engines (MetaPost 2.11,
