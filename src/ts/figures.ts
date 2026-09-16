@@ -27,9 +27,14 @@ export interface FigureResult { svg: string; log: string; diagnostics: { severit
 /** A rendered figure as the tags keep it for `saveFigures()`. */
 export interface SavedFigure { name: string; hash: string; kind: FigureKind; source: string; svg: string }
 
+/** Is this TikZ text a complete document (LaTeX with \documentclass, or plain TeX ending in \bye) rather than a body to wrap? */
+export function isCompleteDocument(source: string): boolean {
+  return /\\documentclass|\\bye\b/.test(source);
+}
+
 /** Wrap a TikZ body in a standalone document unless it already is one. */
 export function wrapTikz(source: string, attrs: Record<string, string> = {}): string {
-  if (/\\documentclass|\\bye\b/.test(source)) return source;
+  if (isCompleteDocument(source)) return source;
   const libs = (attrs.libraries ?? '').split(/[,\s]+/).filter(Boolean);
   const gd = (attrs.gdlibraries ?? '').split(/[,\s]+/).filter(Boolean);
   // graph drawing is used through \graph, which the graphs library provides
@@ -98,7 +103,17 @@ export async function renderFigure(mp: MetaPost, req: FigureRequest, hash = figu
   const idPrefix = `mpw${hash}-`;
   if (req.kind === 'tikz') {
     const engine = (req.attrs.engine as LatexRunOptions['engine']) ?? 'auto';
-    const r: LatexResult = await mp.latex(doc, { fonts: req.attrs.fonts === 'woff2' ? 'woff2' : 'paths', engine, svg: { idPrefix, precision: false } });
+    // A wrapped body is a standalone page with a border, and the SVG must be
+    // that page: dvisvgm's default box is the tight one PGF reports, which is
+    // the page minus the border — and not always all of the ink. PGF's
+    // classic arrow tips (`>=latex`, `stealth`, ...) declare no hull, so TikZ
+    // leaves them out of its bounding box (TeX Live 2025); natively the
+    // border is what keeps them on the page, and the tight crop cut them off
+    // (a `->` on a horizontal line rendered as a line with no head).
+    // `papersize` is the page standalone lays out, so the SVG is the PDF
+    // page. A complete document keeps the default: an article is not a page.
+    const bbox = isCompleteDocument(req.source) ? undefined : 'papersize';
+    const r: LatexResult = await mp.latex(doc, { fonts: req.attrs.fonts === 'woff2' ? 'woff2' : 'paths', engine, bbox, svg: { idPrefix, precision: false } });
     return { svg: r.pages.join('\n'), log: r.log, diagnostics: r.diagnostics, ok: r.status === 'ok' && r.pages.length > 0, ms: r.stats.totalMs };
   }
   const tex = (req.attrs.tex ?? 'auto') as MetaPostOptions['tex'];

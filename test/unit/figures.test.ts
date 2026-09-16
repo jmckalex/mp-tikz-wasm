@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { figureHash, figureName, figureDocument, FIGURE_FILE, extractFigures, loaderAttributes, parseAttributes, decodeEntities, makeZip, crc32, isSvg } from '../../src/ts/figures.js';
+import { figureHash, figureName, figureDocument, FIGURE_FILE, extractFigures, loaderAttributes, parseAttributes, decodeEntities, makeZip, crc32, isSvg, isCompleteDocument, renderFigure } from '../../src/ts/figures.js';
 import type { FigureRequest } from '../../src/ts/figures.js';
 
 const tikz: FigureRequest = { kind: 'tikz', source: '\\draw (0,0) circle (1);', attrs: { libraries: 'calc' } };
@@ -38,6 +38,29 @@ describe('figureHash', () => {
   it('hashes the wrapped document, so the same body wrapped by hand or by the tag agrees', () => {
     const wrapped: FigureRequest = { kind: 'tikz', source: figureDocument(tikz), attrs: {} };
     expect(figureHash(wrapped)).toBe(figureHash(tikz));
+  });
+});
+
+describe('renderFigure', () => {
+  // the engine is faked: what matters is the box the wrapped document asks dvisvgm for
+  const fake = (calls: any[]) => ({
+    latex: async (doc: string, opts: any) => { calls.push({ doc, opts }); return { status: 'ok', pages: ['<svg/>'], log: '', diagnostics: [], stats: { totalMs: 1 } }; },
+    run: async () => { throw new Error('not a MetaPost figure'); },
+  }) as any;
+  it('asks for the standalone page, border included, when it wrapped the body', async () => {
+    const calls: any[] = [];
+    const r = await renderFigure(fake(calls), { kind: 'tikz', source: '\\draw[very thick,->] (0,0) -- (1,0);', attrs: { border: '4pt' } });
+    expect(r.ok).toBe(true);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].doc).toContain('\\documentclass[tikz,border=4pt]{standalone}');
+    expect(calls[0].opts.bbox).toBe('papersize');
+  });
+  it('leaves a complete document with the tight box', async () => {
+    const calls: any[] = [];
+    await renderFigure(fake(calls), { kind: 'tikz', source: '\\documentclass{article}\\begin{document}x\\end{document}', attrs: {} });
+    expect(calls[0].opts.bbox).toBeUndefined();
+    expect(isCompleteDocument('\\input tikz \\bye')).toBe(true);
+    expect(isCompleteDocument('\\draw (0,0) -- (1,1);')).toBe(false);
   });
 });
 

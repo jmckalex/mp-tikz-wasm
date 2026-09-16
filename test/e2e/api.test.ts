@@ -99,6 +99,19 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     expect(r.stats.dvisvgmMs).toBeGreaterThan(0);
   }, 60_000);
 
+  it('keeps a classic arrow tip on the page: a wrapped figure is the standalone page, border included', async () => {
+    // >=latex declares no hull, so TikZ's bounding box is the bare line and a
+    // tight crop is a line with no head; the page pdflatex lays out for the
+    // same document is 61.873 x 5.181 bp (2cm + 1.2pt line + 2pt border each side).
+    const { renderFigure } = await import(path.join(REPO, 'dist/figures.js'));
+    const r = await renderFigure(mp, { kind: 'tikz', source: '\\begin{tikzpicture}[scale=2,>=latex]\n\\draw[very thick,->] (0,0) -- (1,0);\n\\end{tikzpicture}', attrs: {} });
+    expect(r.ok).toBe(true);
+    const [, w, h] = /viewBox=['"][-\d.]+ [-\d.]+ ([\d.]+) ([\d.]+)['"]/.exec(r.svg)!;
+    expect(Number(w)).toBeCloseTo(61.873, 2);
+    expect(Number(h)).toBeCloseTo(5.181, 2);
+    expect((r.svg.match(/<path /g) ?? []).length).toBe(2);   // the line and the head
+  }, 60_000);
+
   it('produces one SVG per page and maps errors to lines', async () => {
     const r = await mp.latex(`\\documentclass{article}\\pagestyle{empty}\\begin{document}one\\newpage two \\undefinedmacro\\end{document}`);
     expect(r.pages).toHaveLength(2);

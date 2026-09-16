@@ -69,7 +69,9 @@ export interface AutoOptions extends MetaPostOptions {
 // ---------------------------------------------------------------- the result cache
 // Version 2: since the saved-figure work the key is the six-character figure
 // hash (the same identity as the file name); the store is recreated on upgrade.
-const DB_NAME = 'mp-tikz-wasm-cache', DB_VERSION = 2, STORE = 'svg';
+// Version 3: a wrapped TikZ figure's SVG is the standalone page, border
+// included (renderFigure); the hash is the source, so the old crops must go.
+const DB_NAME = 'mp-tikz-wasm-cache', DB_VERSION = 3, STORE = 'svg';
 function openDb(): Promise<IDBDatabase | null> {
   if (typeof indexedDB === 'undefined') return Promise.resolve(null);
   return new Promise((resolve) => {

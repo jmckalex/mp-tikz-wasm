@@ -164,6 +164,11 @@ A TikZ body without `\documentclass` is wrapped in a `standalone` document
 (`data-libraries`, `data-packages`, `data-preamble`, `data-border`;
 `data-gdlibraries` adds graph drawing and therefore LuaTeX; `data-engine`
 forces `latex`, `lualatex` or `plain`); a complete document is compiled as is.
+The SVG of a wrapped body is the standalone page, border included (default
+`2pt`): TikZ leaves its classic arrow tips (`>=latex`, `stealth`, …) out of
+the picture's bounding box, so the border is what keeps an arrowhead on the
+page, as it does in the PDF. The `arrows.meta` tips (`Latex`, `Stealth`) are
+counted.
 A MetaPost body without `beginfig` becomes one figure (`data-tex` picks the
 label engine). Errors show their diagnostics under the figure;
 `data-show-console` keeps the log. Loader attributes on the script tag:
