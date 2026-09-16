@@ -1,18 +1,21 @@
 # Handover
 
 Written 2026-09-13 (third session), revised 2026-09-15 (fourth and fifth
-sessions). This file lives at the repository root; until session 5 it was
+sessions) and 2026-09-16 (sixth). This file lives at the repository root; until session 5 it was
 `docs/15-handover.md`. Everything below is verified unless marked otherwise.
 Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State at the end of session 5 (2026-09-15):** the last commit on `main` is
-e538a3e (session 4; pushed, CI green, **v0.1.0 released**). Session 5's work,
-levelled logging, is complete and verified but **sits uncommitted in the
-working tree** (38 files, `git status`; the user has not asked for a commit).
-It changes `mplib.wasm`, so the next release is a minor bump. The website was
-not restaged or synced.
+**State at the end of session 6 (2026-09-16):** the last commit on `main` is
+e0a8be9 (session 5's logging work, committed and pushed at the start of
+session 6; CI run 35109363657 was in progress when this was written — check
+it). Session 6's work, **saved figures** (see "What happened in session 6"),
+is complete and verified but **sits uncommitted in the working tree** (the
+user has not asked for a commit). It changes no wasm; the API grew
+(`figureHash`, `mpost-wasm --prerender`, `mpTikzWasm.saveFigures()`), and
+together with session 5's wasm change the next release is the 0.2.0 minor
+bump. The website was not restaged or synced.
 
 ## Where things stand, in one paragraph
 
@@ -21,10 +24,14 @@ pdfTeX 1.40 and LuaTeX 1.21 in DVI mode, dvisvgm 3.4.3) compiled to
 WebAssembly behind one TypeScript library, a Web Worker, the `mpost-wasm`
 CLI, drop-in HTML tags, ten lazily fetched texmf bundles, five demo pages and
 a feature guide. Output is byte-identical to TeX Live 2025 on both golden
-corpora and the 1181-page PGF manual. 224 tests pass, the 48-check native
+corpora and the 1181-page PGF manual. 241 tests pass, the 48-check native
 contract harness passes, there is no per-instance memory leak. Session 5
 added levelled logging to the console (`logLevel`, six levels, MetaPost's
-terminal streamed live; see "What happened in session 5"). The demos are
+terminal streamed live; see "What happened in session 5"). Session 6 added
+saved figures: a page can carry its diagrams as `figures/figure-HASH.svg`
+files, written by `mpost-wasm --prerender` or `mpTikzWasm.saveFigures()`,
+and the tags load them instead of starting the engines (see "What happened
+in session 6"). The demos are
 live on the fast DigitalOcean droplet at
 <https://eschatolog.ist/software/mp-tikz-wasm/> and mirrored (more slowly) on
 Bluehost at <https://jmckalex.org/software/mp-tikz-wasm/>. **CI is green** and
@@ -142,16 +149,77 @@ MetaPost, TikZ or LaTeX run is doing, at a chosen verbosity).
    (`node scripts/serve.mjs 8791`; port 8765 was held by another process).
 9. This handover moved from `docs/15-handover.md` to `HANDOVER.md`.
 
-Not done in session 5, in the order to do them:
+Not done in session 5: commit (done in session 6 as e0a8be9), restage and
+sync the website, release 0.2.0 — the last two are still open, see the end
+of session 6.
 
-- **Commit and push** the logging work (nothing was committed; the user had
-  not asked). The generated `site/guide.html`, `standalone.html`
-  (git-ignored) and demo pages are regenerated and current.
+## What happened in session 6 (2026-09-16)
+
+1. **Committed and pushed the logging work** as e0a8be9 (CI run
+   35109363657; it rebuilds `mplib.wasm` and runs the 48-check contract).
+2. **Saved figures** — the user's idea: a function that writes every SVG on
+   a page out as `figure-HASH.svg`, HASH derived from the content, so that
+   on load each element can use its saved file instead of re-rendering. The
+   design and its reasons are in `docs/14` §13; the public documentation is
+   the README ("Saved figures" under the tags), `docs/08` §5.1, the guide's
+   tags section and the tags page itself.
+   - `src/ts/figures.ts` (shared, DOM-free): `figureHash()` — six lowercase
+     base-36 characters of the SHA-256 of the kind, the output-affecting
+     attributes (`fonts`, `tex`, `engine`) and the wrapped document. The one
+     identity names the file, the IndexedDB entry and the SVG id prefix
+     (`mpwHASH-`). The engine build is deliberately not in the hash (the old
+     IndexedDB key's version string was a placeholder anyway; see docs/14).
+     Also `extractFigures()` (the four tag forms out of an HTML string as the
+     DOM would give them: script bodies raw, custom-element bodies and
+     attributes entity-decoded), `renderFigure()` (the engine call the tags
+     and the pre-renderer share), `makeZip()` (store-only, no dependency).
+     `wrapTikz`/`wrapMetaPost` moved here from `auto.ts` (still re-exported).
+   - `src/ts/auto.ts`: `data-figures="figures/"` on the loader. Lookup
+     order per element: IndexedDB, then `figures/figure-HASH.svg` (a 404 or a
+     non-SVG answer is a miss), then the engine — which is created only on
+     the first miss, so a fully saved page loads no wasm, manifest or hot
+     list. `mpTikzWasm.figures()` lists what rendered; `mpTikzWasm.
+     saveFigures()` writes into a folder from the directory picker (Chrome,
+     Edge; needs a user gesture, the DevTools console counts) or downloads a
+     zip (elsewhere, or `{ zip: true }`); it waits for renders in flight.
+     The `mp-tikz-wasm:rendered` event carries `from` (`cache`|`file`|
+     `engine`), `hash`, `name`; the host `<figure>` gets `data-figure`.
+     IndexedDB store bumped to version 2 (the keys changed) and every
+     connection is now closed after use (it never was before).
+   - `src/ts/prerender.ts` and `mpost-wasm --prerender [--figures=DIR]
+     [--force] [--dry-run] PAGE.html...`: the same from Node. Honours the
+     page's `data-figures` (default `figures/` next to the page), keeps
+     files that exist, writes nothing for a failure and exits 1. The engine
+     is created with the browser's defaults (deterministic, seed 42), not the
+     CLI's `deterministic: false`, so the bytes equal a live render — the
+     e2e test checks that. `package.json` exports `./auto`, `./figures`,
+     `./prerender`; `index.ts` re-exports the helpers.
+   - `site/tags.html` ships with its figures in `site/figures/` (eight files,
+     100 KB, from `node dist/cli.js --prerender site/tags.html`, 1.5 s). The
+     deliberately broken figure at the bottom is the only thing that starts
+     the engines there; `?live` removes the attribute before the loader runs
+     and typesets everything in the tab. `stage-site.sh` and
+     `package-release.sh` copy `site/figures`.
+   - Tests: `test/unit/figures.test.ts` (hash, page scan, entities, the zip
+     checked with `unzip -t`), `test/e2e/prerender.test.ts` (files written,
+     kept, forced, dry run; the renderer serves a saved file without starting
+     an engine; `data-cache="off"` bypasses it; the CLI dry run). 241 pass.
+   - Verified in Chrome on `node scripts/serve.mjs 8791`: the eight files
+     fetched, no wasm until the broken figure missed, the stats line reads
+     "8 from saved files, 1 typeset here"; `saveFigures()` from a
+     non-gesture context fell through to an 85 KB zip with a valid signature.
+   - Regenerated `site/guide.html`. Not regenerated (unaffected):
+     `site/standalone.html`, `build/pages`; the release procedure rebuilds
+     them anyway.
+
+Not done in session 6, in the order to do them:
+
+- **Commit and push** the saved-figures work (the user has not asked).
 - **Restage and sync the website** ("The website" below); the deployed
-  pages still run the session 4 build.
-- **Release**: bump `package.json` to 0.2.0 (the wasm and the API changed),
-  then "Publishing a release". CI rebuilds `mplib.wasm` from source and runs
-  the 48-check contract, so the C change is covered there too.
+  pages still run the session 4 build, and the tags page will only load its
+  figures once `site/figures/` is synced (until then it falls back to
+  rendering, with a 404 per figure in the console).
+- **Release 0.2.0**: bump `package.json`, then "Publishing a release".
 
 ## CI — green as of 2026-09-13 (session 4)
 
@@ -359,6 +427,10 @@ and sync the website (`make sync-all`) after a release.
   the manual viewer page.
 - `src/ts/logger.ts` — the levelled logger (session 5); `docs/08` §4 has the
   level table and the terminal-streaming mechanism.
+- `src/ts/figures.ts`, `src/ts/prerender.ts` — saved figures (session 6):
+  the hash, the page scan, the shared render call, the zip; the Node
+  pre-renderer behind `mpost-wasm --prerender`. `docs/14` §13 has the
+  design; `docs/08` §5.1 the user-facing account.
 - `test/leak/` — the native leak harness (README there).
 - `~/Sites/jmckalex/CLAUDE.md` — the website's conventions (rsync
   Makefiles, the droplet, what never to upload).
@@ -377,8 +449,9 @@ The website copies are the same pages and are what the README links to.
 ## Suggested next steps
 
 Done in session 4: CI, the droplet, and the v0.1.0 release. Done in session
-5: logging. First, the three "not done" items under session 5 (commit,
-sync, release). Then, still open:
+5: logging. Done in session 6: saved figures (browser and Node). First, the
+three "not done" items under session 6 (commit, sync, release). Then, still
+open:
 
 - **Arbitrary LaTeX from a local (or served) TeX Live.** The user asked about
   this; it is well within reach because the hard parts already exist — the

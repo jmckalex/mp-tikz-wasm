@@ -72,7 +72,10 @@
     "./mplib.wasm": "./dist/mplib.wasm",
     "./tex.wasm": "./dist/tex.wasm",
     "./package.json": "./package.json",
-    "./dvisvgm.wasm": "./dist/dvisvgm.wasm"
+    "./dvisvgm.wasm": "./dist/dvisvgm.wasm",
+    "./auto": "./dist/auto.js",
+    "./figures": "./dist/figures.js",
+    "./prerender": "./dist/prerender.js"
   },
   "files": [
     "dist",

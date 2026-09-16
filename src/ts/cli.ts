@@ -4,12 +4,15 @@
  *
  *   mpost-wasm [OPTION]... [MPNAME[.mp]] [COMMANDS]
  *   mpost-wasm --dvitomp DVINAME[.dvi] [MPXNAME[.mpx]]
+ *   mpost-wasm --prerender [--figures=DIR] [--force] [--dry-run] PAGE.html...
  */
 import { MetaPost, LOG_LEVELS } from './index.js';
+import { prerender } from './prerender.js';
 import type { OutputFormat, NumberSystem, TexEngine, LogLevel, LogRecord } from './types.js';
 
 const HELP = `Usage: mpost-wasm [OPTION]... [MPNAME[.mp]] [COMMANDS]
        mpost-wasm --latex [OPTION]... DOC.tex
+       mpost-wasm --prerender [--figures=DIR] [--force] [--dry-run] PAGE.html...
   Run MetaPost (WebAssembly build) on MPNAME, writing output files to the
   current directory like mpost does; or, with --latex, typeset a complete
   LaTeX/TikZ (or plain TeX, with --plain) document with tex.wasm and convert
@@ -32,6 +35,14 @@ const HELP = `Usage: mpost-wasm [OPTION]... [MPNAME[.mp]] [COMMANDS]
   --engine=NAME         latex | lualatex | luatex | plain | tex | auto (default auto: lualatex when
                         the document uses graphdrawing or \directlua)
   --fonts=paths|woff2   how text is emitted in --latex mode (default paths)
+  --prerender           typeset the <script type="text/tikz|metapost">, <tikz-diagram> and
+                        <metapost-diagram> elements of each PAGE and save each as figure-HASH.svg in
+                        the directory the page's auto.js loader names in data-figures (default
+                        figures/, next to the page); the tags then load the files instead of running
+                        the engines. Files that exist are kept: the name is the content.
+  --figures=DIR         save every page's figures in DIR instead
+  --force               re-render figures whose file exists
+  --dry-run             list what would be rendered, render nothing
   -v, -vv, -vvv         more on stderr: timings; the engines' output as it runs; every file
   -q, --quiet           nothing on stderr (not even TeX errors)
   --log-level=LEVEL     silent|error|warn|info|debug|trace (default warn)
@@ -47,6 +58,7 @@ function parseArgs(argv: string[]) {
     stdout: false, file: '', commands: '', help: false, version: false, dvitomp: false,
     latex: false, plain: false, engine: 'auto' as 'auto' | 'latex' | 'lualatex' | 'luatex' | 'plain' | 'tex', fonts: 'paths' as 'paths' | 'woff2',
     verbose: 0, quiet: false, logLevel: '' as '' | LogLevel,
+    prerender: false, figures: '', force: false, dryRun: false, args: [] as string[],
   };
   const rest: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -78,6 +90,10 @@ function parseArgs(argv: string[]) {
       case 'plain': o.plain = true; o.latex = true; o.engine = 'plain'; break;
       case 'engine': o.engine = (v ?? next()) as typeof o.engine; o.latex = true; break;
       case 'fonts': o.fonts = (v ?? next()) as 'paths' | 'woff2'; break;
+      case 'prerender': o.prerender = true; break;
+      case 'figures': o.figures = v ?? next(); break;
+      case 'force': o.force = true; break;
+      case 'dry-run': o.dryRun = true; break;
       case 'v': case 'verbose': o.verbose++; break;
       case 'vv': o.verbose += 2; break;
       case 'vvv': o.verbose += 3; break;
@@ -88,6 +104,7 @@ function parseArgs(argv: string[]) {
       default: console.error(`mpost-wasm: unknown option ${a}`); process.exit(1);
     }
   }
+  o.args = [...rest];
   if (rest.length) { const first = rest[0]; if (first.startsWith('&')) { rest.shift(); } }
   if (rest.length) { o.file = rest.shift()!; }
   o.commands = rest.join(' ');
@@ -104,10 +121,25 @@ async function main() {
   // Everything the level admits goes to stderr, so stdout stays the transcript (and, with --stdout, the figure).
   // MetaPost's own errors and warnings are left out: the transcript on stdout carries them, as with mpost.
   const logger = (r: LogRecord) => {
-    if (r.source === 'metapost' && (r.level === 'error' || r.level === 'warn')) return;
+    if (!o.prerender && r.source === 'metapost' && (r.level === 'error' || r.level === 'warn')) return;
     const raw = (r.level === 'debug' || r.level === 'trace') && r.source !== 'host';
     process.stderr.write(raw ? `${r.source}: ${r.message}\n` : `mpost-wasm: ${r.source === 'host' ? '' : r.source + ': '}${r.message}\n`);
   };
+  if (o.prerender) {
+    // the browser's defaults (deterministic, seed 42), so the files are the bytes the tags would produce
+    const pages = o.args.filter((a) => !a.startsWith('&'));
+    if (!pages.length) { console.error('mpost-wasm: --prerender needs one or more .html pages'); process.exit(1); }
+    for (const p of pages) if (!fs.existsSync(p)) { console.error(`mpost-wasm: cannot open ${p}`); process.exit(1); }
+    const mp = await MetaPost.create({
+      texmfDir: o.texmf || undefined, bundleBaseUrl: o.bundles ? 'file://' + path.resolve(o.bundles) + '/' : undefined,
+      logLevel, logger,
+    });
+    const r = await prerender(pages, { mp, figuresDir: o.figures ? path.resolve(o.figures) : undefined, force: o.force, dryRun: o.dryRun, report: (l) => process.stdout.write(l + '\n') });
+    const pending = r.entries.filter((e) => e.status === 'pending').length;
+    process.stdout.write(`mpost-wasm: ${r.rendered} rendered, ${r.existing} already saved, ${r.failed} failed${o.dryRun ? `, ${pending} to render` : ''}\n`);
+    mp.dispose();
+    process.exit(r.failed ? 1 : 0);
+  }
   const mp = await MetaPost.create({
     numberSystem: o.numbersystem, tex: o.tex, interaction: o.interaction, haltOnError: o.halt,
     texmfDir: o.texmf || undefined, bundleBaseUrl: o.bundles ? 'file://' + path.resolve(o.bundles) + '/' : undefined,

@@ -194,9 +194,10 @@ npm run demo                     # http://localhost:8080/site/</code></pre>
 <ul>
   <li>A TikZ body without <code>\documentclass</code> is wrapped in a <code>standalone</code> document; a complete document is compiled as is. A MetaPost body without <code>beginfig</code> becomes one figure; <code>input</code> lines are hoisted above it.</li>
   <li>Attributes (as <code>data-*</code> on script tags, plain on custom elements): <code>libraries</code>, <code>packages</code>, <code>preamble</code>, <code>border</code>, <code>gdlibraries</code> (graph drawing, implies LuaTeX) and <code>engine</code> (<code>auto</code> | <code>latex</code> | <code>lualatex</code> | <code>plain</code>) for TikZ; <code>tex</code> (<code>auto</code> | <code>plain</code> | <code>latex</code> | <code>none</code>) and <code>prologues</code> for MetaPost; <code>fonts="woff2"</code> for embedded fonts instead of outlines; <code>cache="off"</code>; <code>show-console</code>; <code>alt</code>.</li>
-  <li>Loader attributes: <code>data-base</code> (where <code>bundles/</code> and the wasm files live, default next to the script), <code>data-worker="off"</code>, <code>data-observe="off"</code>, <code>data-snapshot="on"</code>, <code>data-prefetch="off"</code> (by default the loader fetches, in parallel, the files the page's diagrams will need before the first render, so a slow host does not pay one round trip per file), <code>data-log="debug"</code> (what reaches the browser console: <code>silent</code>, <code>error</code>, <code>warn</code> (default), <code>info</code>, <code>debug</code> — the engines' output as it runs — or <code>trace</code>; <code>mpTikzWasm.setLogLevel()</code> changes it later).</li>
+  <li>Loader attributes: <code>data-base</code> (where <code>bundles/</code> and the wasm files live, default next to the script), <code>data-worker="off"</code>, <code>data-observe="off"</code>, <code>data-snapshot="on"</code>, <code>data-prefetch="off"</code> (by default the loader fetches, in parallel, the files the page's diagrams will need before the first render, so a slow host does not pay one round trip per file), <code>data-figures="figures/"</code> (where saved figures live; next bullet but one), <code>data-log="debug"</code> (what reaches the browser console: <code>silent</code>, <code>error</code>, <code>warn</code> (default), <code>info</code>, <code>debug</code> — the engines' output as it runs — or <code>trace</code>; <code>mpTikzWasm.setLogLevel()</code> changes it later).</li>
   <li><code>&lt;tikz-diagram&gt;</code> and <code>&lt;metapost-diagram&gt;</code> are registered custom elements (web components): they render when they are connected to the document, so elements created later by a framework or by script work too. The two <code>&lt;script&gt;</code> forms are picked up by a <code>MutationObserver</code> instead, because script elements cannot be custom elements.</li>
   <li>Results are cached in IndexedDB by content hash; a revisited page shows every figure without running TeX. Each render dispatches a <code>mp-tikz-wasm:rendered</code> event; <code>window.mpTikzWasm.render()</code> renders programmatically.</li>
+  <li>Saved figures spare the first visit too: <code>npx mpost-wasm --prerender page.html</code> typesets every diagram element in Node and writes <code>figures/figure-HASH.svg</code> next to the page (HASH is six characters of the hash of the element's source and attributes); or open the page and call <code>mpTikzWasm.saveFigures()</code> in the console, which writes the same files into a folder you pick (Chrome, Edge) or downloads them as a zip. With <code>data-figures="figures/"</code> on the loader, each element loads its file if it exists and the engines start only for the figures that are missing — a page whose figures are all saved loads no engine at all. The name is the content: a changed diagram gets a new file, so <code>--prerender</code> keeps the files that exist (<code>--force</code> re-renders). <code>mpTikzWasm.figures()</code> lists them. The <a href="tags.html">tags page</a> is served this way.</li>
   <li>Errors show their diagnostics under the figure rather than failing silently. Inside custom elements the content is HTML, so write <code>&amp;lt;</code> for <code>&lt;</code>; script tags are raw.</li>
 </ul>
 <p>The engines run in a Web Worker, so the page never blocks; there is a 20 s watchdog per run.</p>
@@ -258,7 +259,8 @@ npx mpost-wasm -tex=latex -numbersystem=double -jobname=out figure.mp
 npx mpost-wasm --latex figure.tex                         # figure-1.svg, figure-2.svg …
 npx mpost-wasm --latex --plain --fonts=woff2 figure.tex
 npx mpost-wasm --latex --engine=lualatex graph.tex                # or --engine=auto (the default)
-npx mpost-wasm -vv figure.mp                                      # the engines' output on stderr as it runs (-v timings, -vvv every file, -q silence)</code></pre>
+npx mpost-wasm -vv figure.mp                                      # the engines' output on stderr as it runs (-v timings, -vvv every file, -q silence)
+npx mpost-wasm --prerender page.html                              # figures/figure-HASH.svg for every diagram tag on the page</code></pre>
 <p><code>mpost-wasm</code> accepts the usual <code>mpost</code> flags (<code>-interaction</code>, <code>-jobname</code>, <code>-tex</code>, <code>-s</code>, <code>-halt-on-error</code>, <code>-recorder</code>; <code>-troff</code> with a warning), writes output files with <code>mpost</code>'s <code>outputtemplate</code> naming, prints the transcript, and exits 1 on error. <code>-v</code>, <code>-vv</code>, <code>-vvv</code> and <code>-q</code> (or <code>--log-level=</code>) set how much goes to stderr.</p>
 
 <h2 id="metapost">What it does — MetaPost</h2>
@@ -274,7 +276,7 @@ npx mpost-wasm -vv figure.mp                                      # the engines'
   <path d="M161.52 62.322C171.52 12.322,211.52 12.322,221.52 62.322" style="stroke:rgb(0%,0%,0%); stroke-width: 0.5;stroke-linecap: round;stroke-dasharray: 3 3 ;stroke-linejoin: round;stroke-miterlimit: 10;fill: none;"></path>
 </svg>
 </div>
-  <figcaption><b>Paths, tension and curl</b> — MetaPost's path syntax: <code>..</code> for smooth curves solved by Hobby's algorithm, <code>--</code> for straight lines, tension and curl control, explicit controls, cycles. <span class="ms">15 ms MetaPost</span></figcaption>
+  <figcaption><b>Paths, tension and curl</b> — MetaPost's path syntax: <code>..</code> for smooth curves solved by Hobby's algorithm, <code>--</code> for straight lines, tension and curl control, explicit controls, cycles. <span class="ms">14 ms MetaPost</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>beginfig(1);
   draw (0,0)..(30,40)..(60,0) withcolor (0.1,0.3,0.8);
   draw (0,50)..tension 2..(30,90)..(60,50);
@@ -531,7 +533,7 @@ endfig; end.</code></pre></details>
   <path d="M82.427 69.919l0 0" style="stroke:rgb(0%,0%,0%); stroke-width: 3;stroke-linecap: round;stroke-linejoin: round;stroke-miterlimit: 10;fill: none;"></path>
 </svg>
 </div>
-  <figcaption><b>Text without TeX: Type 1 outlines</b> — A plain <code>label</code> needs no TeX at all: metrics come from the TFM file and the glyphs are Computer Modern Type 1 outlines converted to SVG paths by MetaPost's own backend (<code>prologues:=3</code>). No web fonts are involved. <span class="ms">3 ms MetaPost</span></figcaption>
+  <figcaption><b>Text without TeX: Type 1 outlines</b> — A plain <code>label</code> needs no TeX at all: metrics come from the TFM file and the glyphs are Computer Modern Type 1 outlines converted to SVG paths by MetaPost's own backend (<code>prologues:=3</code>). No web fonts are involved. <span class="ms">5 ms MetaPost</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>prologues := 3;
 beginfig(1);
   path p; p := fullcircle scaled 120;
@@ -645,7 +647,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>Labels typeset by plain TeX</b> — <code>btex … etex</code> blocks are typeset by a real pdfTeX (DVI mode) in one batched run per document, converted by MetaPost's own <code>dvitomp</code>, and cached by content hash. <span class="ms">2 ms MetaPost, 47 ms TeX</span></figcaption>
+  <figcaption><b>Labels typeset by plain TeX</b> — <code>btex … etex</code> blocks are typeset by a real pdfTeX (DVI mode) in one batched run per document, converted by MetaPost's own <code>dvitomp</code>, and cached by content hash. <span class="ms">3 ms MetaPost, 44 ms TeX</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>prologues := 3;
 beginfig(1);
   numeric a; a := 60;
@@ -910,7 +912,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>Labels typeset by LaTeX</b> — A <code>verbatimtex</code> preamble with <code>\documentclass</code> switches the label engine to LaTeX automatically. amsmath, amssymb, tabular, any package in the bundles. <span class="ms">2 ms MetaPost, 141 ms TeX</span></figcaption>
+  <figcaption><b>Labels typeset by LaTeX</b> — A <code>verbatimtex</code> preamble with <code>\documentclass</code> switches the label engine to LaTeX automatically. amsmath, amssymb, tabular, any package in the bundles. <span class="ms">2 ms MetaPost, 137 ms TeX</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>verbatimtex
 \documentclass{article}
 \usepackage{amsmath,amssymb}
@@ -1048,7 +1050,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>boxes.mp</b> — The standard macro packages ship in the core bundle: boxes, rboxes, graph, format, sarith, string, metaobj, featpost, metauml and more. <span class="ms">3 ms MetaPost, 51 ms TeX</span></figcaption>
+  <figcaption><b>boxes.mp</b> — The standard macro packages ship in the core bundle: boxes, rboxes, graph, format, sarith, string, metaobj, featpost, metauml and more. <span class="ms">3 ms MetaPost, 47 ms TeX</span></figcaption>
   <details><summary>source (MetaPost)</summary><pre><code>input boxes;
 prologues := 3;
 beginfig(1);
@@ -1344,7 +1346,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Shadings</b> — Axis, radial and ball shadings become SVG gradients, through PGF's own dvisvgm driver. This is where a JavaScript DVI reader gives up. <span class="ms">81 ms TeX, 29 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Shadings</b> — Axis, radial and ball shadings become SVG gradients, through PGF's own dvisvgm driver. This is where a JavaScript DVI reader gives up. <span class="ms">79 ms TeX, 30 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{shadings}
 \begin{document}
@@ -1419,7 +1421,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Patterns, opacity, clipping, decorations</b> — Fill patterns become SVG patterns; opacity, clipping scopes and path decorations all survive intact. <span class="ms">117 ms TeX, 13 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Patterns, opacity, clipping, decorations</b> — Fill patterns become SVG patterns; opacity, clipping scopes and path decorations all survive intact. <span class="ms">119 ms TeX, 25 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{patterns,decorations.pathmorphing,decorations.markings}
 \begin{document}
@@ -1578,7 +1580,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Nodes, shapes, arrows</b> — positioning, shapes.geometric and arrows.meta; bent and curved edges; every library that ships with PGF in TeX Live 2025 is available. <span class="ms">98 ms TeX, 32 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Nodes, shapes, arrows</b> — positioning, shapes.geometric and arrows.meta; bent and curved edges; every library that ships with PGF in TeX Live 2025 is available. <span class="ms">129 ms TeX, 35 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{positioning,shapes.geometric,arrows.meta}
 \begin{document}
@@ -1784,7 +1786,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Commutative diagrams (tikz-cd)</b> <span class="ms">145 ms TeX, 38 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Commutative diagrams (tikz-cd)</b> <span class="ms">142 ms TeX, 38 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[border=3pt]{standalone}
 \usepackage{tikz-cd,amssymb}
 \begin{document}
@@ -2099,7 +2101,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>pgfplots</b> — The real pgfplots package: axes, grids, legends, sampled functions, data coordinates, filled areas. <span class="ms">256 ms TeX, 49 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>pgfplots</b> — The real pgfplots package: axes, grids, legends, sampled functions, data coordinates, filled areas. <span class="ms">248 ms TeX, 47 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[border=3pt]{standalone}
 \usepackage{amsmath,pgfplots}
 \pgfplotsset{compat=1.18}
@@ -2258,7 +2260,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Latin Modern, T1 encoding, amsmath</b> — Text is glyph outlines in the SVG, so it renders identically everywhere; <code>fonts: 'woff2'</code> embeds web fonts instead if you prefer selectable text. <span class="ms">138 ms TeX, 67 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Latin Modern, T1 encoding, amsmath</b> — Text is glyph outlines in the SVG, so it renders identically everywhere; <code>fonts: 'woff2'</code> embeds web fonts instead if you prefer selectable text. <span class="ms">139 ms TeX, 66 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usepackage{lmodern}
 \usepackage[T1]{fontenc}
@@ -2529,7 +2531,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Trees, matrices, decorations</b> <span class="ms">153 ms TeX, 40 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Trees, matrices, decorations</b> <span class="ms">146 ms TeX, 38 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{trees,decorations.pathreplacing}
 \begin{document}
@@ -2701,7 +2703,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Plain TeX too</b> — <code>engine: 'plain'</code> runs plain TeX with e-TeX (TeX Live's <code>etex</code>), which is what PGF needs. <span class="ms">88 ms TeX, 60 ms dvisvgm</span></figcaption>
+  <figcaption><b>Plain TeX too</b> — <code>engine: 'plain'</code> runs plain TeX with e-TeX (TeX Live's <code>etex</code>), which is what PGF needs. <span class="ms">84 ms TeX, 57 ms dvisvgm</span></figcaption>
   <details><summary>source (plain TeX)</summary><pre><code>\input tikz
 \nopagenumbers
 \tikzpicture
@@ -3471,7 +3473,7 @@ endfig; end.</code></pre></details>
 <use x='384.839519' y='189.381889' xlink:href='#tz-parshape-circle-g9-46'/>
 </g>
 </svg></div>
-  <figcaption><b>A paragraph shaped by \parshape</b> — This is a whole LaTeX document, not just a picture: prose, inline and displayed amsmath, and three inline TikZ pictures, all set inside a circle. TeX's <code>\parshape</code> primitive takes one (indent, width) pair per line; a <code>\loop</code> computes twenty of them with pgfmath as chords of the circle drawn behind the text. Line breaking, hyphenation and the display equation all follow the shape. <span class="ms">169 ms TeX, 97 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>A paragraph shaped by \parshape</b> — This is a whole LaTeX document, not just a picture: prose, inline and displayed amsmath, and three inline TikZ pictures, all set inside a circle. TeX's <code>\parshape</code> primitive takes one (indent, width) pair per line; a <code>\loop</code> computes twenty of them with pgfmath as chords of the circle drawn behind the text. Line breaking, hyphenation and the display equation all follow the shape. <span class="ms">166 ms TeX, 93 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[border=8pt]{standalone}
 \usepackage{lmodern}
 \usepackage[T1]{fontenc}
@@ -4362,7 +4364,7 @@ endfig; end.</code></pre></details>
 <use x='112.076423' y='142.091136' xlink:href='#tz-parshape-wrap-g9-46'/>
 </g>
 </svg></div>
-  <figcaption><b>Text flowing around a figure</b> — The same primitive with nine narrow lines and then the full measure, the figure hung from the first baseline in a zero-width box: what wrapfig does, by hand. The figure is a TikZ plot of Fourier partial sums sampled by pgfmath; the paragraph carries integrals, limits and a display. <span class="ms">2288 ms TeX, 122 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Text flowing around a figure</b> — The same primitive with nine narrow lines and then the full measure, the figure hung from the first baseline in a zero-width box: what wrapfig does, by hand. The figure is a TikZ plot of Fourier partial sums sampled by pgfmath; the paragraph carries integrals, limits and a display. <span class="ms">2157 ms TeX, 119 ms dvisvgm (snapshot)</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[border=8pt]{standalone}
 \usepackage{lmodern}
 \usepackage[T1]{fontenc}
@@ -5006,7 +5008,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Graph drawing (LuaTeX)</b> — The <code>graphdrawing</code> library computes layouts in Lua, so it needs LuaTeX. <code>engine: 'auto'</code> (and the tags) switch to <code>luatex.wasm</code> when a document uses it; layered, spring, tree, circular and phylogenetic layouts all run. This is the library tikzjax could never offer. <span class="ms">549 ms LuaTeX, 51 ms dvisvgm</span></figcaption>
+  <figcaption><b>Graph drawing (LuaTeX)</b> — The <code>graphdrawing</code> library computes layouts in Lua, so it needs LuaTeX. <code>engine: 'auto'</code> (and the tags) switch to <code>luatex.wasm</code> when a document uses it; layered, spring, tree, circular and phylogenetic layouts all run. This is the library tikzjax could never offer. <span class="ms">502 ms LuaTeX, 48 ms dvisvgm</span></figcaption>
   <details><summary>source (LaTeX)</summary><pre><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{graphs,graphs.standard,graphdrawing,quotes}
 \usegdlibrary{trees,layered,force,circular}

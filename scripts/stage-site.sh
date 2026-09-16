@@ -21,6 +21,7 @@ for f in index.html app.js examples.js examples-tikz.js tags.html guide.html min
   cp "$REPO/site/$f" "$STAGE/site/$f"
 done
 cp -R "$REPO/site/examples" "$STAGE/site/examples"
+cp -R "$REPO/site/figures" "$STAGE/site/figures"     # the tags page's saved figures (mpost-wasm --prerender)
 cp "$REPO/README.md" "$REPO/NOTICE.md" "$REPO/LICENSE" "$STAGE/"
 cp -R "$REPO/licenses" "$STAGE/licenses"
 VERSION="$(node -p "require('$REPO/package.json').version")"

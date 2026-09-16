@@ -417,3 +417,65 @@ user-facing table).
 - **Default `warn`**, not `silent`: a page whose figure comes out blank now
   says why in the console without any option; the tests and the build
   scripts pass `logLevel: 'silent'`.
+
+## 13. Saved figures (session 6)
+
+`figures.ts` gives every diagram element one identity, `figureHash()`: six
+lowercase base-36 characters of the SHA-256 of its kind, the attributes that
+change the output (`fonts`, `tex`, `engine`) and the wrapped document. The
+same six characters name the IndexedDB entry, the SVG id prefix (`mpwHASH-`)
+and the saved file `figure-HASH.svg`, so a saved SVG is self-contained and
+drops into any page. Lowercase because the files pass through
+case-insensitive filesystems on the way to a server; base 36 rather than hex
+so six characters give two billion values.
+
+The engine build is left out of the hash on purpose. The old IndexedDB key
+included `mp.version`, but that string is only known once the engine has
+started, and the key was computed *before* the cache lookup — so for every
+figure on a static page it was the placeholder `mp-tikz-wasm`, and the
+"invalidate on upgrade" intent never actually worked. Now the hash identifies
+the source; the IndexedDB store is recreated (version 2) since the keys
+changed; and a library upgrade that changes output is handled by re-running
+`--prerender --force`, which is the honest description of a rare event.
+
+What the browser side does with `data-figures="figures/"`: IndexedDB, then a
+`fetch` of the file, then the engine. The fetch treats a non-2xx as a miss,
+and also anything that does not start like an SVG document — a single-page
+host that answers every path with its index page would otherwise inject HTML
+into the figure. The engine is created lazily by the first miss, and the
+prefetch scan of the page runs only then, so a page whose figures are all
+saved requests no wasm, no bundle manifest and no hot list. (The scan is
+guarded on `document` so `AutoRenderer` also works in Node, which is how the
+e2e test proves the engine is never started.)
+
+`saveFigures()` prefers `showDirectoryPicker()` (Chrome, Edge): the author
+picks the site's `figures/` once and the files land in it. The picker needs
+user activation, which the DevTools console grants; a `SecurityError` (or
+Firefox and Safari, which have no picker) falls through to a store-only zip
+built by `makeZip()` — sixty lines with a CRC-32 table, reproducible
+(timestamps fixed at 1980-01-01), verified against `unzip -t` in the unit
+test. An `AbortError` means the author cancelled and does not fall through.
+The function waits for renders in flight first, so calling it too early
+still saves everything.
+
+`mpost-wasm --prerender` (`prerender.ts`) does the same from Node without a
+browser. It finds the four tag forms with a scan rather than an HTML parser —
+the elements hold text, not markup — reproducing what the DOM gives the tags:
+script bodies raw, custom-element bodies and attribute values entity-decoded,
+the same trim (`sourceOf`), attributes with `data-` stripped. The engine is
+created with the browser's defaults (deterministic, seed 42), not the CLI's
+`deterministic: false`, so the bytes are the ones the tags would produce; the
+e2e test checks that a saved file and a live render of the same element are
+identical. Files that exist are kept (the name is the content) unless
+`--force`; nothing is written for a figure that fails, so it is tried again.
+
+One caveat, documented rather than solved: a MetaPost element with several
+`beginfig` blocks injects several `<svg>` roots joined by newlines, and that
+is what gets saved — exact for the tags, but not a valid single SVG document.
+Single-figure elements, the common case, save as valid files.
+
+`site/tags.html` ships with its figures in `site/figures/` and
+`data-figures="figures/"`; the deliberately broken figure at the bottom is the
+only thing that starts the engines there, and `?live` removes the attribute
+before the loader runs (module scripts are deferred, so an inline classic
+script can still edit the tag) to typeset everything in the tab.

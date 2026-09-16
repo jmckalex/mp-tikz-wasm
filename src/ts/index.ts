@@ -15,6 +15,8 @@ export { scanTexBlocks, scanInputs } from './tex/scanner.js';
 export { parseMetaPostLog } from './diagnostics.js';
 export { splitMpx } from './tex/mpx.js';
 export { LOG_LEVELS, formatRecord, consoleSink } from './logger.js';
+export { figureHash, figureName, figureDocument, extractFigures, renderFigure, wrapTikz, wrapMetaPost, makeZip, FIGURE_FILE } from './figures.js';
+export type { FigureKind, FigureRequest, FigureResult, SavedFigure, FoundFigure } from './figures.js';
 
 type Listener = (e: any) => void;
 

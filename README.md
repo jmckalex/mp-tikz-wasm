@@ -169,14 +169,29 @@ label engine). Errors show their diagnostics under the figure;
 `data-show-console` keeps the log. Loader attributes on the script tag:
 `data-base` (where `bundles/` and the wasm files live, default next to the
 script), `data-worker="off"`, `data-observe="off"`, `data-snapshot="on"`,
-`data-prefetch="off"`, `data-log="debug"` (what reaches the browser console;
-see "Logging" below). Before the first render the loader fetches, in
+`data-prefetch="off"`, `data-figures="figures/"` (where saved figures live;
+see below), `data-log="debug"` (what reaches the browser console; see
+"Logging" below). Before the first render the loader fetches, in
 parallel, the files the page's diagrams will need (recorded at build time in
 `bundles/hot.json`), so a host with slow responses does not pay one round trip
 per file; while it waits, each figure's placeholder shows what is being
 fetched. Each render dispatches a `mp-tikz-wasm:rendered` event, and
 `window.mpTikzWasm.render()` renders programmatically. `site/tags.html` is a
 working example page.
+
+**Saved figures.** A page can carry its figures as static files, so that a
+first visit never starts the engines. `npx mpost-wasm --prerender page.html`
+typesets every diagram element of the page in Node and writes
+`figures/figure-HASH.svg` next to it, HASH being six characters of the hash of
+the element's source and attributes; or open the page and call
+`mpTikzWasm.saveFigures()` in the browser console, which writes the same
+files into a folder you pick (Chrome, Edge) or downloads them as a zip. With
+`data-figures="figures/"` on the loader script, each element loads its file if
+it exists and the engines start only for the figures that are missing. The
+name is the content: a changed diagram gets a new file and a stale one is
+never requested, so `--prerender` keeps the files that exist (`--force`
+re-renders them). Each saved SVG carries its fonts and namespaced ids, so it
+also works as a plain image anywhere. `mpTikzWasm.figures()` lists them.
 
 ### Library
 
@@ -237,6 +252,7 @@ npx mpost-wasm -tex=latex -numbersystem=double figure.mp
 npx mpost-wasm --latex figure.tex                         # figure-1.svg, figure-2.svg …
 npx mpost-wasm --latex --engine=lualatex graph.tex        # --engine=auto (default) picks LuaTeX when needed
 npx mpost-wasm -vv figure.mp                              # the engines' output on stderr as it runs (-v timings, -vvv every file, -q silence)
+npx mpost-wasm --prerender page.html                      # figures/figure-HASH.svg for every diagram tag on the page (see "Saved figures")
 ```
 
 ## How it works

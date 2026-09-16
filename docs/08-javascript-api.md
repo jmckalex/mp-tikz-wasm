@@ -207,6 +207,8 @@ mpost-wasm --dvitomp DVINAME[.dvi] [MPXNAME[.mpx]]
   --texmf=DIR           extra texmf root (MPWASM_TEXMF)
   --bundle=NAME         add a bundle
   --format=svg|eps|json default eps, matching upstream
+
+mpost-wasm --prerender [--figures=DIR] [--force] [--dry-run] PAGE.html...
 ```
 
 Accept and ignore with a warning: `-ini`, `-mem=`, `-progname=`,
@@ -214,6 +216,39 @@ Accept and ignore with a warning: `-ini`, `-mem=`, `-progname=`,
 
 Exit codes must match `mpost`: 0 on success, 1 on error. Output files go to the
 CWD with the same `outputtemplate` semantics (`%j`, `%c`, `%d`, …).
+
+### 5.1 Saved figures: `--prerender` and `mpTikzWasm.saveFigures()`
+
+The drop-in tags (`auto.ts`) identify every diagram element by
+`figureHash()` (`figures.ts`): six lowercase base-36 characters of the SHA-256
+of its kind, the attributes that change the output (`fonts`, `tex`, `engine`)
+and the wrapped document. That one identity names the IndexedDB entry, the
+SVG id prefix (`mpwHASH-`) and the saved file `figure-HASH.svg`. The engine
+build is left out on purpose: the hash identifies the source, so saved files
+survive a library upgrade (re-run with `--force` after one that changes the
+output).
+
+`mpost-wasm --prerender page.html …` reads each page, finds the four tag forms
+as the browser would (script bodies raw, custom-element bodies and attribute
+values entity-decoded), typesets each element with the browser's defaults
+(deterministic, seed 42) and writes the file into the directory the page's
+loader names in `data-figures` (default `figures/`, next to the page) or into
+`--figures=DIR`. Files that exist are kept; `--force` re-renders; `--dry-run`
+lists. Exit 1 if any figure failed (nothing is written for it, so it is tried
+again next time). `prerender()` in `dist/prerender.js` is the same thing as a
+function.
+
+In the browser, with `data-figures="figures/"` on the loader, `render()`
+looks in IndexedDB, then fetches `figures/figure-HASH.svg` (a 404, or a
+server that answers every path with its index page, is a miss), and only then
+starts an engine — so a page whose figures are all saved loads no wasm at all.
+`mpTikzWasm.saveFigures()` waits for renders in flight and writes every
+successful figure into a folder chosen with the File System Access API
+(Chrome, Edge; call it from the console or a click) or, elsewhere or with
+`{ zip: true }`, downloads a store-only zip; `mpTikzWasm.figures()` returns
+the list. A MetaPost element with several `beginfig` blocks saves the several
+`<svg>` roots it injects, joined by newlines — exact for the tags, but not a
+single SVG document.
 
 ## 6. Extension points
 
