@@ -1,19 +1,23 @@
 # Handover
 
 Written 2026-09-13 (third session), revised 2026-09-15 (fourth and fifth
-sessions) and 2026-09-16 (sixth). This file lives at the repository root; until session 5 it was
-`docs/15-handover.md`. Everything below is verified unless marked otherwise.
+sessions) and 2026-09-16 (sixth). This file lives at the repository root;
+until session 5 it was `docs/15-handover.md`. Everything below is verified
+unless marked otherwise.
 Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
 **State at the end of session 6 (2026-09-16):** everything is committed,
-pushed and released; the working tree is clean. `main` is at 6408c66
-("Release 0.2.0"), preceded by c99d1ac (saved figures) and e0a8be9 (logging;
-its CI run 35109363657 was green on both jobs). **v0.2.0 is released** on
-GitHub with both archives (the tarball's sha256 verified against the local
-build) and the website is restaged and synced to both hosts with the new
-pages and `site/figures/` (see "The website" for a cache caveat).
+pushed and released; the working tree is clean. The last code commit is
+6408c66 ("Release 0.2.0"), preceded by c99d1ac (saved figures) and e0a8be9
+(logging); the commits after it only touch this file. **CI is green** on all
+of them (runs 35109363657, 35113186940, 35113237374, 35113576643).
+**v0.2.0 is released** on GitHub with both archives — the tarball's sha256
+verified against the local build, and a clean extraction of it renders
+through the Node API and pre-renders the tags page byte-identically to the
+shipped figures — and the website is restaged and synced to both hosts with
+the new pages and `site/figures/` (see "The website" for a cache caveat).
 
 ## Where things stand, in one paragraph
 
@@ -29,15 +33,13 @@ terminal streamed live; see "What happened in session 5"). Session 6 added
 saved figures: a page can carry its diagrams as `figures/figure-HASH.svg`
 files, written by `mpost-wasm --prerender` or `mpTikzWasm.saveFigures()`,
 and the tags load them instead of starting the engines (see "What happened
-in session 6"). The demos are
-live on the fast DigitalOcean droplet at
+in session 6"). The demos are live on the fast DigitalOcean droplet at
 <https://eschatolog.ist/software/mp-tikz-wasm/> and mirrored (more slowly) on
 Bluehost at <https://jmckalex.org/software/mp-tikz-wasm/>. **CI is green** and
 **v0.2.0 is released** (v0.1.0 on 2026-09-13, v0.2.0 on 2026-09-16). Session
-4 also added five MetaPost gallery figures, an
-in-browser page-by-page viewer for the whole PGF manual, and fixed the
-upside-down brace in the guide's tree figure (see "What happened in session
-4").
+4 also added five MetaPost gallery figures, an in-browser page-by-page viewer
+for the whole PGF manual, and fixed the upside-down brace in the guide's tree
+figure (see "What happened in session 4").
 
 ## What happened in session 3 (2026-09-13)
 
@@ -148,9 +150,8 @@ MetaPost, TikZ or LaTeX run is doing, at a chosen verbosity).
    (`node scripts/serve.mjs 8791`; port 8765 was held by another process).
 9. This handover moved from `docs/15-handover.md` to `HANDOVER.md`.
 
-Not done in session 5: commit (done in session 6 as e0a8be9), restage and
-sync the website, release 0.2.0 — the last two are still open, see the end
-of session 6.
+Not done in session 5 — commit, restage and sync, release — was all done in
+session 6 (e0a8be9, then the 0.2.0 release and the sync; see below).
 
 ## What happened in session 6 (2026-09-16)
 
@@ -207,9 +208,8 @@ of session 6.
      fetched, no wasm until the broken figure missed, the stats line reads
      "8 from saved files, 1 typeset here"; `saveFigures()` from a
      non-gesture context fell through to an 85 KB zip with a valid signature.
-   - Regenerated `site/guide.html`. Not regenerated (unaffected):
-     `site/standalone.html`, `build/pages`; the release procedure rebuilds
-     them anyway.
+   - Regenerated `site/guide.html` here, and everything else (the demo
+     pages, `standalone.html`) at the release in item 3.
 
 3. **Committed, synced and released** (the user asked for all three):
    c99d1ac (saved figures), 6408c66 ("Release 0.2.0", the version bump with
@@ -222,11 +222,17 @@ of session 6.
    on both hosts with the right content type, and Chrome on the live droplet
    page reports "8 from saved files, 1 typeset here" — after a hard reload,
    see the cache caveat under "The website". The GitHub release is at
-   <https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.2.0>.
+   <https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.2.0>; CI is
+   green on both jobs for every commit of the session, and a clean
+   extraction of the released tarball renders MetaPost and TikZ through the
+   Node API and pre-renders the tags page byte-identically to the shipped
+   `site/figures/`.
+4. **This handover** brought current (8d2d8bd and the commit after it).
 
-Nothing is left undone from session 6.
+Nothing is left undone from session 6. Two small things it left behind are
+loose ends 12 and 13.
 
-## CI — green as of 2026-09-13 (session 4)
+## CI — green as of 2026-09-16 (session 6; first green in session 4)
 
 `.github/workflows/ci.yml` runs two jobs on every push, both green:
 
@@ -236,10 +242,12 @@ Nothing is left undone from session 6.
 - **wasm** (ubuntu-latest, Emscripten 6.0.9): builds all four engines
   (`mplib`, `tex`, `dvisvgm`, `luatex`), the texmf tree, formats and
   bundles, the TypeScript, then the e2e tests (`test/e2e`: API, memory,
-  prefetch) and the **MetaPost** golden `--check`.
+  prefetch, logging, prerender) and the **MetaPost** golden `--check`.
 
-Green run: <https://github.com/jmckalex/mp-tikz-wasm/actions/runs/34769341698>
-(commit c24dbb3). The README badge is green.
+Latest green run: <https://github.com/jmckalex/mp-tikz-wasm/actions/runs/35113237374>
+(the 0.2.0 release commit 6408c66; a tag push starts a second run of the
+same commit). First green run: 34769341698 (commit c24dbb3, session 4). The
+README badge is green.
 
 What was wrong and what fixed it (session 4, five commits f822ff3 →
 c24dbb3, all pushed):
@@ -335,12 +343,19 @@ the HTML with no cache header, so a returning visitor gets the new
 breaks — the old script ignores `data-figures` and renders live, and a new
 `auto.js` with an old cached `index.js` also works — but the saved-figure
 benefit only reaches such a visitor after their cache expires. If that
-matters, add a version query to the loader `src` in the pages (they are
-generated by the templates and `stage-site.sh` knows the version) or shorten
-the max-age for `dist/*.js` in the nginx server block. Not done; the user
-has not been asked. `npm run pages`
-(`scripts/publish-pages.sh`) is a GitHub Pages alternative, tested against a
-throwaway repository only.
+matters, add a version query to the loader `src` in the pages (`stage-site.sh`
+knows the version) or shorten the max-age for `dist/*.js` in the nginx
+server block. Not done; the user has not been asked (loose end 12).
+
+**Saved figures on the site:** `site/figures/` is committed and staged as
+is. If the tags page's diagrams change, run `node dist/cli.js --prerender
+site/tags.html` before staging, and remove the orphaned files by hand — the
+names are content-addressed, so a changed diagram gets a new file and the
+pre-renderer never deletes the old one (`--dry-run` shows what it would
+render; `git status` shows what is new).
+
+`npm run pages` (`scripts/publish-pages.sh`) is a GitHub Pages alternative,
+tested against a throwaway repository only.
 
 Cold-load cost on Bluehost (measured): a first TikZ figure waits ~12 s for the
 three engines, and graph drawing (adds `luatex.wasm` 1.7 MB + `dvilualatex.fmt`
@@ -365,6 +380,7 @@ scripts/native-luatex.sh         # once: native LuaTeX build, compile commands r
 npm run build                    # all wasm, texmf, formats, bundles, TypeScript, hot lists
 npm test && npm run test:golden && npm run test:golden:tikz
 npm run build:guide; npm run build:pages; npm run build:standalone
+node dist/cli.js --prerender site/tags.html   # site/figures/ (committed; only if the tags page changed)
 npm run package
 ```
 
@@ -385,10 +401,14 @@ gh release create v<version> release/mp-tikz-wasm-<version>.tar.gz release/mp-ti
 <https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.2.0>, tag `v0.2.0`
 on 6408c66, with `mp-tikz-wasm-0.2.0.tar.gz` (37 MB, sha256
 a7255429800f196b31a92bdf5dc278c467c32974abb6522a089f041c0955be68) and
-`.zip` (39 MB); the GitHub tarball's sha256 matches the local build. The
-notes cover saved figures, levelled logging and the cache-key change. The
-steps followed were exactly the ones below, plus `make wasm` and both golden
-checks before the release commit.
+`.zip` (39 MB). Verified: the GitHub tarball's sha256 matches the local
+build; a clean extraction renders MetaPost (with a btex label) and TikZ
+through the Node API, its `dist/cli.js --prerender --dry-run site/tags.html`
+finds the eight shipped figures saved, and re-rendering them into a fresh
+directory reproduces `figure-r5umbw.svg` byte for byte. The notes cover
+saved figures, levelled logging and the cache-key change. The steps were the
+v0.1.0 procedure below, with `make wasm` and both golden checks before the
+release commit, and the site synced after.
 
 **v0.1.0 is released** (2026-09-13, session 4):
 <https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.1.0>, tag `v0.1.0`,
@@ -413,7 +433,8 @@ and sync the website (`make sync-all`) after a release.
    delete it (CI installs its own; reinstalling is `git clone
    https://github.com/emscripten-core/emsdk && ./emsdk install 6.0.9 &&
    ./emsdk activate 6.0.9`). The user has not said which.
-4. ~~**No GitHub release yet**~~ — released v0.1.0; see "Publishing a release".
+4. ~~**No GitHub release yet**~~ — v0.1.0 and v0.2.0 released; see
+   "Publishing a release".
 5. ~~**Bluehost is slow**~~ — deployed to the fast droplet (eschatolog.ist);
    Bluehost kept as a mirror. See "The website".
 6. **One unexplained hang**: one of five API runs of the 1181-page manual
@@ -436,13 +457,23 @@ and sync the website (`make sync-all`) after a release.
     (rsync it under the same webroot). The staging build re-renders the title
     page from the DVI, so it needs `build/stress/pgfmanual/native/` present
     (produced by `scripts/stress-pgfmanual.mjs`).
+12. **Thirty-day JS cache on the droplet** (session 6): a returning visitor
+    can run last month's `auto.js` against the new `tags.html` until a hard
+    reload; harmless, but it hides the saved-figure speed-up from them. Fix
+    with a version query on the loader `src` or a shorter `max-age` for
+    `dist/*.js` in nginx. See "The website".
+13. **Saved-figure caveats, documented rather than solved** (session 6): a
+    MetaPost element with several `beginfig` blocks saves the several
+    `<svg>` roots it injects, joined by newlines — exact for the tags, not a
+    valid single SVG file; and `--prerender` never deletes orphaned
+    `figure-*.svg` files when a diagram changes.
 
 ## Where to look
 
 - `README.md` — public-facing; also the prerequisites and the patch table.
 - `docs/14-implementation-notes.md` — what was learned, per subsystem: §7
   TikZ pipeline, §8 tags and snapshot, §9 the PGF manual test, §10 LuaTeX,
-  §11 the leaks (three patches).
+  §11 the leaks (three patches), §12 logging, §13 saved figures.
 - `docs/00-START-HERE.md` and `docs/01`–`docs/09` — the original design.
 - `patches/` — twelve unified diffs, each explained in the code; seven are
   upstream bugs (0003, 0004, 0005, 0007, 0010, 0011, 0012) worth reporting
@@ -470,7 +501,8 @@ and sync the website (`make sync-all`) after a release.
 - PGF manual page viewer (170-page sample; session 4): https://claude.ai/code/artifact/9d3a1aa7-354c-47ce-bfb6-b3f6921af370
 - Gallery additions preview (the five new figures; session 4): https://claude.ai/code/artifact/9ea88d6a-68ef-4ed4-a2e6-36420c6133c1
 
-The website copies are the same pages and are what the README links to.
+These are session 3–4 builds; the website carries the current pages and is
+what the README links to.
 
 ## Suggested next steps
 
@@ -505,7 +537,8 @@ release and the site sync. Still open:
 - Smaller: PDF export through pdfTeX's PDF backend (compiled in; two style
   files and an option); `luamplib` for MetaPost inside LuaLaTeX; more packages
   (beamer, babel, siunitx, circuitikz, chemfig: one recipe line each in
-  `scripts/build-texmf.sh`).
+  `scripts/build-texmf.sh`); cache-busting for `dist/*.js` on the droplet
+  (loose end 12).
 
 **The announcement.** v0.1.0 was announced to the MacTeX list (a wider TeX
 Live announcement is planned once feedback settles). Expect bug reports and
