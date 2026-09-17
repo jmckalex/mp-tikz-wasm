@@ -357,6 +357,20 @@ without hinting, and heavier (34.9 KB against 6.8 KB on one line of text).
 Note that only the *font* comes from the browser; the positions are TeX's, so
 the result does not reflow.
 
+Plain LuaTeX (`engine: 'luatex'`) has it too, without `fontspec`:
+
+```tex
+\input luaotfload.sty
+\font\body="[lmroman10-regular.otf]:mode=node;+liga;+kern" at 10pt
+\body Real OpenType from plain TeX: fi ffl.
+\bye
+```
+
+Stock TeX Live cannot typeset that to DVI — luaotfload's DVI module needs a
+shipout hook that only the LaTeX kernel provides — so the bundled
+`luaotfload.sty` carries a small patch that adds the hook for plain TeX
+(`patches/texmf/0001`, below).
+
 ## Building from source
 
 You need this only to change the engines or the bundles. The release archive
@@ -451,6 +465,14 @@ One patch applies to LuaTeX, in `patches/luatex/` (applied by
 | # | File | Why |
 | --- | --- | --- |
 | luatex 0001 | `backend.c`, `vfpacket.c`, `lfontlib.c` | **wasm-only defect:** the back-end dispatch table is an unprototyped `void (*)()`; the ship-out calls its rule slot with four arguments and the DVI implementation takes three. Native C drops the extra argument, WebAssembly's `call_indirect` traps, so every rule in DVI mode (`\hrule`, `\sqrt`, `\over`, `\overline`, `\underline`, leaders) threw "null function or function signature mismatch". A four-argument wrapper fills the slot; the two three-argument callers pass four |
+
+One patch applies to a bundled macro package, in `patches/texmf/` (applied by
+`scripts/build-texmf.sh` to the assembled `build/texmf` tree; TeX Live's own
+copy is never modified, and a patch whose target this TeX Live lacks is skipped):
+
+| # | File | Why |
+| --- | --- | --- |
+| texmf 0001 | `luaotfload.sty` | **upstream gap:** luaotfload's DVI module registers on `pre_shipout_filter`, a callback that the LaTeX kernel creates and calls from its `\shipout`. Plain TeX has neither, so every OpenType `\font` under `dviluatex` failed with "Unable to register callback" then "not loadable" — in stock TeX Live too. The patch creates the callback and calls it from a `\shipout` wrapper (the `everyshi` idiom), under plain TeX in DVI mode only |
 
 ## Licence
 

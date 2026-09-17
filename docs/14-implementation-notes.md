@@ -712,17 +712,17 @@ whose figures all come from the cache or from saved files still starts nothing.
 </tikz-diagram>
 ```
 
-### Plain LuaTeX cannot have it, and not for the obvious reason
+### Plain LuaTeX: one missing callback, and where the fix went (session 10)
 
-The obvious reason would be that `fontspec` is a LaTeX package, which it is.
-But luaotfload is not: it loads in plain TeX through `\input luaotfload.sty`
-(which inputs `ltluatex` itself when `\newluafunction` is undefined), registers
-`define_font` and the node processor, and faces are selected with
-`\font\body="[./X.ttf]:mode=node"`. Verified here — the plain run's log shows
-luaotfload 3.29 initialised with its callbacks in place.
-
-What fails is the plain format combined with **DVI output**, and it fails in
-stock TeX Live 2025 the same way, so it is not this port's doing:
+The obvious reason plain LuaTeX could not have OpenType would be that `fontspec`
+is a LaTeX package, which it is. But luaotfload is not: it loads in plain TeX
+through `\input luaotfload.sty` (which inputs `ltluatex` itself when
+`\newluafunction` is undefined), registers `define_font` and the node processor,
+and faces are selected with `\font\body="[lmroman10-regular.otf]:mode=node"`.
+Session 9 saw the plain run's log show luaotfload 3.29 initialised with its
+callbacks in place — and then every `\font` fail. What failed was the plain
+format combined with **DVI output**, and it failed in stock TeX Live 2025 the
+same way, so it was never this port's doing:
 
 | format | output | result |
 | --- | --- | --- |
@@ -732,52 +732,86 @@ stock TeX Live 2025 the same way, so it is not this port's doing:
 
 The registration that is refused is a single one, and naming it took
 instrumenting `luatexbase.add_to_callback` to print its argument before
-delegating: at `\font` time, `luaotfload-dvi.lua:105` (`delayed_register_callback`)
+delegating: at `\font` time, `luaotfload-dvi.lua` (`delayed_register_callback`)
 calls `add_to_callback('pre_shipout_filter', …, 'luaotfload.dvi')`.
 `pre_shipout_filter` is **not a LuaTeX core callback**. The LaTeX kernel creates
-it — `latex.ltx:19683`, `luatexbase.create_callback('pre_shipout_filter', 'list')`
-— and calls it from its own shipout. Plain TeX creates nothing of the sort, so
-the call raises, the Lua chunk aborts, and the font is never defined. luaotfload
-guards it nowhere, which is arguably an upstream bug given that
-`luaotfload.sty` carries an explicit plain-TeX branch.
+it — `ltshipout`, in an `\everyjob` because the Lua state is not dumped:
+`luatexbase.create_callback('pre_shipout_filter', 'list')` — and calls it from
+its own `\shipout` wrapper. Plain TeX creates nothing of the sort, so the call
+raises, the Lua chunk aborts, and the font is never defined. luaotfload guards
+it nowhere, which is an upstream gap given that `luaotfload.sty` carries an
+explicit plain-TeX branch and advertises plain support. (Checked against
+upstream `main` in session 10: unchanged.)
 
 The hook is not ignorable. It runs `full_vprocess`, which remaps native glyphs
 onto synthetic 256-character fonts so that they can be written as **standard**
 DVI — which is why a working `dvilualatex` DVI comes out as format version 2
-and dvisvgm reads it with no XDV anywhere in sight.
+and dvisvgm reads it with no XDV anywhere in sight. And it has to run at
+*shipout*, not from `pre_output_filter`: the output routine adds material after
+that filter has seen box 255 — a `\headline` in the OpenType face is the
+obvious case — and every glyph of it needs remapping too.
 
-Creating the callback and calling it before shipout is enough to make plain work
-(verified natively: no errors, a valid DVI, real outlines through dvisvgm):
+**The fix is a patch to `luaotfload.sty`**, `patches/texmf/0001`, applied by
+`build-texmf.sh` to the assembled tree. It is the first patch to a macro
+package, so the script gained the mechanism, on the same rule as
+`patches/luatex/`: TeX Live's copy is never touched, a patch whose target this
+TeX Live lacks is skipped, one that fails to apply stops the build. The hunk is
+appended to the end of the file so that its context is the file's tail — which
+upstream's history shows unchanged since 2023 — rather than the
+`\ProvidesPackage` line that changes with every release; that is what lets it
+apply to Ubuntu's older luaotfload on CI. Under plain TeX (`\ProvidesPackage`
+undefined), in DVI mode (`tex.outputmode == 0`), and only if nothing has
+created the callback already (`luatexbase.callbacktypes`), it creates
+`pre_shipout_filter` as a `list` callback and wraps `\shipout` the way
+`everyshi` and `atbegshi` do: `\afterassignment` plus `\global\setbox` into a
+reserved register, an `\ifvoid` test that defers itself with `\aftergroup`
+while the box is still being built (`\shipout\vbox{…}`, which is what
+`\plainoutput` does), then the callback call and the saved primitive on
+`\box`. The call mirrors `ltshipout` exactly: the box node goes in, and the
+register is reassigned only if the handlers return a different list.
 
-```tex
-\input luaotfload.sty
-\directlua{luatexbase.create_callback('pre_shipout_filter', 'list')}
-\font\b="[./Face.ttf]:mode=node" at 12pt
-\output={\directlua{luatexbase.call_callback('pre_shipout_filter', tex.getbox(255))}%
-         \shipout\box255 }
-```
+Why a patch and not the other two homes session 9 listed. In `dviluatex.fmt`
+the shim would have made every plain LuaTeX run differ from TeX Live's
+(`09-luatex-rules` compares against TeX Live's own format) and would have
+needed `ltluatex` dumped into the format with its Lua side re-run from
+`\everyjob`, as LaTeX does. A separate file for the user to `\input` would have
+been an incantation that TeX Live users never need in PDF mode. The patch
+confines the change to runs that load luaotfload — exactly the scope of the
+bug — and it is the change upstream should carry.
 
-Creating it alone is not enough; the call is the half LaTeX's output routine
-provides. Tried and useless: `\input ltluatex` first (luaotfload does it
-anyway), `mode=base`, and each of the `"file:…"` / `"[file]"` / `"[./file]"`
-lookup forms — the syntax was never the problem, since `"[./X.ttf]:mode=node"`
-is exactly what fontspec emits in the case that works.
+Two traps on the way, both worth knowing before writing Lua inside a plain-TeX
+macro. **`~` is active in plain TeX.** `result ~= head` inside `\directlua` in a
+macro body expanded to `\penalty\@M\ `, and Lua reported "'then' expected near
+'\'" — with the whole chunk on one line, so the position was no help, and a
+bisection of the chunk at top level passed every form, because it did not
+contain `~=`. `ltshipout` writes `not (result == head)`, and now so does the
+patch. **`\newbox` is `\outer` in plain**, so it cannot sit inside the `\ifnum`
+branch that guards the shim (an `\outer` macro in skipped text is an error);
+`\csname newbox\endcsname` hides that. Under `etex.src` the register allocated
+is 256, a `\mathchardef`, which `\number` reads without complaint.
 
-Nothing is shipped for this: where the shim belongs is a real decision (the
-format build, a `.tex` in the `opentype` bundle, or upstream), and putting it in
-`dviluatex.fmt` would make our plain format differ from TeX Live's, which the
-`09-luatex-rules` golden compares against. HANDOVER loose end 11 lays out the
-options. **As things stand OpenType is a `lualatex` feature here, not a
-`luatex` one.**
+Verified natively before anything was built: `dviluatex` on a two-page document
+with a bold-face `\headline` and a user `\output={\shipout\box255 …}` (the
+non-void branch of the wrapper), both clean through dvisvgm; `luatex` in PDF
+mode on the same file allocates nothing and wraps nothing. Then on the wasm
+side: two e2e cases in `test/e2e/opentype.test.ts`, and golden
+`12-opentype-plain`, byte-identical to TeX Live's `dviluatex` + dvisvgm across
+both pages. Since stock TeX Live cannot run that case at all, `golden-tikz.mjs`
+copies the patched `luaotfload.sty` next to the oracle's document for plain
+OpenType cases (kpathsea looks in `.` first); the engines on both sides are
+stock. For an embedder this makes OpenType a `luatex` feature as well as a
+`lualatex` one: a plain-TeX snippet carries `\input luaotfload.sty` and a
+`\font…="[file]:mode=node"` line instead of `fontspec`.
 
 ### Verified
 
-`test/e2e/opentype.test.ts` (7 cases: family-name lookup, a host-supplied face,
+`test/e2e/opentype.test.ts` (9 cases: family-name lookup, a host-supplied face,
 `woff2` embedding, cache reuse, `unicode-math`, the untouched default engine,
-and a real luaotfload failure still being reported). Golden case
-`11-opentype-fontspec` is byte-identical to TeX Live 2025's `dvilualatex` +
-dvisvgm; the harness gives OpenType cases their own engine so the opt-in
-bundles cannot disturb the other ten. The blanket `/luaotfload/` diagnostic
+plain LuaTeX with a headline, plain LuaTeX with a `\box255` output routine,
+and a real luaotfload failure still being reported). Golden cases
+`11-opentype-fontspec` and `12-opentype-plain` are byte-identical to TeX Live
+2025's `dvilualatex` / `dviluatex` + dvisvgm; the harness gives OpenType cases
+their own engine so the opt-in bundles cannot disturb the other ten. The blanket `/luaotfload/` diagnostic
 filter in `core.ts` was narrowed to the probe-failure lines — with luaotfload
 actually present it was swallowing real errors, including a missing face.
 

@@ -1,25 +1,28 @@
 # Brief for the Clew-app agent: OpenType fonts in mp-tikz-wasm figures
 
-Written 2026-09-17 (session 9), on the branch `opentype-fonts`. This is the
-embedder's half of `docs/14` §15: what the *consumer* of the library has to do,
+Written 2026-09-17 (session 9), revised the same day (session 10: plain LuaTeX
+now works too), on the branch `opentype-fonts`. This is the embedder's half of
+`docs/14` §15: what the *consumer* of the library has to do,
 written for Clew (`~/Source/Clew/Clew-app`) because Clew is the embedder that
 prompted the feature. Numbered 16 rather than 15 because `docs/15-handover.md`
 became the repository-root `HANDOVER.md` in session 5 and the number is spent.
 
 ## What changed upstream
 
-`mp-tikz-wasm` can now typeset LaTeX in arbitrary OTF/TTF fonts — including the
-ones Clew itself is rendered in. `\usepackage{fontspec}` works under the
-`lualatex` and `luatex` engines, via luaotfload. No new engine: the wasm LuaTeX
-already carried the OpenType reader, so this was packaging, not a port.
+`mp-tikz-wasm` can now typeset TeX in arbitrary OTF/TTF fonts — including the
+ones Clew itself is rendered in. `\usepackage{fontspec}` works under
+`lualatex`, and `\input luaotfload.sty` with a `\font` line works under plain
+`luatex`, via luaotfload. No new engine: the wasm LuaTeX already carried the
+OpenType reader, so this was packaging, not a port (plus one small patch to
+`luaotfload.sty` for the plain case, see the fourth item under the traps).
 
 With `fonts="woff2"`, the SVG embeds a subset of the *same font file* as
 `@font-face` and emits real `<text>`, so a figure is rasterised by Chrome's own
 text renderer in the same face the surrounding note uses, and its text is
 selectable.
 
-**This is on the branch `opentype-fonts`, commit `262fb36`. It is NOT merged and
-NOT released.** Do not touch `src/shared/mptikz-manifest.json` yet — there is no
+**This is on the branch `opentype-fonts` (its head; `262fb36` is the last
+session-9 commit). It is NOT merged and NOT released.** Do not touch `src/shared/mptikz-manifest.json` yet — there is no
 release to pin. Until there is one, this only works on a machine where
 `stage-mptikz.js` picks up the owner's local build at
 `~/Source/mp-tikz-wasm/dist`, which it already prefers. Treat the work below as
@@ -97,11 +100,19 @@ the default for wrapped snippets. Two things argue for opt-in — the start-up
 cost in §1, and the fact that a figure in the note's sans-serif font is not
 always what an author wants for mathematics.
 
-`KINDS.latex` runs `lualatex`, which is the engine this works on — nothing to
-change there. **`KINDS.tex` runs plain `luatex`, and OpenType does not work
-there at all**; see the fourth trap below. If you offer a `font=` option, reject
-it on a ` ```tex ` fence with a clear message rather than letting the figure
-fail with "metric data not found".
+`KINDS.latex` runs `lualatex`, which is what `fontspec` needs — nothing to
+change there. `KINDS.tex` runs plain `luatex`, where there is no `fontspec`;
+the plain-TeX spelling, which `wrapTex` can emit just as `wrapLatex` emits the
+block above, is
+
+```tex
+\input luaotfload.sty
+\font\body="[AvenirNext-Regular.ttf]:mode=node;+liga;+kern" at 10pt \body
+```
+
+(the `[file]` form is a kpathsea lookup, and the working directory is on the
+path, so no `Path=`). This needed a fix on the library side — the fourth item
+under the traps — which the branch carries as of session 10.
 
 A complete document (one that says `\documentclass`) is passed through untouched
 by design, so those authors write their own `fontspec` block and only need §1
@@ -136,14 +147,12 @@ repeats to ~430 ms, but the first figure on a fresh preview pays the full cost
 on top of the bundle fetch. Clew's result cache and saved figures both still
 work and are the real mitigation.
 
-**Plain LuaTeX cannot do this — the ` ```tex ` fence is out.** Not for the
-reason you would guess. luaotfload is not a LaTeX package: it loads perfectly
-well in plain TeX with `\input luaotfload.sty`, registers its `define_font`
-callback and its node processor, and you select faces with
-`\font\body="[./X.ttf]:mode=node"` instead of `\setmainfont`. What breaks is the
-combination of the plain format with **DVI output**, and it breaks in stock TeX
-Live 2025 exactly as it does here, so it is not something this project can patch
-around. Measured on TeX Live 2025:
+**Plain LuaTeX needed a fix, and has had it since session 10.** luaotfload is
+not a LaTeX package: it loads in plain TeX with `\input luaotfload.sty`, and
+faces are selected with `\font\body="[./X.ttf]:mode=node"` instead of
+`\setmainfont`. But in stock TeX Live 2025 the plain format with **DVI output**
+fails — luaotfload's DVI module wants a shipout callback that only the LaTeX
+kernel creates — so ` ```tex ` fences could not have OpenType at all:
 
 | format | output | result |
 | --- | --- | --- |
@@ -151,11 +160,11 @@ around. Measured on TeX Live 2025:
 | plain (`luatex`) | DVI | fails: "Module luatexbase Error: Unable to register callback", then "not loadable" |
 | LaTeX (`dvilualatex`) | DVI | works |
 
-Since the whole pipeline is DVI → dvisvgm, the working combination is out of
-reach and the failing one is what ` ```tex ` uses. Loading `ltluatex` first, and
-`mode=base`, were both tried and neither helps. So: OpenType is available on
-` ```latex ` and on complete documents that select `lualatex`, and not on
-` ```tex `.
+The bundled `luaotfload.sty` now carries that hook (`patches/texmf/0001`
+upstream), and the result is byte-identical to TeX Live running the same
+patched file. Nothing to do on Clew's side beyond the `wrapTex` line in §3 —
+but a Clew build pinned to a release without this patch will still fail with
+exactly the error above, which is how to recognise it.
 
 ## What you get for free
 
