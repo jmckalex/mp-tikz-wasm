@@ -654,6 +654,39 @@ positioning aside, dvisvgm writes an explicit position per glyph, so the page
 carries the browser's font with TeX's typesetting: no reflow, no rewrapping.
 That is normally the point, but it is worth being clear about.
 
+### Two things `fonts: 'woff2'` gets wrong with real faces
+
+Both found by putting three such figures on one page (Clew's own fonts, as it
+happens) and looking at the result.
+
+**Embedded faces collided between figures — fixed.** dvisvgm names each
+embedded face `nf0`, `nf1`, … and styles the runs `text.f0 {font-family:nf0}`.
+Those names are per-file, and once the SVG is inlined both the `@font-face`
+families and the class selectors are document-global, so the second figure's
+`nf0` wins and the first renders from the wrong subset — falling back to a
+system font for every character that subset does not carry. It shows up as a
+word rendered half in one weight and half in another, which is a confusing
+thing to look at because the SVG, the subsets and the CSS are each individually
+correct. This is exactly the collision `idPrefix` already solved for glyph ids,
+so the fix lives in the same block of `postProcessSvg`: the family names, the
+`text.fN` selectors and the `class` attributes are namespaced with the figure's
+prefix. Three unit tests in `test/unit/svg-post.test.ts`. Note it only bites
+callers who ask for post-processing — `latex()` does no post-processing unless
+given `svg: {...}`, while the tags and `--prerender` always pass an `idPrefix`.
+
+**TrueType Collections still do not work in `woff2` mode — not fixed.**
+dvisvgm keys a native font by file path, and a `.ttc` face index is not part of
+that key, so `\setmainfont{X.ttc}[FontIndex=7, BoldFeatures={FontIndex=0}]`
+gives four TeX fonts that collapse into one `@font-face`. Since glyph ids differ
+between members of a collection, the bold and italic runs then draw whatever
+glyph the regular subset has at that id — garbled, not merely unstyled.
+`fonts: 'paths'` renders the same document correctly (17 distinct outlines
+against one embedded face), so it is specific to the webfont path and is
+dvisvgm's to fix. The workaround is one file per face: extracting faces 7, 0, 4
+and 1 of `Avenir Next.ttc` into four `.ttf` files and naming them with
+`BoldFont=`/`ItalicFont=` gives four correct `@font-face` rules. Worth knowing
+before pointing this at macOS system fonts, where `.ttc` is common.
+
 ### Verified
 
 `test/e2e/opentype.test.ts` (7 cases: family-name lookup, a host-supplied face,

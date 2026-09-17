@@ -426,7 +426,20 @@ tree is clean.
    including the new `11-opentype-fontspec`, byte-identical to TeX Live 2025's
    `dvilualatex` + dvisvgm. `golden-tikz.mjs` gives OpenType cases their own
    engine so the opt-in bundles cannot disturb the other ten cases.
-10. **Not done**: not merged to `main`, not released, the site is untouched, and
+10. **Two `fonts: 'woff2'` defects found by building a demo page** (three
+    figures inlined together, in Clew's own fonts). One **fixed**: dvisvgm's
+    embedded faces are called `nf0`, `nf1`, … per file, and the `text.fN`
+    classes likewise, so two figures on one page collided and each rendered
+    from the other's subset — a word half in one weight and half in another.
+    `postProcessSvg` now namespaces the `@font-face` families, the selectors
+    and the `class` attributes with the same prefix it already gave glyph ids
+    (three unit tests). It only affected callers passing `svg: {...}` — which
+    is the tags and `--prerender`, so it was reachable in practice. One **not
+    fixed and dvisvgm's to fix**: a `.ttc` collection collapses to a single
+    `@font-face` because the face index is not part of dvisvgm's font key, so
+    bold and italic draw garbled glyphs; `fonts: 'paths'` is fine. Workaround
+    is one file per face. Both are written up in `docs/14` §15.
+11. **Not done**: not merged to `main`, not released, the site is untouched, and
     the drop-in tags have no way to ask for the bundles (no `data-bundles`
     attribute) — so this is a library and CLI feature only, for now.
 

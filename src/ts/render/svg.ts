@@ -29,6 +29,15 @@ export function postProcessSvg(svg: string, opts: SvgPostOptions = {}, figureInd
     s = s.replace(/\bid=(["'])([^"']+)\1/g, (_m, q, id) => `id=${q}${prefix}${id}${q}`)
       .replace(/href=(["'])#([^"']+)\1/g, (_m, q, id) => `href=${q}#${prefix}${id}${q}`)
       .replace(/url\(#([^)]+)\)/g, (_m, id) => `url(#${prefix}${id})`);
+    // fonts: 'woff2' has the same problem one level up. dvisvgm names each embedded
+    // face nf0, nf1, ... and styles the runs with `text.f0 {font-family:nf0}`. Once the
+    // SVG is inlined both the @font-face family names and the class selectors are
+    // document-global, so a second figure's nf0 wins and the first renders from the
+    // wrong subset — with a fallback glyph wherever that subset has no such character,
+    // which is how it shows up: a word half in one weight and half in another.
+    s = s.replace(/font-family:nf(\d+)/g, (_m, n) => `font-family:${prefix}nf${n}`)
+      .replace(/\btext\.f(\d+)\b/g, (_m, n) => `text.${prefix}f${n}`)
+      .replace(/\bclass=(["'])f(\d+)\1/g, (_m, q, n) => `class=${q}${prefix}f${n}${q}`);
   }
   if (opts.modernHref) s = s.replace(/xlink:href=/g, 'href=');
   if (opts.units === 'px') {

@@ -15,6 +15,21 @@ const SVG = `<?xml version="1.0"?>
   </g>
 </svg>`;
 
+// What dvisvgm emits for fonts: 'woff2' -- an embedded face per TeX font, named
+// nf0, nf1, ..., with the runs styled by class. Both the @font-face family names
+// and the `text.fN` selectors are document-global once the SVG is inlined.
+const WEBFONT_SVG = `<?xml version='1.0'?>
+<svg version='1.1' xmlns='http://www.w3.org/2000/svg' width='60pt' height='10pt'>
+<style type='text/css'>
+<![CDATA[@font-face{font-family:nf0;src:url(data:application/x-font-woff2;base64,AAAA) format('woff2');}
+@font-face{font-family:nf1;src:url(data:application/x-font-woff2;base64,BBBB) format('woff2');}
+text.f0 {font-family:nf0;font-size:11.95px}
+text.f1 {font-family:nf1;font-size:11.95px}
+]]>
+</style>
+<text class='f0' x='0' y='9'>regular</text><text class='f1' x='40' y='9'>bold</text>
+</svg>`;
+
 describe('postProcessSvg', () => {
   it('namespaces every id and every reference so figures can share a page', () => {
     const a = postProcessSvg(SVG, { precision: false }, 0);
@@ -77,5 +92,38 @@ describe('postProcessSvg on dvisvgm output', () => {
     expect(s).toContain("id='t3-page1'");
     const ids = new Set([...s.matchAll(/id='([^']+)'/g)].map((m) => m[1]));
     for (const m of s.matchAll(/(?:url\(#|href='#)([^)']+)/g)) expect(ids.has(m[1])).toBe(true);
+  });
+});
+
+describe('postProcessSvg with embedded web fonts', () => {
+  it('namespaces @font-face families and text classes too', () => {
+    const a = postProcessSvg(WEBFONT_SVG, { precision: false }, 0);
+    expect(a).toContain('@font-face{font-family:mp0-nf0');
+    expect(a).toContain('@font-face{font-family:mp0-nf1');
+    expect(a).toContain('text.mp0-f0 {font-family:mp0-nf0');
+    expect(a).toContain('text.mp0-f1 {font-family:mp0-nf1');
+    expect(a).toContain("class='mp0-f0'");
+    expect(a).toContain("class='mp0-f1'");
+    // nothing unprefixed is left to collide with the next figure
+    expect(a).not.toMatch(/font-family:nf\d/);
+    expect(a).not.toMatch(/class='f\d'/);
+  });
+
+  it('gives two figures on one page disjoint font names', () => {
+    // the bug this guards: both figures called their faces nf0/nf1, so the browser
+    // resolved each name once and fell back for any character that face's subset
+    // did not carry -- a word rendered half in one weight and half in another.
+    const a = postProcessSvg(WEBFONT_SVG, { precision: false }, 0);
+    const b = postProcessSvg(WEBFONT_SVG, { precision: false }, 1);
+    const families = (s: string) => [...s.matchAll(/@font-face\{font-family:([^;]+);/g)].map((m) => m[1]);
+    expect(families(a)).toEqual(['mp0-nf0', 'mp0-nf1']);
+    expect(families(b)).toEqual(['mp1-nf0', 'mp1-nf1']);
+    expect(families(a).some((f) => families(b).includes(f))).toBe(false);
+  });
+
+  it('leaves the font names alone when idPrefix is false', () => {
+    const a = postProcessSvg(WEBFONT_SVG, { precision: false, idPrefix: false }, 0);
+    expect(a).toContain('@font-face{font-family:nf0');
+    expect(a).toContain("class='f0'");
   });
 });
