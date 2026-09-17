@@ -439,7 +439,16 @@ tree is clean.
     `@font-face` because the face index is not part of dvisvgm's font key, so
     bold and italic draw garbled glyphs; `fonts: 'paths'` is fine. Workaround
     is one file per face. Both are written up in `docs/14` §15.
-11. **Not done**: not merged to `main`, not released, the site is untouched, and
+11. **Plain LuaTeX cannot have OpenType, and it is upstream's doing.** Not
+    because fontspec is LaTeX-only — luaotfload loads fine in plain TeX and
+    registers its callbacks — but because the plain format with DVI output
+    refuses a callback registration that PDF output allows ("Module luatexbase
+    Error: Unable to register callback"). Stock TeX Live 2025 fails identically;
+    plain + PDF works, `dvilualatex` + DVI works. Since the pipeline is
+    DVI → dvisvgm, OpenType is a `lualatex` feature here and not a `luatex` one.
+    `docs/14` §15 has the table. This is the one thing that would change if the
+    pdfTeX/LuaTeX PDF backend were ever wired up.
+12. **Not done**: not merged to `main`, not released, the site is untouched, and
     the drop-in tags have no way to ask for the bundles (no `data-bundles`
     attribute) — so this is a library and CLI feature only, for now.
 

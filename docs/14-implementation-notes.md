@@ -712,6 +712,32 @@ whose figures all come from the cache or from saved files still starts nothing.
 </tikz-diagram>
 ```
 
+### Plain LuaTeX cannot have it, and not for the obvious reason
+
+The obvious reason would be that `fontspec` is a LaTeX package, which it is.
+But luaotfload is not: it loads in plain TeX through `\input luaotfload.sty`
+(which inputs `ltluatex` itself when `\newluafunction` is undefined), registers
+`define_font` and the node processor, and faces are selected with
+`\font\body="[./X.ttf]:mode=node"`. Verified here — the plain run's log shows
+luaotfload 3.29 initialised with its callbacks in place.
+
+What fails is the plain format combined with **DVI output**, and it fails in
+stock TeX Live 2025 the same way, so it is not this port's doing:
+
+| format | output | result |
+| --- | --- | --- |
+| plain (`luatex`) | PDF | works |
+| plain (`luatex`) | DVI | "Module luatexbase Error: Unable to register callback", then "not loadable" |
+| LaTeX (`dvilualatex`) | DVI | works |
+
+LaTeX has `ltluatex` compiled into its format; plain inputs it at run time, and
+in DVI mode a registration that PDF mode allows is refused. Inputting `ltluatex`
+first, and `mode=base`, were both tried and neither helps. Since the pipeline is
+DVI → dvisvgm, the working combination is unreachable: **OpenType is a
+`lualatex` feature here, not a `luatex` one.** Worth revisiting if the PDF
+backend is ever wired up (a "smaller" next step in the handover), because that
+is the combination that works.
+
 ### Verified
 
 `test/e2e/opentype.test.ts` (7 cases: family-name lookup, a host-supplied face,

@@ -97,12 +97,17 @@ the default for wrapped snippets. Two things argue for opt-in — the start-up
 cost in §1, and the fact that a figure in the note's sans-serif font is not
 always what an author wants for mathematics.
 
-Note `KINDS.latex` and `KINDS.tex` already run LuaTeX, so the engine is right
-already; nothing to change there. A complete document (one that says
-`\documentclass`) is passed through untouched by design, so those authors write
-their own `fontspec` block and only need §1 and §2.
+`KINDS.latex` runs `lualatex`, which is the engine this works on — nothing to
+change there. **`KINDS.tex` runs plain `luatex`, and OpenType does not work
+there at all**; see the fourth trap below. If you offer a `font=` option, reject
+it on a ` ```tex ` fence with a clear message rather than letting the figure
+fail with "metric data not found".
 
-## Three traps, all verified upstream
+A complete document (one that says `\documentclass`) is passed through untouched
+by design, so those authors write their own `fontspec` block and only need §1
+and §2.
+
+## Four traps, all verified upstream
 
 **TrueType Collections are broken in `woff2` mode.** This matters immediately:
 Clew's `--clew-editor-font` is Avenir Next, which macOS ships as
@@ -130,6 +135,27 @@ carries luaotfload's cache between runs in one engine instance, which takes
 repeats to ~430 ms, but the first figure on a fresh preview pays the full cost
 on top of the bundle fetch. Clew's result cache and saved figures both still
 work and are the real mitigation.
+
+**Plain LuaTeX cannot do this — the ` ```tex ` fence is out.** Not for the
+reason you would guess. luaotfload is not a LaTeX package: it loads perfectly
+well in plain TeX with `\input luaotfload.sty`, registers its `define_font`
+callback and its node processor, and you select faces with
+`\font\body="[./X.ttf]:mode=node"` instead of `\setmainfont`. What breaks is the
+combination of the plain format with **DVI output**, and it breaks in stock TeX
+Live 2025 exactly as it does here, so it is not something this project can patch
+around. Measured on TeX Live 2025:
+
+| format | output | result |
+| --- | --- | --- |
+| plain (`luatex`) | PDF | works |
+| plain (`luatex`) | DVI | fails: "Module luatexbase Error: Unable to register callback", then "not loadable" |
+| LaTeX (`dvilualatex`) | DVI | works |
+
+Since the whole pipeline is DVI → dvisvgm, the working combination is out of
+reach and the failing one is what ` ```tex ` uses. Loading `ltluatex` first, and
+`mode=base`, were both tried and neither helps. So: OpenType is available on
+` ```latex ` and on complete documents that select `lualatex`, and not on
+` ```tex `.
 
 ## What you get for free
 
