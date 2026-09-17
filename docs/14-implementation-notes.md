@@ -687,6 +687,31 @@ and 1 of `Avenir Next.ttc` into four `.ttf` files and naming them with
 `BoldFont=`/`ItalicFont=` gives four correct `@font-face` rules. Worth knowing
 before pointing this at macOS system fonts, where `.ttc` is common.
 
+### Reaching it from the drop-in tags
+
+An embedder using the tags rather than the API (Clew does) needs two things the
+tags did not have. `data-bundles` existed but replaced the default list
+outright, which would make an embedder hard-code all ten names and go stale the
+next time they change; a name may now be written `+opentype` to be *added* to
+the defaults, and a list with no `+` still replaces as before. And there was no
+way at all to hand the engine a font: `addFiles()` is now on
+`window.mpTikzWasm`. It deliberately does not start the engine — files given
+before the first render are held and applied when one is created, so a page
+whose figures all come from the cache or from saved files still starts nothing.
+
+```html
+<script type="module" src="dist/auto.js"
+        data-base="dist/" data-bundles="+opentype"></script>
+<script type="module">
+  mpTikzWasm.addFiles({ 'Charter.ttf': bytes });   // queryLocalFonts() in Electron
+</script>
+<tikz-diagram data-fonts="woff2" data-engine="lualatex">
+  \documentclass[border=0pt,varwidth=30em]{standalone}
+  \usepackage{fontspec}\setmainfont{Charter.ttf}[Path=./]
+  \begin{document}...\end{document}
+</tikz-diagram>
+```
+
 ### Verified
 
 `test/e2e/opentype.test.ts` (7 cases: family-name lookup, a host-supplied face,

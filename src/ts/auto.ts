@@ -35,6 +35,8 @@
  *   data-show-console                    keep the log visible under the figure
  *
  * Loader script attributes: data-base (bundle/wasm base URL), data-worker="off",
+ * data-bundles="+opentype" (add a bundle to the defaults; `+otf-fonts` too for
+ * unicode-math. A list with no + replaces the defaults outright),
  * data-observe="off" (no MutationObserver for later-added elements),
  * data-snapshot="on" (use the pre-warmed tikz.fmt; see README for the trade-off),
  * data-prefetch="off" (do not prefetch the files the page's diagrams need in parallel),
@@ -42,10 +44,10 @@
  * data-log="debug" (how much reaches the browser console: silent, error, warn (default), info,
  * debug — the engines' output as it runs — or trace; `mpTikzWasm.setLogLevel()` changes it later).
  *
- * window.mpTikzWasm: render(), setLogLevel(), figures(), saveFigures(), figureHash(),
- * figureName(), autoRender(), wrapTikz(), wrapMetaPost().
+ * window.mpTikzWasm: render(), setLogLevel(), figures(), saveFigures(), addFiles(),
+ * figureHash(), figureName(), autoRender(), wrapTikz(), wrapMetaPost().
  */
-import { MetaPost, LOG_LEVELS } from './index.js';
+import { MetaPost, LOG_LEVELS, DEFAULT_BUNDLES } from './index.js';
 import type { MetaPostOptions, PrefetchKind, LogLevel } from './types.js';
 import { Logger, consoleSink, DEFAULT_LOG_LEVEL, plural } from './logger.js';
 import { figureHash, figureName, renderFigure, isSvg, makeZip, wrapTikz, wrapMetaPost } from './figures.js';
@@ -122,12 +124,30 @@ export class AutoRenderer {
   private readonly log: Logger;
   private readonly rendered = new Map<string, SavedFigure>();
   private readonly inFlight = new Set<Promise<unknown>>();
+  /** Files handed over before the engine existed; applied when it starts (see addFiles). */
+  private readonly pendingFiles: Record<string, string | Uint8Array> = {};
   constructor(private options: AutoOptions = {}) {
     this.log = new Logger(options.logLevel ?? DEFAULT_LOG_LEVEL, options.logger ?? consoleSink);
   }
 
   /** Has an engine been started? A page whose figures all came from the cache or the saved files never starts one. */
   get started(): boolean { return this.engine !== null; }
+
+  /**
+   * Put files where this page's TeX runs will find them: a font the host wants to
+   * typeset in (`\setmainfont{X.ttf}[Path=./]` — the run's working directory leads
+   * OPENTYPEFONTS and TTFONTS), an image, a .sty. They stay for the life of the page.
+   *
+   * Deliberately does NOT start the engine: files handed over before the first
+   * render are held and applied when one is created, so a page whose figures all
+   * come from the cache or from saved files still starts nothing. Call it before
+   * the figures that need the font, and with the `opentype` bundle loaded
+   * (`data-bundles="+opentype"`) if the font is for fontspec.
+   */
+  addFiles(files: Record<string, string | Uint8Array>): Promise<void> {
+    Object.assign(this.pendingFiles, files);
+    return this.engine ? this.engine.then((m) => m.addFiles(files)) : Promise.resolve();
+  }
 
   private get mp(): Promise<MetaPost> {
     if (!this.engine) {
@@ -142,6 +162,7 @@ export class AutoRenderer {
             : e.phase === 'typesetting' ? `typesetting${e.detail ? ` (${e.detail})` : ''}…` : `${e.phase}…`;
           for (const s of statusSpans) s.textContent = text;
         });
+        if (Object.keys(this.pendingFiles).length) await m.addFiles(this.pendingFiles);
         if (kinds.length) await m.prefetch(kinds);
         return m;
       });
@@ -313,7 +334,16 @@ function loaderOptions(): AutoOptions {
   if (ds.base) o.bundleBaseUrl = new URL('bundles/', new URL(ds.base, location.href)).href;
   if (ds.worker === 'off') o.worker = false;
   if (ds.cache === 'off') o.cacheResults = false;
-  if (ds.bundles) o.bundles = ds.bundles.split(/[,\s]+/).filter(Boolean);
+  if (ds.bundles) {
+    // A name prefixed with + is added to the defaults rather than replacing them,
+    // which is what an embedder wanting one extra bundle (`+opentype`) actually
+    // means: a bare list has to repeat all ten and goes stale when they change.
+    // Mixing the two forms is a replace, with the +names appended.
+    const names = ds.bundles.split(/[,\s]+/).filter(Boolean);
+    const added = names.filter((n) => n.startsWith('+')).map((n) => n.slice(1));
+    const listed = names.filter((n) => !n.startsWith('+'));
+    o.bundles = [...(listed.length ? listed : DEFAULT_BUNDLES), ...added];
+  }
   if (ds.snapshot === 'on' || ds.snapshot === 'auto') o.snapshot = 'auto';   // opt in: 5.8 MB format, faster after the first figure
   if (ds.prefetch === 'off') o.prefetch = [];                                  // default: the kinds the page contains
   if (ds.figures && ds.figures !== 'off') o.figuresBaseUrl = new URL(ds.figures.replace(/\/?$/, '/'), location.href).href;
@@ -354,6 +384,8 @@ if (typeof document !== 'undefined' && typeof customElements !== 'undefined') {
     figures: () => renderer?.figures() ?? [],
     /** Save every figure as figure-HASH.svg (a folder you pick, or a zip); `{ zip: true }` forces the zip. */
     saveFigures: (opts?: { zip?: boolean; name?: string }) => shared().saveFigures(opts),
+    /** Fonts (or images, .sty files) for this page's TeX runs; does not start the engine by itself. */
+    addFiles: (files: Record<string, string | Uint8Array>) => shared().addFiles(files),
     figureHash, figureName, autoRender, wrapTikz, wrapMetaPost,
   };
 }
