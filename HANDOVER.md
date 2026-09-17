@@ -393,6 +393,9 @@ tree is clean.
 3. **Two opt-in bundles**, `opentype` (13.6 MB: the machinery, the Unicode
    tables and the twelve Latin Modern faces fontspec's own defaults name) and
    `otf-fonts` (6.8 MB: the other 60 optical sizes and `latinmodern-math`).
+   **Revised in session 10, item 8:** the twelve were not enough — the fd
+   files name all 72 — so `opentype` now carries the whole text family and
+   `otf-fonts` is `latinmodern-math` alone.
    **Neither is in `DEFAULT_BUNDLES`, and that is the important design
    decision.** LaTeX under LuaTeX probes for luaotfload at start-up, so a
    findable luaotfload is an initialised one on every run: a document with no
@@ -584,7 +587,45 @@ tree is clean.
    built the branch — the patch's applicability on Ubuntu's luaotfload is
    argued from upstream history, not tested; pushing the branch is how to
    find out.
-7. **Clew integrated it the same evening** (the Clew-app session, over
+7. **Bundle gap found by the owner through Clew, fixed.**
+   `\documentclass[12pt]{article}\usepackage{fontspec}` failed at load with
+   "Font \TU/lmr/m/n/12=[lmroman12-regular]:+tlig; at 12pt not loadable". The
+   kernel's TU fd files (`tex/latex/base/tulm*.fd`) name every one of Latin
+   Modern's 72 faces by optical size and shape — 12pt classes want
+   `lmroman12-*`, `\small` `lmroman9`, `\footnotesize` `lmroman8`, `\LARGE`
+   `lmroman17`, `\textsc` `lmromancaps10` — and NFSS fails at the first face
+   that is missing, after luaotfload has rebuilt its name database looking
+   for it. So session 9's "twelve faces fontspec's defaults name" was true
+   only of a 10pt document that never changes size. `build-bundles.mjs` now
+   puts the whole `fonts/opentype/public/lm/` family in `opentype` (244
+   files, 20,173,172 bytes nominal; each face fetched on demand, so a
+   document pays for what it selects) and `otf-fonts` is `latinmodern-math`
+   alone (1 file, 733,736 bytes). Cost accepted and documented, and measured
+   before writing it down: luaotfload builds its name database on the first
+   font request of every fresh instance **whatever the lookup form** (a
+   plain `[file]` lookup too), opening every face it can see — 72 files,
+   7.2 MB, against twelve and 1.1 MB before — then keeps it in the
+   per-instance font cache, so it is once per engine, not per run. In Node
+   the difference is about 100 ms; in a browser it is 60 more on-demand
+   fetches on the first OpenType render of a page. A prebuilt name database
+   shipped in the bundle (paths are the fixed `/texmf/...` ones) would remove
+   the scan entirely and is the follow-up to do next. A tenth e2e case
+   runs a 12pt document through the size commands, `\textsc`, `\textsl`,
+   sans and mono with `opentype` alone. Goldens 11 and 12 unchanged (their
+   engine had both bundles, so luaotfload saw the same 73 faces). Docs:
+   README, `docs/08` §4.1, `docs/14` §15, `docs/16`, `bundles-config.ts`.
+8. **Clew-iOS verified `font=note` on the iPad simulator** against the dist
+   at 41d3ea4, staged whole (109 MB with `otf-fonts`) under its
+   `clew-preview://` scheme: nine figures in 5.1 s cold, the opentype files
+   fetched on demand through the scheme handler with no preload, real
+   `<text>` runs against embedded faces, Avenir Next faces built per face
+   from CoreText tables on the device; WebKit did not hold a stale index
+   across an app update. Its pin waits for a release. Answers given on the
+   way, all checked in the tree: no release carries the bundle; the dist
+   here matches the branch head (a TS rebuild changed nothing); `mp.preload()`
+   is on the API and the Worker backend but not on the tags; nothing in the
+   OpenType path assumes http(s) or a disk.
+9. **Clew integrated it the same evening** (the Clew-app session, over
    cross-session messages; its own handover has the details). `font=note`
    on the ```` ```tikz ````, ```` ```latex ```` and ```` ```tex ```` fences,
    verified as embedded-face text on a fresh profile with a control figure
