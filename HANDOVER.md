@@ -19,8 +19,9 @@ through the Node API and pre-renders the tags page byte-identically to the
 shipped figures — and the website is restaged and synced to both hosts with
 the new pages and `site/figures/` (see "The website" for a cache caveat).
 
-**State at the end of session 7 (2026-09-16, evening):** three commits on
-top of 7081a15, **none tagged, pushed or released**, working tree clean:
+**State at the end of session 7 (2026-09-16, evening; superseded below — all
+of it was pushed and released in session 8):** three commits on top of
+7081a15, working tree clean:
 a2a9795 (spath3 bundled, so `\usetikzlibrary{calligraphy}` and `knots`
 work — the library is part of spath3, which pgf does not ship), adbd53b
 (a wrapped TikZ figure's SVG is the standalone page, border included:
@@ -42,17 +43,18 @@ create v0.2.1 release/mp-tikz-wasm-0.2.1.tar.gz
 release/mp-tikz-wasm-0.2.1.zip --title "mp-tikz-wasm 0.2.1" --notes-file
 release/notes-0.2.1.md`. **Upload exactly those files**, after re-pinning
 Clew's `src/shared/mptikz-manifest.json` to the new digest (it still carries
-session 7's 2c303539…; session 8, item 5, has the steps). CI has not run on these
-commits. The website is NOT restaged: its tags page still serves the
-tight-crop saved figures until `site/` is synced.
+session 7's 2c303539…; session 8, item 5, has the steps). Published in session
+8; the website was restaged and synced then too.
 
 **State at the end of session 8 (2026-09-17):** the LuaTeX rule trap (loose
-end 14) is fixed, committed (5e514df) and **folded into the unpublished
-0.2.1**: the archives in `release/` are rebuilt from the fixed `dist/` (the
-digests are in the session 7 paragraph above) and the notes mention the fix.
-Still unpushed, untagged, unreleased and unsynced — the owner's own actions,
-listed in "What happened in session 8", item 5: re-pin Clew's manifest, tag
-and push, `gh release create`, restage and sync.
+end 14) is fixed (5e514df) and **v0.2.1 is released** from ff0271a with the
+fixed archives — the owner pushed, tagged and published; the GitHub assets
+match the local archives (sizes, and the downloaded tarball's sha256). The website is restaged and synced to both hosts and
+verified against the repository copies. Working tree clean, `main` in sync
+with `origin`. **One thing is still open: Clew's manifest is not re-pinned**
+(it carries session 7's digest 2c303539…, which no published asset has, and
+its ```` ```tex ```` fence still runs on `plain`); "What happened in session
+8", item 5, has the exact edits.
 
 ## Where things stand, in one paragraph
 
@@ -72,8 +74,8 @@ in session 6"). Session 8 fixed every rule trapping under LuaTeX in DVI mode
 (a wasm-only call-arity defect; `docs/14` §14). The demos are live on the fast DigitalOcean droplet at
 <https://eschatolog.ist/software/mp-tikz-wasm/> and mirrored (more slowly) on
 Bluehost at <https://jmckalex.org/software/mp-tikz-wasm/>. **CI is green** and
-**v0.2.0 is released** (v0.1.0 on 2026-09-13, v0.2.0 on 2026-09-16). Session
-4 also added five MetaPost gallery figures, an in-browser page-by-page viewer
+**v0.2.1 is released** (v0.1.0 on 2026-09-13, v0.2.0 on 2026-09-16, v0.2.1 on
+2026-09-17). Session 4 also added five MetaPost gallery figures, an in-browser page-by-page viewer
 for the whole PGF manual, and fixed the upside-down brace in the guide's tree
 figure (see "What happened in session 4").
 
@@ -327,27 +329,34 @@ text-mode `\hrule` trapped too. Every construct that fails ships a DVI
    and its `luatex.wasm` equals `dist/`'s; `release/notes-0.2.1.md` gained
    the LuaTeX bullet. **Do not run `npm run package` again** before
    uploading: the tar carries the staging copies' mtimes, so every run has a
-   new digest. What is left, all the owner's:
-   - **Re-pin Clew**: in `~/Source/Clew/Clew-app/src/shared/
-     mptikz-manifest.json` set `sha256` to the tar.gz digest above and
-     `bytes` to 37205263, and rewrite the PROVISIONAL sentence of `comment`
-     (the digest it quotes is session 7's). Then flip
-     `src/engine/figures.js#KINDS` — `tex: { …, engine: 'plain' }` back to
-     `'luatex'` — and replace the comment block above `KINDS` that explains
-     the workaround. `npm run sync-mptikz` there restages (it prefers the
-     master's `dist/`, already fixed, so the pin matters on other machines
-     and for packaging with `--require`).
-   - **Publish**, from this repository: `git push origin main`, `git tag
-     v0.2.1 && git push origin v0.2.1`, then `gh release create v0.2.1
-     release/mp-tikz-wasm-0.2.1.tar.gz release/mp-tikz-wasm-0.2.1.zip
-     --title "mp-tikz-wasm 0.2.1" --notes-file release/notes-0.2.1.md`, and
-     confirm with `gh release view v0.2.1 --json assets` (sizes) and a
-     `gh release download` + `shasum -a 256` (digest), as for 0.2.0. CI runs
-     on the push; the wasm job rebuilds `luatex.wasm` from source with the
-     patch and runs the guard test.
-   - **Restage and sync the website** ("The website"): the deployed tags
-     page still serves session 6's tight-crop saved figures.
-6. **Loose end 15 found on the way**: the two LuaTeX format dumps are not
+   new digest. Of the three steps that were the owner's, two are done — the
+   release (item 6) and the site sync (item 7) — and one is open:
+   - **Re-pin Clew** — NOT done as of the end of session 8: the manifest
+     still carries 2c303539… / 37,203,244 bytes, which no published asset
+     has, so `stage-mptikz.js` on any machine without the master build
+     would refuse the download (on the owner's machine it prefers
+     `~/Source/mp-tikz-wasm/dist`, so nothing breaks there). In
+     `~/Source/Clew/Clew-app/src/shared/mptikz-manifest.json` set `sha256`
+     to the tar.gz digest above and `bytes` to 37205263, and rewrite the
+     PROVISIONAL sentence of `comment`. Then flip `src/engine/figures.js#KINDS`
+     — `tex: { …, engine: 'plain' }` back to `'luatex'` — and replace the
+     comment block above `KINDS` that explains the workaround (its account of
+     the trap is out of date too: rules, not maths). `npm run sync-mptikz`
+     there restages.
+6. **Released by the owner** (2026-09-17): `main` pushed, tag `v0.2.1` on
+   ff0271a, <https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.2.1>
+   with both archives. Checked afterwards: the asset sizes equal the local
+   files' (37,205,263 and 39,045,845 bytes) and the downloaded tarball's
+   sha256 is 5ddff636…, the local build's.
+7. **Restaged and synced the website** (the owner asked, after publishing):
+   `stage-site.sh`, both dry runs, then `make sync-eschatolog` and
+   `make sync`, no deletions. On both hosts `index.html` says 0.2.1, and
+   `tags.html`, `dist/luatex.wasm`, `dist/figures.js` and the re-rendered
+   `figure-37rcew.svg` / `figure-r5umbw.svg` equal the repository copies
+   byte for byte. Loose end 12's cache caveat applies to the four
+   re-rendered figures: same names, new bytes, so a returning browser may
+   show the old crops for up to 30 days.
+8. **Loose end 15 found on the way**: the two LuaTeX format dumps are not
    reproducible run to run. Harmless; noted, not fixed.
 
 ## CI — green as of 2026-09-16 (session 6; first green in session 4)
@@ -515,10 +524,13 @@ gh release create v<version> release/mp-tikz-wasm-<version>.tar.gz release/mp-ti
   --title "mp-tikz-wasm <version>" --notes-file <notes>
 ```
 
-**v0.2.1 is built, not published** (2026-09-17, sessions 7–8): archives
-from 5e514df in `release/`, digests and the remaining steps in "What happened
-in session 8", item 5. Publish with the routine above, uploading exactly
-those files.
+**v0.2.1 is released** (2026-09-17, session 8, published by the owner):
+<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.2.1>, tag `v0.2.1`
+on ff0271a, with `mp-tikz-wasm-0.2.1.tar.gz` (37,205,263 bytes, sha256
+5ddff6361e88f1368e15817b1d2691f6946940b50762c54eb1ce18b2a8603ad7) and `.zip`
+(39,045,845 bytes). Verified: asset sizes via `gh release view`, and the
+downloaded tarball's sha256 equals the local build's. The notes cover the
+LuaTeX rule fix, the kept border and spath3. Clew's re-pin is still open.
 
 **v0.2.0 is released** (2026-09-16, session 6):
 <https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.2.0>, tag `v0.2.0`
@@ -685,9 +697,8 @@ release and the site sync. Still open:
   no luaotfload, so `fontspec`/`unicode-math`/OpenType stay out, and fetching
   arbitrary/newer files breaks the byte-identical-to-TL2025 guarantee (fine for
   an explicit "arbitrary" mode).
-- **Publish 0.2.1** (session 8, item 5): re-pin Clew, tag and push, `gh
-  release create`, restage and sync the site; flip Clew's ```` ```tex ````
-  fence back to `luatex`.
+- **Re-pin Clew** (session 8, item 5): the one step of the 0.2.1 release
+  still open; then flip its ```` ```tex ```` fence back to `luatex`.
 - **Deploy the manual viewer** to `eschatolog.ist/software/mp-tikz-wasm/manual/`
   (loose end 11) — a compelling "browse the whole PGF manual in your browser"
   demo, and a good link for the TeX Live announcement.
