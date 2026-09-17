@@ -58,9 +58,13 @@ preview and `dataset.bundles` is read when `auto.js` first runs, so it cannot
 be changed afterwards — you would have to decide before `ensureLoader()`, e.g.
 by scanning the note for a `font=` attribute or a `\usepackage{fontspec}`.
 
-Add `'+otf-fonts'` as well only if you want `unicode-math` or the full range of
-Latin Modern optical sizes; it is a further ~6.8 MB. The `opentype` bundle
-already carries the twelve Latin Modern faces fontspec's own defaults need.
+Add `'+otf-fonts'` as well only if you want `unicode-math`; it is the maths
+font, a further 0.7 MB. The `opentype` bundle carries the whole Latin Modern
+text family, so every class size and size command works. (An earlier cut of the
+bundle carried only the twelve 10pt faces and failed at
+`\documentclass[12pt]{article}\usepackage{fontspec}`, which the owner found
+through Clew; fixed in session 10. No `\fontsize` bracket or other workaround
+is needed in `wrapLatex`.)
 
 ### 2. Hand over the fonts
 

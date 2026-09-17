@@ -336,9 +336,10 @@ await mp.latex(String.raw`
   { engine: 'lualatex' });
 ```
 
-`opentype` carries luaotfload, `fontspec`, `unicode-math` and the twelve Latin
-Modern faces fontspec's defaults name; add `'otf-fonts'` as well for
-`unicode-math`'s maths font and the full range of optical sizes.
+`opentype` carries luaotfload, `fontspec`, `unicode-math` and the whole Latin
+Modern text family, every optical size the class options and size commands can
+select, each face fetched on demand; add `'otf-fonts'` as well for
+`unicode-math`'s maths font.
 
 To use a font the host has rather than a bundled one — a system face in an
 Electron app, say — hand over the bytes and name it with a relative path:

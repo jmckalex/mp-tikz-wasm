@@ -45,6 +45,25 @@ describe.skipIf(!built)('OpenType fonts (luaotfload)', () => {
     expect(r.pages[0]).toContain('<path');
   }, 120_000);
 
+  it('serves every size and shape the TU fd files can ask for', async () => {
+    // The kernel's tulm*.fd name all 72 Latin Modern faces by optical size, so a
+    // 12pt class wants lmroman12-*, \small lmroman9, \textsc lmromancaps10 and
+    // \LARGE lmroman17 -- none of them among the twelve 10pt faces the bundle
+    // first shipped. The whole family rides in `opentype` now; `otf-fonts` is
+    // not loaded here on purpose.
+    const mp = await create(['opentype']);
+    const r = await mp.latex(String.raw`\documentclass[12pt]{article}\pagestyle{empty}\usepackage{fontspec}
+\begin{document}\noindent Twelve point, {\small small}, {\footnotesize footnote}, \textsc{Caps},
+\textsl{slanted}, {\large large}, {\LARGE LARGE}, \textsf{\small sans}, \texttt{\large mono}.\end{document}`,
+      { engine: 'lualatex' });
+    expect(r.status).toBe('ok');
+    expect(r.diagnostics).toHaveLength(0);
+    // a fresh instance always builds luaotfload's name database once; what must not
+    // happen is a face missing ("not loadable") or the rebuild a miss triggers
+    expect(r.texLog).not.toMatch(/not loadable|Reload initiated/);
+    expect(r.pages[0]).toContain('<path');
+  }, 120_000);
+
   it('sets a face the host supplied at run time', async () => {
     const mp = await create(['opentype']);
     await mp.addFiles({ 'supplied.otf': fs.readFileSync(FACE) });

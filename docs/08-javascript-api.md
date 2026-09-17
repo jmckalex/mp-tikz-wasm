@@ -204,13 +204,18 @@ const r = await mp.latex(doc, { engine: 'lualatex' });
 
 | bundle | holds | when |
 | --- | --- | --- |
-| `opentype` | luaotfload, `lualibs`, `lua-uni-algos`, `fontspec`, `unicode-math`, `lualatex-math`, the Unicode tables, and the twelve Latin Modern faces fontspec's defaults name | any `fontspec` document |
-| `otf-fonts` | the other 60 Latin Modern optical sizes and `latinmodern-math` | `unicode-math`, or a wider range of optical sizes |
+| `opentype` | luaotfload, `lualibs`, `lua-uni-algos`, `fontspec`, `unicode-math`, `lualatex-math`, the Unicode tables, and the whole Latin Modern text family — all 72 faces, every optical size and shape the kernel's TU fd files can select | any `fontspec` document |
+| `otf-fonts` | `latinmodern-math` | `unicode-math` |
 
-`otf-fonts` is separate because luaotfload indexes every face it can see to
-build its name database: a face that ships is a face that is read on the first
-render, named by the document or not. An application that supplies its own
-faces wants the machinery and none of the fonts.
+Every bundle file is fetched on demand, so a document costs only the faces it
+selects; the family has to be complete because the fd files name faces by
+optical size (a 12pt class wants `lmroman12-*`, `\small` `lmroman9`, `\textsc`
+`lmromancaps10`) and NFSS fails at the first face that is missing. `otf-fonts`
+is separate because luaotfload builds its name database on the first font
+request of a fresh engine instance by opening every face it can see, whatever
+the lookup form: with `opentype` alone that is 72 faces and 7.2 MB, fetched once
+per engine and then kept in its font cache. An application that supplies its
+own faces wants the machinery and none of the fonts.
 
 **A face the host supplies.** `addFiles()` writes into the TeX run's working
 directory, and `TEXMFDOTDIR` leads `OPENTYPEFONTS`/`TTFONTS` in the bundled

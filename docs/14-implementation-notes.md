@@ -572,14 +572,25 @@ Two bundles, because they are wanted at different times:
 
 | bundle | holds | size |
 | --- | --- | --- |
-| `opentype` | the Lua and macro packages, the Unicode tables, and the twelve Latin Modern faces `fontspec`'s own defaults name | 13.6 MB |
-| `otf-fonts` | the other 60 Latin Modern optical sizes and `latinmodern-math` (what `unicode-math` wants) | 6.8 MB |
+| `opentype` | the Lua and macro packages, the Unicode tables, and the whole Latin Modern text family, all 72 faces | 19.7 MB nominal, fetched per face |
+| `otf-fonts` | `latinmodern-math` (what `unicode-math` wants), and any face later added under `fonts/opentype` or `fonts/truetype` | 0.7 MB |
 
-The twelve default faces travel with the machinery because `\usepackage{fontspec}`
-alone sets up TU-encoded Latin Modern and fails at once if the faces are
-absent — it asks for `lmroman10-regular`, `-bold`, `-italic`, `lmmono10-regular`
-and `lmsans10-regular` before `\setmainfont` is ever reached. Twelve faces is
-1.1 MB against 7.9 MB for the whole family.
+The whole text family travels with the machinery because `\usepackage{fontspec}`
+alone sets up TU-encoded Latin Modern, and the kernel's TU fd files
+(`tulmr.fd` and friends, in `tex/latex/base`) name all 72 faces by optical size
+and shape: a 12pt class selects `lmroman12-regular` and `-bold` at
+`\begin{document}`, `\small` wants `lmroman9`, `\footnotesize` `lmroman8`,
+`\LARGE` `lmroman17`, `\textsc` `lmromancaps10`, and NFSS fails the moment a
+face is selected that is not there — "not loadable: metric data not found or
+bad", after luaotfload has also rebuilt its name database looking for it.
+Session 9 shipped the twelve 10pt faces on the reasoning that fontspec's
+defaults name them, which is true only of a 10pt document that never changes
+size; `\documentclass[12pt]{article}\usepackage{fontspec}` failed at load
+(found by the owner through Clew, session 10). Bundle files are fetched one at
+a time on demand, so the family's 7.2 MB is a ceiling, not a cost: a document
+pays for the faces it selects. `test/e2e/opentype.test.ts` now has a 12pt
+document that runs through `\small`, `\footnotesize`, `\textsc`, `\textsl`,
+`\large`, `\LARGE` and the sans and mono families with `opentype` alone.
 
 ### The Unicode tables
 
@@ -613,10 +624,20 @@ MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'opentype'] })              // f
 MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'opentype', 'otf-fonts'] }) // and unicode-math
 ```
 
-`otf-fonts` is separate for a related reason: luaotfload indexes every face it
-can see to build its name database, so a face that ships is a face that is read
-on the first render whether or not the document names it. An application
-supplying its own faces at run time wants the machinery and none of the fonts.
+`otf-fonts` is separate for a related reason. On the first font request of a
+fresh engine instance — whatever the lookup form, `[file]` included, measured
+in session 10 — luaotfload finds no name database and builds one by opening
+every face on `OPENTYPEFONTS`/`TTFONTS`; a by-name lookup then reads it, and a
+lookup that misses forces a rebuild. Every face shipped in a loaded bundle is
+therefore fetched once per instance before the first OpenType page appears:
+72 files and 7.2 MB now, against twelve and 1.1 MB before the family was
+completed. The database then lives in the per-instance font cache below, so
+the cost is paid once per engine, not per run. What is reached only by
+`unicode-math` stays in `otf-fonts` to keep that scan no larger than it must
+be, and an application supplying its own faces at run time wants the machinery
+and none of the fonts. Shipping a prebuilt name database with the bundle would
+remove the scan altogether — the paths inside it would be the fixed
+`/texmf/fonts/...` ones — and is the natural follow-up.
 
 ### The font cache
 
@@ -805,7 +826,8 @@ stock. For an embedder this makes OpenType a `luatex` feature as well as a
 
 ### Verified
 
-`test/e2e/opentype.test.ts` (9 cases: family-name lookup, a host-supplied face,
+`test/e2e/opentype.test.ts` (10 cases: family-name lookup, every size and shape
+the TU fd files can select from a 12pt class, a host-supplied face,
 `woff2` embedding, cache reuse, `unicode-math`, the untouched default engine,
 plain LuaTeX with a headline, plain LuaTeX with a `\box255` output routine,
 and a real luaotfload failure still being reported). Golden cases
