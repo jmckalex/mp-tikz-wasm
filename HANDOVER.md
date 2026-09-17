@@ -1,7 +1,7 @@
 # Handover
 
 Written 2026-09-13 (third session), revised 2026-09-15 (fourth and fifth
-sessions) and 2026-09-16 (sixth). This file lives at the repository root;
+sessions), 2026-09-16 (sixth) and 2026-09-17 (seventh and eighth). This file lives at the repository root;
 until session 5 it was `docs/15-handover.md`. Everything below is verified
 unless marked otherwise.
 Read this before `docs/14` if you are picking the project up cold. The
@@ -30,18 +30,29 @@ bounding box and the tight crop cut them off; `DB_VERSION` 3 drops the old
 crops; found through Clew), and aac75ff (Release 0.2.1: version, guide, the
 tags page's four TikZ saved figures re-rendered with `--force`; the engines
 are unchanged). 244 tests, both golden corpora byte-identical.
-`release/mp-tikz-wasm-0.2.1.{tar.gz,zip}` are built from aac75ff (tar.gz
-37,203,244 bytes, sha256
-2c3035392f77cdf0efe36eaa878b3f792d4ac66546ed3ad9f6a2655da0f25302) and
+`release/mp-tikz-wasm-0.2.1.{tar.gz,zip}` were built from aac75ff and
+**rebuilt in session 8 from 5e514df with the LuaTeX rule fix** (tar.gz
+37,205,263 bytes, sha256
+5ddff6361e88f1368e15817b1d2691f6946940b50762c54eb1ce18b2a8603ad7; zip
+39,045,845 bytes, sha256
+43c9b6329934f9720573f23f8aa0023ddbc0ba25946288309651952f5f37d0b7) and
 `release/notes-0.2.1.md` holds the notes. To publish, from "Publishing a
 release": `git tag v0.2.1 && git push origin main --tags && gh release
 create v0.2.1 release/mp-tikz-wasm-0.2.1.tar.gz
 release/mp-tikz-wasm-0.2.1.zip --title "mp-tikz-wasm 0.2.1" --notes-file
-release/notes-0.2.1.md`. **Upload exactly those files**: Clew's
-`src/shared/mptikz-manifest.json` is already pinned to that tarball's
-digest, so a rebuilt archive means a re-pin there. CI has not run on these
+release/notes-0.2.1.md`. **Upload exactly those files**, after re-pinning
+Clew's `src/shared/mptikz-manifest.json` to the new digest (it still carries
+session 7's 2c303539…; session 8, item 5, has the steps). CI has not run on these
 commits. The website is NOT restaged: its tags page still serves the
 tight-crop saved figures until `site/` is synced.
+
+**State at the end of session 8 (2026-09-17):** the LuaTeX rule trap (loose
+end 14) is fixed, committed (5e514df) and **folded into the unpublished
+0.2.1**: the archives in `release/` are rebuilt from the fixed `dist/` (the
+digests are in the session 7 paragraph above) and the notes mention the fix.
+Still unpushed, untagged, unreleased and unsynced — the owner's own actions,
+listed in "What happened in session 8", item 5: re-pin Clew's manifest, tag
+and push, `gh release create`, restage and sync.
 
 ## Where things stand, in one paragraph
 
@@ -50,14 +61,15 @@ pdfTeX 1.40 and LuaTeX 1.21 in DVI mode, dvisvgm 3.4.3) compiled to
 WebAssembly behind one TypeScript library, a Web Worker, the `mpost-wasm`
 CLI, drop-in HTML tags, ten lazily fetched texmf bundles, five demo pages and
 a feature guide. Output is byte-identical to TeX Live 2025 on both golden
-corpora and the 1181-page PGF manual. 241 tests pass, the 48-check native
+corpora and the 1181-page PGF manual. 245 tests pass, the 48-check native
 contract harness passes, there is no per-instance memory leak. Session 5
 added levelled logging to the console (`logLevel`, six levels, MetaPost's
 terminal streamed live; see "What happened in session 5"). Session 6 added
 saved figures: a page can carry its diagrams as `figures/figure-HASH.svg`
 files, written by `mpost-wasm --prerender` or `mpTikzWasm.saveFigures()`,
 and the tags load them instead of starting the engines (see "What happened
-in session 6"). The demos are live on the fast DigitalOcean droplet at
+in session 6"). Session 8 fixed every rule trapping under LuaTeX in DVI mode
+(a wasm-only call-arity defect; `docs/14` §14). The demos are live on the fast DigitalOcean droplet at
 <https://eschatolog.ist/software/mp-tikz-wasm/> and mirrored (more slowly) on
 Bluehost at <https://jmckalex.org/software/mp-tikz-wasm/>. **CI is green** and
 **v0.2.0 is released** (v0.1.0 on 2026-09-13, v0.2.0 on 2026-09-16). Session
@@ -256,6 +268,88 @@ session 6 (e0a8be9, then the 0.2.0 release and the sync; see below).
 Nothing is left undone from session 6. Two small things it left behind are
 loose ends 12 and 13.
 
+## What happened in session 8 (2026-09-17)
+
+**Loose end 14, the LuaTeX trap, diagnosed and fixed.** The report said
+"plain LuaTeX traps on any math" and blamed the `dviluatex` format because
+the same maths typeset under `dvilualatex`. Neither held: a construct matrix
+showed `\sqrt`, `\over`, `\overline` and `\underline` trapping under **both**
+formats while `\left(`, accents, limits and big delimiters were fine, and a
+text-mode `\hrule` trapped too. Every construct that fails ships a DVI
+**rule**; the engine build, not the format, was the culprit.
+
+1. **Cause** (`docs/14` §14): LuaTeX's back-end dispatch table is typed as
+   the unprototyped `void (*)()`. The ship-out calls the rule slot with four
+   arguments (`pdf, p, size, rule_callback_id`, the arity of the PDF
+   back-end's `pdf_place_rule`); `dvi_place_rule` takes three. Native C
+   drops the extra argument; WebAssembly's `call_indirect` checks the callee's
+   type and traps with "null function or function signature mismatch". Every
+   other slot (glyph, the two whatsits, the eight control functions) matches
+   its callers; two three-argument callers in the virtual-font code had the
+   mirror-image mismatch against the PDF back-end (unreachable here, fixed
+   anyway).
+2. **Fix**: `patches/luatex/0001-backend-dvi-rule-slot-arity.patch` — a
+   four-parameter wrapper fills the DVI rule slot in `backend.c`, and
+   `vfpacket.c` / `lfontlib.c` pass four arguments. It is the first LuaTeX
+   patch, so `scripts/build-luatex-wasm.sh` gained the mechanism: every
+   `patches/luatex/*.patch` is applied to copies under `build/luatex/patched`
+   (the vendored tree is never modified) and a source with a patched copy is
+   compiled from the copy under the same object name and flags — an
+   incremental build recompiles only the patched files (3 s here). CI builds
+   from clean, so the patch is covered there. A wrapper rather than a
+   prototype change because `dvigen.h` is reached through `ptexlib.h` in the
+   vendored directory, where a patched header would never be found.
+3. **Guards, written before the fix and failing with the trap**: a new case
+   in `test/e2e/api.test.ts` (`$\sqrt{2}$`, `\over`, `\hrule` under `luatex`;
+   `\frac`, `\underline` under `lualatex`); the TikZ golden gained
+   `09-luatex-rules` (plain LuaTeX, every rule construct) and
+   `10-lualatex-rules`, both byte-identical to TeX Live's `dviluatex` /
+   `dvilualatex` + dvisvgm. `scripts/golden-tikz.mjs` now runs a plain case
+   that needs LuaTeX under `luatex` / `dviluatex` (before, plain meant e-TeX).
+   Case 10 pins Latin Modern in **OT1**, not T1: luaotfload in the oracle's
+   format changes the order font ids are allocated, so a page mixing a T1
+   text font with the OT1 maths roman came out with two font numbers swapped
+   — identical glyphs and positions, different `g3-`/`g4-` ids — which is
+   loose end 8's territory, not a rule problem. With OT1 the text and the
+   maths digits share one font and the pages agree.
+4. **Verified**: 245 tests pass; the TikZ golden passes all 10 cases and the
+   MetaPost golden its 15; the construct matrix and text-rule script in the
+   session's scratchpad all return `ok`. Documented in the README ("Patches to
+   upstream", a LuaTeX table) and `docs/14` §14.
+5. **Folded into 0.2.1** (the user's decision: 0.2.1 was never published).
+   The fix is committed as 5e514df on top of session 7's commits; `npm run
+   package` rebuilt `release/mp-tikz-wasm-0.2.1.{tar.gz,zip}` from the fixed
+   `dist/` (tar.gz 37,205,263 bytes, sha256
+   5ddff6361e88f1368e15817b1d2691f6946940b50762c54eb1ce18b2a8603ad7; zip
+   39,045,845 bytes, sha256
+   43c9b6329934f9720573f23f8aa0023ddbc0ba25946288309651952f5f37d0b7). A
+   clean extraction of the new tarball ships rules under both LuaTeX formats
+   and its `luatex.wasm` equals `dist/`'s; `release/notes-0.2.1.md` gained
+   the LuaTeX bullet. **Do not run `npm run package` again** before
+   uploading: the tar carries the staging copies' mtimes, so every run has a
+   new digest. What is left, all the owner's:
+   - **Re-pin Clew**: in `~/Source/Clew/Clew-app/src/shared/
+     mptikz-manifest.json` set `sha256` to the tar.gz digest above and
+     `bytes` to 37205263, and rewrite the PROVISIONAL sentence of `comment`
+     (the digest it quotes is session 7's). Then flip
+     `src/engine/figures.js#KINDS` — `tex: { …, engine: 'plain' }` back to
+     `'luatex'` — and replace the comment block above `KINDS` that explains
+     the workaround. `npm run sync-mptikz` there restages (it prefers the
+     master's `dist/`, already fixed, so the pin matters on other machines
+     and for packaging with `--require`).
+   - **Publish**, from this repository: `git push origin main`, `git tag
+     v0.2.1 && git push origin v0.2.1`, then `gh release create v0.2.1
+     release/mp-tikz-wasm-0.2.1.tar.gz release/mp-tikz-wasm-0.2.1.zip
+     --title "mp-tikz-wasm 0.2.1" --notes-file release/notes-0.2.1.md`, and
+     confirm with `gh release view v0.2.1 --json assets` (sizes) and a
+     `gh release download` + `shasum -a 256` (digest), as for 0.2.0. CI runs
+     on the push; the wasm job rebuilds `luatex.wasm` from source with the
+     patch and runs the guard test.
+   - **Restage and sync the website** ("The website"): the deployed tags
+     page still serves session 6's tight-crop saved figures.
+6. **Loose end 15 found on the way**: the two LuaTeX format dumps are not
+   reproducible run to run. Harmless; noted, not fixed.
+
 ## CI — green as of 2026-09-16 (session 6; first green in session 4)
 
 `.github/workflows/ci.yml` runs two jobs on every push, both green:
@@ -421,6 +515,11 @@ gh release create v<version> release/mp-tikz-wasm-<version>.tar.gz release/mp-ti
   --title "mp-tikz-wasm <version>" --notes-file <notes>
 ```
 
+**v0.2.1 is built, not published** (2026-09-17, sessions 7–8): archives
+from 5e514df in `release/`, digests and the remaining steps in "What happened
+in session 8", item 5. Publish with the routine above, uploading exactly
+those files.
+
 **v0.2.0 is released** (2026-09-16, session 6):
 <https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.2.0>, tag `v0.2.0`
 on 6408c66, with `mp-tikz-wasm-0.2.0.tar.gz` (37 MB, sha256
@@ -491,6 +590,38 @@ and sync the website (`make sync-all`) after a release.
     `<svg>` roots it injects, joined by newlines — exact for the tags, not a
     valid single SVG file; and `--prerender` never deletes orphaned
     `figure-*.svg` files when a diagram changes.
+14. ~~**Plain LuaTeX traps on any math**~~ — **fixed in session 8**; the
+    diagnosis in the original report was off. The trap was not "any math"
+    and not the `dviluatex` format: it was **every DVI rule** (`\hrule`,
+    `\vrule`, leaders, `\sqrt`, `\over`, `\overline`, `\underline`) under
+    **both** LuaTeX formats, from a call-arity mismatch through LuaTeX's
+    unprototyped back-end function pointer that only WebAssembly enforces.
+    `patches/luatex/0001`, `docs/14` §14, "What happened in session 8". The
+    original reproducer, now expected to pass:
+
+    ```js
+    import { MetaPost } from './dist/index.js';
+    const mp = await MetaPost.create({ logLevel: 'silent' });
+    await mp.latex('x $\\sqrt{2}$\n\\bye', { engine: 'luatex' });   // ok, 1 page (threw before)
+    await mp.latex('x\\par\\hrule\\par y\n\\bye', { engine: 'luatex' });   // ok (threw before, no maths involved)
+    ```
+
+    Clew worked around it by running its ```` ```tex ```` fence on `plain`
+    (e-TeX) and can flip back to `luatex` (`src/engine/figures.js#KINDS`
+    there, one word, with the comment that says why) once it pins a release
+    that carries the fix — see session 8, item 5.
+15. **LuaTeX format dumps are not reproducible** (session 8). Two
+    consecutive `npm run build:formats` runs give different
+    `dviluatex.fmt` / `dvilualatex.fmt` bytes (the other four formats are
+    byte-identical run to run): decompressed, the only difference is the
+    order of the `\hyphenation` exception words, which LuaTeX keeps in a Lua
+    table and walks at dump time, and Lua 5.3 seeds its string hash from the
+    clock. Same exceptions, same behaviour — the goldens pass with any dump —
+    but the `luatex` bundle's bytes, hence a release archive's digest, cannot
+    be reproduced from source. `build/texmf/web2c` was restored to the bundle
+    copies after the check, so a later `build:bundles` repacks the same
+    bytes. A fix would sort the exceptions on dump or seed Lua
+    deterministically; not worth a patch today.
 
 ## Where to look
 
@@ -512,6 +643,8 @@ and sync the website (`make sync-all`) after a release.
   the hash, the page scan, the shared render call, the zip; the Node
   pre-renderer behind `mpost-wasm --prerender`. `docs/14` §13 has the
   design; `docs/08` §5.1 the user-facing account.
+- `patches/luatex/` — the one LuaTeX patch (session 8), applied to copies by
+  `scripts/build-luatex-wasm.sh`; `docs/14` §14 has the analysis.
 - `test/leak/` — the native leak harness (README there).
 - `~/Sites/jmckalex/CLAUDE.md` — the website's conventions (rsync
   Makefiles, the droplet, what never to upload).
@@ -552,6 +685,9 @@ release and the site sync. Still open:
   no luaotfload, so `fontspec`/`unicode-math`/OpenType stay out, and fetching
   arbitrary/newer files breaks the byte-identical-to-TL2025 guarantee (fine for
   an explicit "arbitrary" mode).
+- **Publish 0.2.1** (session 8, item 5): re-pin Clew, tag and push, `gh
+  release create`, restage and sync the site; flip Clew's ```` ```tex ````
+  fence back to `luatex`.
 - **Deploy the manual viewer** to `eschatolog.ist/software/mp-tikz-wasm/manual/`
   (loose end 11) — a compelling "browse the whole PGF manual in your browser"
   demo, and a good link for the TeX Live announcement.

@@ -532,3 +532,15 @@ font with the OT1 maths roman comes out with two DVI font numbers swapped —
 identical glyphs and positions, different `g3-`/`g4-` ids. That is the
 no-luaotfload limitation (§10), not a rule problem; with OT1 the text and the
 maths digits share one font and the pages agree.
+
+A side finding from checking the release: the two LuaTeX format dumps are
+not reproducible. Two consecutive `build:formats` runs give different
+`dviluatex.fmt` and `dvilualatex.fmt` (the four pdfTeX formats are
+byte-identical run to run). Decompressed — LuaTeX gzips its formats, which is
+why a small difference looks like a wholesale one — the only change is the
+order of the `\hyphenation` exception words: LuaTeX keeps them in a Lua table
+and walks it at dump time, and Lua 5.3 seeds its string hash from the clock,
+so the walk order varies. Same words, same behaviour, different bytes; the
+goldens pass with any dump. The consequence is only that the `luatex`
+bundle's bytes, and so a release archive's digest, cannot be reproduced from
+source (HANDOVER loose end 15).
