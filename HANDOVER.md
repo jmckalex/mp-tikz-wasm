@@ -754,6 +754,9 @@ and sync the website (`make sync-all`) after a release.
   (session 9): the opt-in bundles and why they are opt-in. `docs/14` §15 has
   the design, `docs/08` §4.1 the user-facing account, the README a worked
   example including the host-supplied-face path.
+- `docs/16-clew-integration.md` — the embedder's half of that: what Clew (or any
+  page using the drop-in tags) has to change, the three traps, and the `.ttc`
+  one that bites a macOS app immediately. Hand this to the consuming project.
 - `test/leak/` — the native leak harness (README there).
 - `~/Sites/jmckalex/CLAUDE.md` — the website's conventions (rsync
   Makefiles, the droplet, what never to upload).
