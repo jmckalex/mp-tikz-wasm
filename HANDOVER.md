@@ -1,60 +1,24 @@
 # Handover
 
 Written 2026-09-13 (third session), revised 2026-09-15 (fourth and fifth
-sessions), 2026-09-16 (sixth) and 2026-09-17 (seventh and eighth). This file lives at the repository root;
-until session 5 it was `docs/15-handover.md`. Everything below is verified
-unless marked otherwise.
+sessions), 2026-09-16 (sixth) and 2026-09-17 (seventh and eighth). This
+file lives at the repository root; until session 5 it was
+`docs/15-handover.md`. Everything below is verified unless marked otherwise.
 Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State at the end of session 6 (2026-09-16):** everything is committed,
-pushed and released; the working tree is clean. The last code commit is
-6408c66 ("Release 0.2.0"), preceded by c99d1ac (saved figures) and e0a8be9
-(logging); the commits after it only touch this file. **CI is green** on all
-of them (runs 35109363657, 35113186940, 35113237374, 35113576643).
-**v0.2.0 is released** on GitHub with both archives — the tarball's sha256
-verified against the local build, and a clean extraction of it renders
-through the Node API and pre-renders the tags page byte-identically to the
-shipped figures — and the website is restaged and synced to both hosts with
-the new pages and `site/figures/` (see "The website" for a cache caveat).
-
-**State at the end of session 7 (2026-09-16, evening; superseded below — all
-of it was pushed and released in session 8):** three commits on top of
-7081a15, working tree clean:
-a2a9795 (spath3 bundled, so `\usetikzlibrary{calligraphy}` and `knots`
-work — the library is part of spath3, which pgf does not ship), adbd53b
-(a wrapped TikZ figure's SVG is the standalone page, border included:
-`renderFigure` passes `--bbox=papersize` for the bodies it wraps, because
-TikZ leaves its classic arrow tips — `>=latex`, `stealth` — out of the
-bounding box and the tight crop cut them off; `DB_VERSION` 3 drops the old
-crops; found through Clew), and aac75ff (Release 0.2.1: version, guide, the
-tags page's four TikZ saved figures re-rendered with `--force`; the engines
-are unchanged). 244 tests, both golden corpora byte-identical.
-`release/mp-tikz-wasm-0.2.1.{tar.gz,zip}` were built from aac75ff and
-**rebuilt in session 8 from 5e514df with the LuaTeX rule fix** (tar.gz
-37,205,263 bytes, sha256
-5ddff6361e88f1368e15817b1d2691f6946940b50762c54eb1ce18b2a8603ad7; zip
-39,045,845 bytes, sha256
-43c9b6329934f9720573f23f8aa0023ddbc0ba25946288309651952f5f37d0b7) and
-`release/notes-0.2.1.md` holds the notes. To publish, from "Publishing a
-release": `git tag v0.2.1 && git push origin main --tags && gh release
-create v0.2.1 release/mp-tikz-wasm-0.2.1.tar.gz
-release/mp-tikz-wasm-0.2.1.zip --title "mp-tikz-wasm 0.2.1" --notes-file
-release/notes-0.2.1.md`. **Upload exactly those files**, after re-pinning
-Clew's `src/shared/mptikz-manifest.json` to the new digest (it still carries
-session 7's 2c303539…; session 8, item 5, has the steps). Published in session
-8; the website was restaged and synced then too.
-
-**State at the end of session 8 (2026-09-17):** the LuaTeX rule trap (loose
-end 14) is fixed (5e514df) and **v0.2.1 is released** from ff0271a with the
-fixed archives — the owner pushed, tagged and published; the GitHub assets
-match the local archives (sizes, and the downloaded tarball's sha256). The website is restaged and synced to both hosts and
-verified against the repository copies. Working tree clean, `main` in sync
-with `origin`. **One thing is still open: Clew's manifest is not re-pinned**
-(it carries session 7's digest 2c303539…, which no published asset has, and
-its ```` ```tex ```` fence still runs on `plain`); "What happened in session
-8", item 5, has the exact edits.
+**State now (end of session 8, 2026-09-17):** everything is committed, pushed
+and released; the working tree is clean and `main` is in sync with `origin`
+at ff8a98b (a handover commit; the last code commit is 5e514df, the LuaTeX
+rule fix, and ff0271a is the 0.2.1 release commit). **v0.2.1 is released**
+(tag on ff0271a; the GitHub assets match the local archives in size and the
+tarball's sha256), the website is restaged and synced to both hosts and
+checked against the repository copies, and **CI is green** on every commit.
+**One thing is open: Clew's manifest is not re-pinned** — it still carries
+session 7's digest 2c303539…, which no published asset has, and its
+```` ```tex ```` fence still runs on `plain`; "What happened in session 8",
+item 5, has the exact edits.
 
 ## Where things stand, in one paragraph
 
@@ -70,8 +34,10 @@ terminal streamed live; see "What happened in session 5"). Session 6 added
 saved figures: a page can carry its diagrams as `figures/figure-HASH.svg`
 files, written by `mpost-wasm --prerender` or `mpTikzWasm.saveFigures()`,
 and the tags load them instead of starting the engines (see "What happened
-in session 6"). Session 8 fixed every rule trapping under LuaTeX in DVI mode
-(a wasm-only call-arity defect; `docs/14` §14). The demos are live on the fast DigitalOcean droplet at
+in session 6"). Session 7 bundled spath3 (`calligraphy`, `knots`) and made a
+wrapped TikZ figure keep its standalone border, so classic arrow tips survive.
+Session 8 fixed every rule trapping under LuaTeX in DVI mode (a wasm-only
+call-arity defect; `docs/14` §14). The demos are live on the fast DigitalOcean droplet at
 <https://eschatolog.ist/software/mp-tikz-wasm/> and mirrored (more slowly) on
 Bluehost at <https://jmckalex.org/software/mp-tikz-wasm/>. **CI is green** and
 **v0.2.1 is released** (v0.1.0 on 2026-09-13, v0.2.0 on 2026-09-16, v0.2.1 on
@@ -270,6 +236,40 @@ session 6 (e0a8be9, then the 0.2.0 release and the sync; see below).
 Nothing is left undone from session 6. Two small things it left behind are
 loose ends 12 and 13.
 
+## What happened in session 7 (2026-09-16, evening; another agent, via Clew)
+
+Two fixes found through Clew, the note app that embeds this library, and a
+release built but not published:
+
+1. **spath3 bundled** (a2a9795): `\usetikzlibrary{calligraphy}` (and
+   `knots`) took the whole figure down because the library is part of
+   spath3, Andrew Stacey's soft-paths bundle (four files, 284 KB,
+   `\RequirePackage{spath3}` its only dependency), which pgf does not ship.
+   `build-texmf.sh` copies it into `tex/latex`; the `latex-extra` recipe
+   already claims everything there (921 → 925 files). A
+   `\calligraphy[copperplate]` stroke renders as a tapered pen stroke.
+2. **Wrapped TikZ figures keep their border** (adbd53b): TikZ leaves its
+   classic arrow tips (`>=latex`, `stealth`, the primed forms — pre-3.0
+   declarations with no convex hull) out of the picture's bounding box;
+   native pgf does the same, and in a PDF the standalone border is what
+   keeps the head on the page. dvisvgm's default tight box is the picture
+   box PGF reports through its `dvisvgm:bbox` special, so a `->` on a
+   horizontal line rendered as a line with no head. `renderFigure` now
+   passes `--bbox=papersize` for the bodies it wraps (a complete document
+   keeps the default), measured equal to pdflatex's page to three decimals.
+   `DB_VERSION` 2 → 3 drops the old crops from IndexedDB (the source hash
+   does not change). `isCompleteDocument()` is shared with `wrapTikz`; two
+   unit tests and one e2e test (61.873 × 5.181 bp with two paths).
+3. **Release 0.2.1 built, not published** (aac75ff): version bump, guide
+   regenerated, the tags page's four TikZ saved figures re-rendered with
+   `--force` (viewBox origin −72 −72, 4 pt larger each way; the
+   whole-document one and the three MetaPost figures byte-identical). 244
+   tests, both golden corpora. The archives and `release/notes-0.2.1.md`
+   were built; nothing was tagged or pushed. The session's handover commit
+   (424ed87) added loose end 14, the LuaTeX trap, with a diagnosis session 8
+   corrected. Everything from this session was pushed and released in
+   session 8, with the LuaTeX fix folded into 0.2.1 first.
+
 ## What happened in session 8 (2026-09-17)
 
 **Loose end 14, the LuaTeX trap, diagnosed and fixed.** The report said
@@ -359,7 +359,7 @@ text-mode `\hrule` trapped too. Every construct that fails ships a DVI
 8. **Loose end 15 found on the way**: the two LuaTeX format dumps are not
    reproducible run to run. Harmless; noted, not fixed.
 
-## CI — green as of 2026-09-16 (session 6; first green in session 4)
+## CI — green as of 2026-09-17 (session 8; first green in session 4)
 
 `.github/workflows/ci.yml` runs two jobs on every push, both green:
 
@@ -371,10 +371,12 @@ text-mode `\hrule` trapped too. Every construct that fails ships a DVI
   bundles, the TypeScript, then the e2e tests (`test/e2e`: API, memory,
   prefetch, logging, prerender) and the **MetaPost** golden `--check`.
 
-Latest green run: <https://github.com/jmckalex/mp-tikz-wasm/actions/runs/35113237374>
-(the 0.2.0 release commit 6408c66; a tag push starts a second run of the
-same commit). First green run: 34769341698 (commit c24dbb3, session 4). The
-README badge is green.
+Latest green run: <https://github.com/jmckalex/mp-tikz-wasm/actions/runs/35225322767>
+(ff8a98b, after the 0.2.1 release; the release commit ff0271a ran three
+times, for the branch push and the tag, all green — the wasm job builds
+`luatex.wasm` from source with `patches/luatex/0001` and runs the rule guard).
+First green run: 34769341698 (commit c24dbb3, session 4). The README badge
+is green.
 
 What was wrong and what fixed it (session 4, five commits f822ff3 →
 c24dbb3, all pushed):
@@ -419,8 +421,9 @@ and the runner's `texlive-pictures` is Ubuntu's 2023 pgf, not TeX Live
 box for that reason (the MetaPost golden, reproducible from the pinned mplib
 and Computer Modern, passes on the runner). Run `npm run test:golden:tikz`
 (no `--check`) on a TeX Live 2025 machine to regenerate `tikz-expected/`
-before committing, then `--check` locally. The CI e2e step exercises the
-LaTeX/TikZ pipeline for behaviour.
+before committing, then `--check` locally (the two LuaTeX cases need TeX
+Live's `dviluatex` and `dvilualatex` as oracles). The CI e2e step exercises
+the LaTeX/TikZ pipeline for behaviour, LuaTeX rules included.
 
 To watch a run:
 
@@ -568,7 +571,7 @@ and sync the website (`make sync-all`) after a release.
    delete it (CI installs its own; reinstalling is `git clone
    https://github.com/emscripten-core/emsdk && ./emsdk install 6.0.9 &&
    ./emsdk activate 6.0.9`). The user has not said which.
-4. ~~**No GitHub release yet**~~ — v0.1.0 and v0.2.0 released; see
+4. ~~**No GitHub release yet**~~ — v0.1.0, v0.2.0 and v0.2.1 released; see
    "Publishing a release".
 5. ~~**Bluehost is slow**~~ — deployed to the fast droplet (eschatolog.ist);
    Bluehost kept as a mirror. See "The website".
@@ -640,7 +643,8 @@ and sync the website (`make sync-all`) after a release.
 - `README.md` — public-facing; also the prerequisites and the patch table.
 - `docs/14-implementation-notes.md` — what was learned, per subsystem: §7
   TikZ pipeline, §8 tags and snapshot, §9 the PGF manual test, §10 LuaTeX,
-  §11 the leaks (three patches), §12 logging, §13 saved figures.
+  §11 the leaks (three patches), §12 logging, §13 saved figures, §14 LuaTeX
+  rules in DVI mode.
 - `docs/00-START-HERE.md` and `docs/01`–`docs/09` — the original design.
 - `patches/` — twelve unified diffs, each explained in the code; seven are
   upstream bugs (0003, 0004, 0005, 0007, 0010, 0011, 0012) worth reporting
@@ -677,7 +681,9 @@ what the README links to.
 
 Done in session 4: CI, the droplet, and the v0.1.0 release. Done in session
 5: logging. Done in session 6: saved figures (browser and Node), the 0.2.0
-release and the site sync. Still open:
+release and the site sync. Done in session 7: spath3, the kept border, 0.2.1
+built. Done in session 8: the LuaTeX rule fix, 0.2.1 released (by the owner)
+and the site synced. Still open:
 
 - **Arbitrary LaTeX from a local (or served) TeX Live.** The user asked about
   this; it is well within reach because the hard parts already exist — the
