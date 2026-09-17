@@ -37,12 +37,14 @@ and the tags load them instead of starting the engines (see "What happened
 in session 6"). Session 7 bundled spath3 (`calligraphy`, `knots`) and made a
 wrapped TikZ figure keep its standalone border, so classic arrow tips survive.
 Session 8 fixed every rule trapping under LuaTeX in DVI mode (a wasm-only
-call-arity defect; `docs/14` §14). The demos are live on the fast DigitalOcean droplet at
-<https://eschatolog.ist/software/mp-tikz-wasm/> and mirrored (more slowly) on
-Bluehost at <https://jmckalex.org/software/mp-tikz-wasm/>. **CI is green** and
-**v0.2.1 is released** (v0.1.0 on 2026-09-13, v0.2.0 on 2026-09-16, v0.2.1 on
-2026-09-17). Session 4 also added five MetaPost gallery figures, an in-browser page-by-page viewer
-for the whole PGF manual, and fixed the upside-down brace in the guide's tree
+call-arity defect; `docs/14` §14). The demos are live on the fast
+DigitalOcean droplet at <https://eschatolog.ist/software/mp-tikz-wasm/> and
+mirrored (more slowly) on Bluehost at
+<https://jmckalex.org/software/mp-tikz-wasm/>. **CI is green** and **v0.2.1 is
+released** (v0.1.0 on 2026-09-13, v0.2.0 on 2026-09-16, v0.2.1 on
+2026-09-17). Session 4 also added five MetaPost gallery figures, an
+in-browser page-by-page viewer for the whole PGF manual, and fixed the
+upside-down brace in the guide's tree
 figure (see "What happened in session 4").
 
 ## What happened in session 3 (2026-09-13)
