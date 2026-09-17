@@ -607,9 +607,17 @@ tree is clean.
    7.2 MB, against twelve and 1.1 MB before — then keeps it in the
    per-instance font cache, so it is once per engine, not per run. In Node
    the difference is about 100 ms; in a browser it is 60 more on-demand
-   fetches on the first OpenType render of a page. A prebuilt name database
-   shipped in the bundle (paths are the fixed `/texmf/...` ones) would remove
-   the scan entirely and is the follow-up to do next. A tenth e2e case
+   fetches on the first OpenType render of a page. **Measured by Clew-app on
+   57bbd6d**, cold page, six figures (five OpenType), served from its local
+   protocol with `immutable` caching: settled in 4.5 s against 4.0 s on the
+   twelve-face build; 483 bundle files fetched in all, `opentype` 126 files
+   / 12.1 MB of which all 72 faces, `otf-fonts` untouched. So the scan is
+   about 7 MB of the 12 that page fetches, half a second locally, and over
+   the wire on the droplet it would be paid on every first OpenType figure.
+   A prebuilt name database shipped in the bundle (paths are the fixed
+   `/texmf/...` ones) would take that to the two `lmroman12` faces a 12pt
+   article actually needs; it is the follow-up to do before a release. A
+   tenth e2e case
    runs a 12pt document through the size commands, `\textsc`, `\textsl`,
    sans and mono with `opentype` alone. Goldens 11 and 12 unchanged (their
    engine had both bundles, so luaotfload saw the same 73 faces). Docs:
@@ -1020,6 +1028,20 @@ Done in session 10: OpenType under plain LuaTeX, same branch. Still open:
   it across sessions is the natural next piece of work). A release from it
   would be 0.3.0, and Clew would re-pin to that.
 - ~~**Re-pin Clew**~~ — done on the Clew side; confirmed in session 10.
+- **Ship a prebuilt luaotfload name database in the `opentype` bundle**, so
+  a fresh engine's first OpenType render stops opening all 72 Latin Modern
+  faces (7 MB of the 12 a cold page fetches; session 10 item 7 has the
+  numbers). luaotfload keeps it under `TEXMFVAR/luatex-cache/generic/names/`
+  (`luaotfload-names.luc.gz` plus the `.lua.gz` source), which here is the
+  per-instance `/texmf-var` Map in `core.ts`; build it once at bundle time
+  with `luatex.wasm` against the assembled tree so the paths inside are the
+  `/texmf/fonts/...` ones every instance sees, ship the files in `opentype`,
+  and seed `/texmf-var` from them when an instance is created. Check that
+  luaotfload accepts it without a rescan (it validates the database and
+  fontloader versions, and rescans on a miss), and that `mpost-wasm` and the
+  Node path, which mount a real `texmfDir`, still agree. Do it before a
+  release from the branch: the droplet pages would otherwise pay the scan
+  over the wire on every first OpenType figure.
 - **Put the manifest's per-file `sha` into bundle file URLs** (`?v=<sha>`,
   `src/ts/vfs/bundle.ts`, one line where `url` is built — mind the Node
   I/O path, which reads files by path). Both sides asked for it in session
