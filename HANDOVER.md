@@ -1,27 +1,31 @@
 # Handover
 
 Written 2026-09-13 (third session), revised 2026-09-15 (fourth and fifth
-sessions), 2026-09-16 (sixth) and 2026-09-17 (seventh, eighth and ninth). This
-file lives at the repository root; until session 5 it was
+sessions), 2026-09-16 (sixth) and 2026-09-17 (seventh, eighth, ninth and
+tenth). This file lives at the repository root; until session 5 it was
 `docs/15-handover.md`. Everything below is verified unless marked otherwise.
 Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State now (end of session 9, 2026-09-17):** the working tree is clean, but
-**HEAD is the branch `opentype-fonts`, not `main`**. That branch adds OpenType
-fonts under LuaTeX (luaotfload, `fontspec`, host-supplied system faces) and is
-committed but **not merged, not pushed and not released**; see "What happened
-in session 9". `main` itself is unchanged from session 8: in sync with
-`origin` at ff8a98b (a handover commit; the last code commit is 5e514df, the
-LuaTeX rule fix, and ff0271a is the 0.2.1 release commit). **v0.2.1 is released**
-(tag on ff0271a; the GitHub assets match the local archives in size and the
-tarball's sha256), the website is restaged and synced to both hosts and
-checked against the repository copies, and **CI is green** on every commit.
-**One thing is open: Clew's manifest is not re-pinned** — it still carries
-session 7's digest 2c303539…, which no published asset has, and its
-```` ```tex ```` fence still runs on `plain`; "What happened in session 8",
-item 5, has the exact edits.
+**State now (end of session 10, 2026-09-17):** the working tree is clean, but
+**HEAD is the branch `opentype-fonts`, not `main`**. Session 10 is four
+commits on top of df83bea (the fix, its tests, the docs, this handover). The
+branch adds OpenType fonts under LuaTeX (luaotfload, `fontspec`,
+host-supplied system faces; session 9) and, since session 10, makes them work
+under **plain** LuaTeX too, through a patch to the bundled `luaotfload.sty`
+(`patches/texmf/0001`). Nothing of it is **merged, pushed or released**, so
+CI has never built it; see "What happened in session 9" and "What happened in
+session 10". `main` itself
+is unchanged from session 8: in sync with `origin` at ff8a98b (a handover
+commit; the last code commit is 5e514df, the LuaTeX rule fix, and ff0271a is
+the 0.2.1 release commit). **v0.2.1 is released** (tag on ff0271a; the GitHub
+assets match the local archives in size and the tarball's sha256), the website
+is restaged and synced to both hosts and checked against the repository
+copies, and **CI is green** on every commit of `main`. Nothing from the release
+is open: Clew's manifest **is** re-pinned to 0.2.1 (session 10 checked it —
+`5ddff636…`, 37,205,263 bytes — and its ```` ```tex ```` fence is back on
+`luatex`); earlier sessions' notes that it was open are stale.
 
 ## Where things stand, in one paragraph
 
@@ -336,7 +340,10 @@ text-mode `\hrule` trapped too. Every construct that fails ships a DVI
    uploading: the tar carries the staging copies' mtimes, so every run has a
    new digest. Of the three steps that were the owner's, two are done — the
    release (item 6) and the site sync (item 7) — and one is open:
-   - **Re-pin Clew** — NOT done as of the end of session 8: the manifest
+   - **Re-pin Clew** — NOT done as of the end of session 8, **done since**
+     (by the Clew-side agent, per `docs/16`; session 10 read the manifest:
+     `5ddff636…`, 37,205,263 bytes, `KINDS.tex` on `luatex`). The original
+     instructions, for the record: the manifest
      still carries 2c303539… / 37,203,244 bytes, which no published asset
      has, so `stage-mptikz.js` on any machine without the master build
      would refuse the download (on the owner's machine it prefers
@@ -439,10 +446,11 @@ tree is clean.
     `@font-face` because the face index is not part of dvisvgm's font key, so
     bold and italic draw garbled glyphs; `fonts: 'paths'` is fine. Workaround
     is one file per face. Both are written up in `docs/14` §15.
-11. **Plain LuaTeX cannot have OpenType — diagnosed to one missing callback,
-    not yet fixed.** Session 9 took this to root cause and has a working
-    proof of concept; what is left is deciding where the fix belongs. A new
-    session can start here.
+11. **Plain LuaTeX cannot have OpenType — diagnosed to one missing callback;
+    fixed in session 10** (see "What happened in session 10"; the rest of
+    this item is session 9's analysis, kept as written). Session 9 took this
+    to root cause and had a working proof of concept; what was left was
+    deciding where the fix belongs.
 
     **Symptom.** Under `engine: 'luatex'` (plain, `dviluatex.fmt`), any native
     font fails with `Module luatexbase Error: Unable to register callback`
@@ -506,12 +514,92 @@ tree is clean.
     real fix must wrap that rather than replacing `\output` as the proof of
     concept does.
 
-    Consequence today, and it is in `docs/16` for Clew: OpenType is a
-    `lualatex` feature here, not a `luatex` one, so a ` ```tex ` fence cannot
-    have it. `docs/14` §15 has the analysis.
+    Consequence at the end of session 9 (no longer true — session 10): OpenType
+    was a `lualatex` feature here, not a `luatex` one, so a ` ```tex ` fence
+    could not have it. `docs/14` §15 has the analysis and the fix.
 12. **Not done**: not merged to `main`, not released, the site is untouched, and
     the drop-in tags have no way to ask for the bundles (no `data-bundles`
     attribute) — so this is a library and CLI feature only, for now.
+
+## What happened in session 10 (2026-09-17, still on `opentype-fonts`)
+
+**Plain LuaTeX + OpenType, fixed** — the user asked for a session on session
+9's item 11. Everything below is verified.
+
+1. **The cause, confirmed in the sources.** `luaotfload-dvi.lua` registers on
+   `pre_shipout_filter` at `\font` time. That callback is created by the LaTeX
+   kernel in `ltshipout` (from `\everyjob`, since the Lua state is not dumped)
+   and called from LaTeX's `\shipout` wrapper; `luaotfload.sty`'s plain-TeX
+   branch does neither, and upstream `main` is unchanged on this. It has to be
+   called at shipout, not from `pre_output_filter`: a `\headline` is added by
+   the output routine after that filter has seen box 255.
+2. **The fix: `patches/texmf/0001-luaotfload-plain-dvi-shipout.patch`**, 47
+   lines appended to `luaotfload.sty`. Under plain TeX, in DVI mode, and only
+   if nothing created the callback already, it creates `pre_shipout_filter`
+   and wraps `\shipout` the `everyshi` way (`\afterassignment` + `\global
+   \setbox` into a reserved register, `\ifvoid` deferring with `\aftergroup`
+   for `\shipout\vbox{…}`, then the callback and the saved primitive on
+   `\box`), mirroring `ltshipout`'s call exactly. `build-texmf.sh` gained the
+   mechanism — `patches/texmf/*.patch` applied with `-p1` to the assembled
+   tree, target missing → skipped, hunk failing → build stops. Appended
+   rather than inserted so the hunk's context is the file's tail (unchanged
+   upstream since 2023), not the `\ProvidesPackage` line that changes each
+   release; that is what should let it apply to Ubuntu's older luaotfload on
+   CI. A patch rather than the format (would differ from TeX Live's
+   `dviluatex`, which golden 09 compares against, and would need `ltluatex`
+   dumped) or a separate `\input` file (an incantation TeX Live users never
+   need). `docs/14` §15 has the reasoning in full.
+3. **Two traps met, both documented in `docs/14` §15**: `~` is active in plain
+   TeX, so `result ~= head` inside `\directlua` in a macro body became
+   `\penalty\@M\ ` and Lua said "'then' expected near '\'" (`ltshipout`
+   writes `not (result == head)` for this reason); and `\newbox` is `\outer`
+   in plain, so it hides behind `\csname` inside the guarding `\ifnum`.
+4. **Verified.** Natively first, against TeX Live 2025 with the patched
+   `.sty` on `TEXINPUTS`: a two-page document with a bold-face `\headline`,
+   a user `\output={\shipout\box255 …}`, both clean through dvisvgm, and
+   PDF mode untouched. Then the build: `npm run build:texmf` (applies the
+   patch) and `npm run build:bundles`; the formats were not rebuilt
+   (`luaotfload.sty` is in no format, and loose end 15 makes LuaTeX format
+   rebuilds change bytes). **255 tests pass** (+2 in
+   `test/e2e/opentype.test.ts`: plain LuaTeX with a headline, plain LuaTeX
+   with a `\box255` output routine). TikZ golden **12/12 against the native
+   oracle**, including the new `12-opentype-plain` (2 pages, byte-identical to
+   `dviluatex` + dvisvgm — the harness copies the patched `luaotfload.sty`
+   next to the oracle's document for plain OpenType cases, since stock TeX
+   Live cannot run the case); the other eleven unchanged; MetaPost golden
+   15/15.
+5. **Docs**: README (the plain-TeX example under "OpenType fonts" and a
+   `patches/texmf/` table under "Patches to upstream"), `docs/14` §15 (the
+   "cannot have it" subsection rewritten around the fix), `docs/16` (Clew: the
+   fourth trap is fixed; the `wrapTex` line to emit), `docs/02` §5 (the three
+   patch directories), this file.
+6. **Not done**: still not merged, pushed or released, and CI has never
+   built the branch — the patch's applicability on Ubuntu's luaotfload is
+   argued from upstream history, not tested; pushing the branch is how to
+   find out.
+7. **Clew integrated it the same evening** (the Clew-app session, over
+   cross-session messages; its own handover has the details). `font=note`
+   on the ```` ```tikz ````, ```` ```latex ```` and ```` ```tex ```` fences,
+   verified as embedded-face text on a fresh profile with a control figure
+   untouched, 524 Clew tests green, manifest untouched. It asks `auto.js`
+   for `+opentype` only when a marked figure is on the page **and**
+   `bundles/index.json` lists the bundle, so a build pinned to 0.2.1 refuses
+   such figures by name instead of failing the engine; it splits
+   `Avenir Next.ttc` into one `.ttf` per face; `wrapTex` emits the plain
+   idiom above. Two findings from that side worth keeping: (a) its preview
+   protocol serves the staged dist with `Cache-Control: immutable, max-age`
+   one year, so a restaged dist was served stale — the owner's profile kept
+   the session-9 `luaotfload.sty` — now handled there by an asset stamp
+   (engine and bundle-index mtimes + sizes + app version) that clears the
+   Electron cache on change; (b) the per-figure `@font-face` namespacing
+   holds with three figures on one page. Library-side answer given, checked
+   in the code: bundle files live only in an in-memory `Map` per engine, the
+   manifest's per-file `sha` is not in the URL, and the tags' IndexedDB
+   result cache stores successful renders only, so nothing in the library
+   held the stale file — it was the HTTP cache alone.
+   No upstream report to luaotfload yet (the patch is the report). The
+   drop-in tags still cannot ask for the bundles except via `data-bundles`
+   (session 9 added `+opentype`), and the font cache is still per-instance.
 
 ## CI — green as of 2026-09-17 (session 8; first green in session 4)
 
@@ -739,7 +827,8 @@ and sync the website (`make sync-all`) after a release.
    `opentype-fonts`, not yet merged): `fontspec`, `unicode-math` and
    host-supplied system fonts all work under LuaTeX through luaotfload, in the
    opt-in `opentype` / `otf-fonts` bundles. No engine change was needed — the
-   wasm LuaTeX had compiled `luafontloader` and `luafflib` all along. Still
+   wasm LuaTeX had compiled `luafontloader` and `luafflib` all along.
+   **Session 10** extended it to plain LuaTeX (`patches/texmf/0001`). Still
    out: HarfBuzz shaping (`mode=harf`), because this is `luatex`, not
    `luahbtex`. See "What happened in session 9" and `docs/14` §15.
 9. **pplib's licence** is not stated in the vendored source; NOTICE.md
@@ -820,6 +909,10 @@ and sync the website (`make sync-all`) after a release.
   design; `docs/08` §5.1 the user-facing account.
 - `patches/luatex/` — the one LuaTeX patch (session 8), applied to copies by
   `scripts/build-luatex-wasm.sh`; `docs/14` §14 has the analysis.
+- `patches/texmf/` — the one macro-package patch (session 10): the shipout
+  hook `luaotfload.sty` needs under plain TeX, applied to the assembled tree
+  by `scripts/build-texmf.sh`; `docs/14` §15 has the analysis, and golden
+  `12-opentype-plain` is the proof.
 - `test/e2e/opentype.test.ts`, `src/ts/bundles-config.ts` — OpenType fonts
   (session 9): the opt-in bundles and why they are opt-in. `docs/14` §15 has
   the design, `docs/08` §4.1 the user-facing account, the README a worked
@@ -849,7 +942,8 @@ Done in session 4: CI, the droplet, and the v0.1.0 release. Done in session
 5: logging. Done in session 6: saved figures (browser and Node), the 0.2.0
 release and the site sync. Done in session 7: spath3, the kept border, 0.2.1
 built. Done in session 8: the LuaTeX rule fix, 0.2.1 released (by the owner)
-and the site synced. Still open:
+and the site synced. Done in session 9: OpenType under LuaLaTeX, on a branch.
+Done in session 10: OpenType under plain LuaTeX, same branch. Still open:
 
 - **Arbitrary LaTeX from a local (or served) TeX Live.** The user asked about
   this; it is well within reach because the hard parts already exist — the
@@ -869,17 +963,21 @@ and the site synced. Still open:
   no luaotfload, so `fontspec`/`unicode-math`/OpenType stay out, and fetching
   arbitrary/newer files breaks the byte-identical-to-TL2025 guarantee (fine for
   an explicit "arbitrary" mode).
-- **Fix plain LuaTeX + OpenType** (loose end 11): diagnosed to one missing
-  callback, with a working proof of concept and three candidate homes for the
-  shim. The owner has asked for a session on this. Start at loose end 11.
-- **Merge, or don't, the `opentype-fonts` branch** (session 9). It is complete
-  and tested — 252 tests, both goldens including a new byte-identical
-  OpenType case — but it has not been reviewed, merged, pushed or released,
-  the website is untouched, and the drop-in tags cannot ask for the bundles
-  yet (no `data-bundles` attribute; the natural next piece of work, along with
-  persisting luaotfload's font cache across sessions).
-- **Re-pin Clew** (session 8, item 5): the one step of the 0.2.1 release
-  still open; then flip its ```` ```tex ```` fence back to `luatex`.
+- **Merge, or don't, the `opentype-fonts` branch** (sessions 9 and 10). It
+  is complete and tested — 255 tests, both goldens including two
+  byte-identical OpenType cases (LaTeX and plain) — but it has not been
+  reviewed, merged, pushed or released, CI has never built it (push it first:
+  the texmf patch has to apply to Ubuntu's older luaotfload), the website is
+  untouched, and luaotfload's font cache is still per-instance (persisting
+  it across sessions is the natural next piece of work). A release from it
+  would be 0.3.0, and Clew would re-pin to that.
+- ~~**Re-pin Clew**~~ — done on the Clew side; confirmed in session 10.
+- **Put the manifest's per-file `sha` into bundle file URLs** (`?v=<sha>`,
+  `src/ts/vfs/bundle.ts`, one line where `url` is built — mind the Node
+  I/O path, which reads files by path). Both sides asked for it in session
+  10: a served bundle could then carry a long `max-age` safely, Clew could
+  drop its cache-clearing stamp, and loose end 12 (the 30-day cache on
+  `dist/*.js`) is the same fix one level up.
 - **Deploy the manual viewer** to `eschatolog.ist/software/mp-tikz-wasm/manual/`
   (loose end 11) — a compelling "browse the whole PGF manual in your browser"
   demo, and a good link for the TeX Live announcement.
