@@ -628,7 +628,14 @@ tree is clean.
    fetched on demand through the scheme handler with no preload, real
    `<text>` runs against embedded faces, Avenir Next faces built per face
    from CoreText tables on the device; WebKit did not hold a stale index
-   across an app update. Its pin waits for a release. Answers given on the
+   across an app update. **Restaged on 1dea1b8 afterwards:** the 12pt
+   article typesets on the iPad (3 text runs, 2 embedded faces), all six of
+   Clew's fixture figures ok in 5.6 s cold, and the nine-figure note settled
+   in 5.0 s against 5.1 s before — through its scheme handler the 72-face
+   scan is inside the noise, so the prebuilt database matters for the
+   droplet, not for the app. Staged tree unchanged in count and size (3,891
+   files, 109 MB): the faces moved between bundles. Its pin waits for a
+   release. Answers given on the
    way, all checked in the tree: no release carries the bundle; the dist
    here matches the branch head (a TS rebuild changed nothing); `mp.preload()`
    is on the API and the Worker backend but not on the tags; nothing in the
