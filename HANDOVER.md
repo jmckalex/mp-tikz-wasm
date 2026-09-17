@@ -567,7 +567,14 @@ tree is clean.
    `dviluatex` + dvisvgm — the harness copies the patched `luaotfload.sty`
    next to the oracle's document for plain OpenType cases, since stock TeX
    Live cannot run the case); the other eleven unchanged; MetaPost golden
-   15/15.
+   15/15. **A trap met on the way:** `npm run build:bundles` wipes `dist/bundles`,
+   `hot.json` included, and only the full `npm run build` regenerates it
+   (`build:hot` runs last), so after a bundle-only rebuild the two prefetch
+   tests *skip* rather than fail — that is why the first full run of the
+   session read "255 passed, 2 skipped". `npm run build:hot` restores it;
+   with it back the prefetch tests pass, 257 in all. The hot lists have no
+   OpenType kind: the `opentype` bundle is fetched on demand, or up front
+   with `mp.preload(['opentype'])`, which the tags do not expose.
 5. **Docs**: README (the plain-TeX example under "OpenType fonts" and a
    `patches/texmf/` table under "Patches to upstream"), `docs/14` §15 (the
    "cannot have it" subsection rewritten around the fix), `docs/16` (Clew: the
