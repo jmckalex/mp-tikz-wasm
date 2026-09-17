@@ -65,6 +65,34 @@ return {
   ["english"] = { loader = "hyphen.tex", special = "language0", lefthyphenmin = 2, righthyphenmin = 3, synonyms = { "usenglish", "USenglish", "american" } },
 }
 LUA
+# --- OpenType fonts under LuaTeX (luaotfload) ---------------------------------
+# luaotfload is what gives \usepackage{fontspec} real OTF/TTF loading. It needs
+# no HarfBuzz: its default node mode shapes in Lua on top of the FontForge-derived
+# fontloader already compiled into luatex.wasm, so the engine needed no change.
+# The four Lua packages are its own dependency chain -- lua-uni-algos supplies
+# lua-uni-case, which luaotfload-database requires and nothing else pulls in.
+# Faces are found through OPENTYPEFONTS/TTFONTS, so a host can drop a system
+# font into fonts/opentype (or fonts/truetype) and \setmainfont[Path=...] finds it.
+mkdir -p "$OUT/tex/luatex" "$OUT/fonts/opentype/public" "$OUT/fonts/truetype"
+for d in luaotfload lualibs luatexbase lua-uni-algos; do
+  [ -d "$TEXMF/tex/luatex/$d" ] && cp -R "$TEXMF/tex/luatex/$d" "$OUT/tex/luatex/$d"
+done
+for d in fontspec unicode-math; do
+  [ -d "$TEXMF/tex/latex/$d" ] && cp -R "$TEXMF/tex/latex/$d" "$OUT/tex/latex/$d"
+done
+# lualatex-math is unicode-math's LuaTeX half -- \usepackage{unicode-math} loads it
+# and stops dead without it. It sits under tex/lualatex, which TEXINPUTS.dvilualatex
+# searches first and nothing else in this tree uses.
+mkdir -p "$OUT/tex/lualatex"
+for d in lualatex-math; do
+  [ -d "$TEXMF/tex/lualatex/$d" ] && cp -R "$TEXMF/tex/lualatex/$d" "$OUT/tex/lualatex/$d"
+done
+# Latin Modern in OpenType, so fontspec and unicode-math work with no host fonts
+# at all; their own bundle, so a page that only uses supplied faces skips them.
+for d in lm lm-math; do
+  [ -d "$TEXMF/fonts/opentype/public/$d" ] && cp -R "$TEXMF/fonts/opentype/public/$d" "$OUT/fonts/opentype/public/$d"
+done
+
 # pgf's and pgfplots' generic parts live under tex/generic
 for d in pgf pgfplots; do [ -d "$TEXMF/tex/generic/$d" ] && cp -R "$TEXMF/tex/generic/$d" "$OUT/tex/generic/$d"; done
 # drop documentation-ish files that are never input

@@ -313,10 +313,49 @@ about 450 ms.
 
 ## Limits
 
-No OpenType font loading (`fontspec`, `unicode-math` and system fonts are out;
-text is set in the Type 1 fonts), no PDF output, no Ghostscript, no
-`\write18`, no interactive error recovery. The `runScript` and `makeText`
-callbacks force in-process mode. XeTeX is not included.
+No PDF output, no Ghostscript, no `\write18`, no interactive error recovery.
+The `runScript` and `makeText` callbacks force in-process mode. XeTeX is not
+included — OpenType fonts come from LuaTeX instead, see below. OpenType
+shaping is luaotfload's Lua `mode=node`, not HarfBuzz (this is `luatex`, not
+`luahbtex`), so `mode=harf` and Graphite features are out.
+
+### OpenType fonts
+
+`\usepackage{fontspec}` with real OTF/TTF faces works under the `lualatex` and
+`luatex` engines, through luaotfload. It is **opt-in**, because LaTeX probes for
+luaotfload at start-up and finding it makes every LuaTeX run initialise it —
+214 ms → 396 ms for a document that never asks for it. Add one or both bundles:
+
+```js
+import { MetaPost, DEFAULT_BUNDLES } from 'mp-tikz-wasm';
+const mp = await MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'opentype'] });
+await mp.latex(String.raw`
+\documentclass{article}\usepackage{fontspec}
+\setmainfont{Latin Modern Roman}
+\begin{document}Real OpenType, ligatures and all: fi ffl.\end{document}`,
+  { engine: 'lualatex' });
+```
+
+`opentype` carries luaotfload, `fontspec`, `unicode-math` and the twelve Latin
+Modern faces fontspec's defaults name; add `'otf-fonts'` as well for
+`unicode-math`'s maths font and the full range of optical sizes.
+
+To use a font the host has rather than a bundled one — a system face in an
+Electron app, say — hand over the bytes and name it with a relative path:
+
+```js
+await mp.addFiles({ 'Charter.ttf': bytes });     // e.g. from queryLocalFonts()
+await mp.latex(doc, { engine: 'lualatex', fonts: 'woff2' });
+//   \setmainfont{Charter.ttf}[Path=./]
+```
+
+Pair that with `fonts: 'woff2'`, which embeds a subset of the face in the SVG
+as `@font-face` and emits real `<text>`: the diagram then renders through the
+browser's own text rasteriser, in the same font file the page's CSS loads. The
+default `fonts: 'paths'` writes glyph outlines instead — self-contained, but
+without hinting, and heavier (34.9 KB against 6.8 KB on one line of text).
+Note that only the *font* comes from the browser; the positions are TeX's, so
+the result does not reflow.
 
 ## Building from source
 

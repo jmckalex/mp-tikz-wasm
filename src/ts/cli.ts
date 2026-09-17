@@ -6,7 +6,7 @@
  *   mpost-wasm --dvitomp DVINAME[.dvi] [MPXNAME[.mpx]]
  *   mpost-wasm --prerender [--figures=DIR] [--force] [--dry-run] PAGE.html...
  */
-import { MetaPost, LOG_LEVELS } from './index.js';
+import { MetaPost, LOG_LEVELS, DEFAULT_BUNDLES } from './index.js';
 import { prerender } from './prerender.js';
 import type { OutputFormat, NumberSystem, TexEngine, LogLevel, LogRecord } from './types.js';
 
@@ -35,6 +35,9 @@ const HELP = `Usage: mpost-wasm [OPTION]... [MPNAME[.mp]] [COMMANDS]
   --engine=NAME         latex | lualatex | luatex | plain | tex | auto (default auto: lualatex when
                         the document uses graphdrawing or \directlua)
   --fonts=paths|woff2   how text is emitted in --latex mode (default paths)
+  --opentype            load the OpenType bundles so \\usepackage{fontspec} works under
+                        --engine=lualatex; off by default because LaTeX initialises
+                        luaotfload on every LuaTeX run once it can find it
   --prerender           typeset the <script type="text/tikz|metapost">, <tikz-diagram> and
                         <metapost-diagram> elements of each PAGE and save each as figure-HASH.svg in
                         the directory the page's auto.js loader names in data-figures (default
@@ -54,7 +57,7 @@ function parseArgs(argv: string[]) {
     interaction: 'nonstop' as 'batch' | 'nonstop' | 'scroll',
     numbersystem: 'scaled' as NumberSystem,
     jobname: '' , tex: 'auto' as TexEngine, internals: {} as Record<string, string | number>,
-    halt: false, recorder: false, troff: false, format: '' as '' | OutputFormat, texmf: '', bundles: '',
+    halt: false, recorder: false, troff: false, format: '' as '' | OutputFormat, texmf: '', bundles: '', opentype: false,
     stdout: false, file: '', commands: '', help: false, version: false, dvitomp: false,
     latex: false, plain: false, engine: 'auto' as 'auto' | 'latex' | 'lualatex' | 'luatex' | 'plain' | 'tex', fonts: 'paths' as 'paths' | 'woff2',
     verbose: 0, quiet: false, logLevel: '' as '' | LogLevel,
@@ -82,6 +85,7 @@ function parseArgs(argv: string[]) {
       case 'format': o.format = (v ?? next()) as OutputFormat; break;
       case 'texmf': o.texmf = v ?? next(); break;
       case 'bundles': o.bundles = v ?? next(); break;
+      case 'opentype': o.opentype = true; break;
       case 'stdout': o.stdout = true; break;
       case 'help': o.help = true; break;
       case 'version': o.version = true; break;
@@ -132,6 +136,7 @@ async function main() {
     for (const p of pages) if (!fs.existsSync(p)) { console.error(`mpost-wasm: cannot open ${p}`); process.exit(1); }
     const mp = await MetaPost.create({
       texmfDir: o.texmf || undefined, bundleBaseUrl: o.bundles ? 'file://' + path.resolve(o.bundles) + '/' : undefined,
+      bundles: o.opentype ? [...DEFAULT_BUNDLES, 'opentype', 'otf-fonts'] : undefined,
       logLevel, logger,
     });
     const r = await prerender(pages, { mp, figuresDir: o.figures ? path.resolve(o.figures) : undefined, force: o.force, dryRun: o.dryRun, report: (l) => process.stdout.write(l + '\n') });
@@ -143,6 +148,7 @@ async function main() {
   const mp = await MetaPost.create({
     numberSystem: o.numbersystem, tex: o.tex, interaction: o.interaction, haltOnError: o.halt,
     texmfDir: o.texmf || undefined, bundleBaseUrl: o.bundles ? 'file://' + path.resolve(o.bundles) + '/' : undefined,
+    bundles: o.opentype ? [...DEFAULT_BUNDLES, 'opentype', 'otf-fonts'] : undefined,
     deterministic: false, logLevel, logger,
   });
   if (o.version) { console.log(`MetaPost ${mp.version.metapost} (mp-tikz-wasm) with ${mp.version.tex}`); mp.dispose(); return; }

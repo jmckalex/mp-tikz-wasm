@@ -185,6 +185,58 @@ stdout stays the transcript, and leaves MetaPost's own errors and warnings out
 because the transcript carries them, as with `mpost`. The tags take
 `data-log="debug"` on the loader script and `mpTikzWasm.setLogLevel()` later.
 
+### 4.1 OpenType fonts: the `opentype` and `otf-fonts` bundles
+
+`\usepackage{fontspec}` with real OTF/TTF faces works under `engine:
+'lualatex'` (and `'luatex'`) once the `opentype` bundle is loaded. It is not a
+default bundle, and the reason is behavioural rather than about size: LaTeX
+under LuaTeX probes for luaotfload at start-up, so a findable luaotfload is an
+*initialised* luaotfload on every run — measured here, a document with no
+`fontspec` in it went from 214 ms to 396 ms and from 6.6 MB fetched to 11.9 MB.
+Graph drawing would pay that for nothing, so the caller asks:
+
+```js
+import { MetaPost, DEFAULT_BUNDLES } from 'mp-tikz-wasm';
+
+const mp = await MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'opentype'] });
+const r = await mp.latex(doc, { engine: 'lualatex' });
+```
+
+| bundle | holds | when |
+| --- | --- | --- |
+| `opentype` | luaotfload, `lualibs`, `lua-uni-algos`, `fontspec`, `unicode-math`, `lualatex-math`, the Unicode tables, and the twelve Latin Modern faces fontspec's defaults name | any `fontspec` document |
+| `otf-fonts` | the other 60 Latin Modern optical sizes and `latinmodern-math` | `unicode-math`, or a wider range of optical sizes |
+
+`otf-fonts` is separate because luaotfload indexes every face it can see to
+build its name database: a face that ships is a face that is read on the first
+render, named by the document or not. An application that supplies its own
+faces wants the machinery and none of the fonts.
+
+**A face the host supplies.** `addFiles()` writes into the TeX run's working
+directory, and `TEXMFDOTDIR` leads `OPENTYPEFONTS`/`TTFONTS` in the bundled
+`texmf.cnf`, so a relative `Path=` finds it:
+
+```js
+await mp.addFiles({ 'Charter.ttf': bytes });   // browser: queryLocalFonts(); Node: readFileSync
+await mp.latex(String.raw`
+  \documentclass{article}\usepackage{fontspec}
+  \setmainfont{Charter.ttf}[Path=./]
+  \begin{document}...\end{document}`, { engine: 'lualatex', fonts: 'woff2' });
+```
+
+**`fonts: 'woff2'` is what makes it match the page.** dvisvgm then embeds a
+subset of the face as `@font-face` and emits real `<text>`, so the diagram is
+rasterised by the browser's own text renderer from the same font file the
+page's CSS loads. The default `'paths'` writes glyph outlines: self-contained
+and identical everywhere, but unhinted and about five times larger. Either
+way the glyph *positions* are TeX's, written out one by one — the SVG does not
+reflow.
+
+**The font cache.** Parsing a face costs about a second and each TeX run gets a
+fresh filesystem, so the instance carries luaotfload's `/texmf-var` cache from
+one run to the next (1052 ms → 430 ms on a repeat; `trace` logs its size). It
+lives as long as the instance and is not yet persisted across sessions.
+
 ## 5. The CLI
 
 `mpost-wasm` should be a drop-in for `mpost` for the flags people actually use:

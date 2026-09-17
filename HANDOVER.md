@@ -1,17 +1,20 @@
 # Handover
 
 Written 2026-09-13 (third session), revised 2026-09-15 (fourth and fifth
-sessions), 2026-09-16 (sixth) and 2026-09-17 (seventh and eighth). This
+sessions), 2026-09-16 (sixth) and 2026-09-17 (seventh, eighth and ninth). This
 file lives at the repository root; until session 5 it was
 `docs/15-handover.md`. Everything below is verified unless marked otherwise.
 Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State now (end of session 8, 2026-09-17):** everything is committed, pushed
-and released; the working tree is clean and `main` is in sync with `origin`
-at ff8a98b (a handover commit; the last code commit is 5e514df, the LuaTeX
-rule fix, and ff0271a is the 0.2.1 release commit). **v0.2.1 is released**
+**State now (end of session 9, 2026-09-17):** the working tree is clean, but
+**HEAD is the branch `opentype-fonts`, not `main`**. That branch adds OpenType
+fonts under LuaTeX (luaotfload, `fontspec`, host-supplied system faces) and is
+committed but **not merged, not pushed and not released**; see "What happened
+in session 9". `main` itself is unchanged from session 8: in sync with
+`origin` at ff8a98b (a handover commit; the last code commit is 5e514df, the
+LuaTeX rule fix, and ff0271a is the 0.2.1 release commit). **v0.2.1 is released**
 (tag on ff0271a; the GitHub assets match the local archives in size and the
 tarball's sha256), the website is restaged and synced to both hosts and
 checked against the repository copies, and **CI is green** on every commit.
@@ -361,6 +364,72 @@ text-mode `\hrule` trapped too. Every construct that fails ships a DVI
 8. **Loose end 15 found on the way**: the two LuaTeX format dumps are not
    reproducible run to run. Harmless; noted, not fixed.
 
+## What happened in session 9 (2026-09-17, on branch `opentype-fonts`)
+
+**OpenType fonts under LuaTeX** — the user asked whether porting XeTeX would
+let LaTeX produce SVG in the fonts the browser shows. It would, but XeTeX was
+the wrong lever: the answer is luaotfload on the LuaTeX that is already here.
+**Nothing is merged and nothing is released**; the branch is committed and the
+tree is clean.
+
+1. **No engine work at all.** The wasm LuaTeX already compiles all 160
+   `luafontloader` sources (the FontForge-derived OpenType reader) plus the
+   `luafflib` binding that exposes them as Lua's `fontloader` table, and
+   luaotfload's default `mode=node` shapes in Lua on top of exactly that. Zero
+   harfbuzz objects in the build, so `mode=harf` stays out. What was missing
+   was macro and Lua packages, not engine support.
+2. **`build-texmf.sh`** copies `luaotfload`, `lualibs`, `luatexbase`,
+   `lua-uni-algos` (not optional and not obvious: it supplies `lua-uni-case`,
+   which `luaotfload-database.lua` requires), `fontspec`, `unicode-math`,
+   `lualatex-math` from `tex/lualatex` (a subtree nothing else here used), and
+   the Latin Modern OpenType family.
+3. **Two opt-in bundles**, `opentype` (13.6 MB: the machinery, the Unicode
+   tables and the twelve Latin Modern faces fontspec's own defaults name) and
+   `otf-fonts` (6.8 MB: the other 60 optical sizes and `latinmodern-math`).
+   **Neither is in `DEFAULT_BUNDLES`, and that is the important design
+   decision.** LaTeX under LuaTeX probes for luaotfload at start-up, so a
+   findable luaotfload is an initialised one on every run: a document with no
+   `fontspec` in it went 214 ms → 396 ms and 6.6 MB → 11.9 MB fetched. Measured,
+   then reverted; the default engine is byte-for-byte what it was.
+   `DEFAULT_BUNDLES` is now exported from the package so callers can write
+   `bundles: [...DEFAULT_BUNDLES, 'opentype']`.
+4. **The Unicode tables were the one real trap.** `build-bundles.mjs` had
+   always skipped `tex/generic/unicode-data/` as build-time-only. True of the
+   `.tex` loaders, false of the `.txt` tables: `luaotfload-multiscript.lua`
+   opens `Scripts.txt` and `ScriptExtensions.txt` through `kpse.find_file` at
+   run time, and `lua-uni-algos` builds the name it wants at run time, so the
+   set is not decidable at build time — all the `.txt` files ship. This is why
+   it worked against a mounted `texmfDir` long before it worked from bundles.
+5. **A font cache that survives the run** (`core.ts`): parsing a face costs
+   about a second and every TeX run gets a fresh filesystem, so luaotfload was
+   rebuilding from nothing each time. `MetaPostCore` now carries `/texmf-var`
+   between LuaTeX runs in a `Map`. Repeats went **1052 ms → 430 ms**; the cache
+   is ~1.7 MB for one face and is logged at `trace`. It lives as long as the
+   instance — persisting it (NODEFS, IndexedDB) is not done.
+6. **Host-supplied faces**: `addFiles()` writes into `/work`, which is the cwd,
+   and `TEXMFDOTDIR` leads `OPENTYPEFONTS`/`TTFONTS`, so
+   `\setmainfont{X.ttf}[Path=./]` finds a face handed over as bytes. That is
+   the Electron path — `queryLocalFonts()` in the renderer, bytes in, and with
+   `fonts: 'woff2'` dvisvgm embeds a subset of that same file as `@font-face`
+   with real `<text>`, so the SVG rasterises through the browser's own text
+   renderer in the font the page's CSS loads. 34.9 KB of outlines against
+   6.8 KB of webfont on one line. The glyph *positions* stay TeX's: no reflow.
+7. **`mpost-wasm --opentype`** loads both bundles from the CLI.
+8. **A stale filter that had become a bug**: `core.ts` dropped every diagnostic
+   matching `/luaotfload/`, on the reasoning that it was only ever the
+   not-bundled probe. With luaotfload present that swallowed real errors
+   (a missing face reported nothing). Narrowed to the probe-failure lines, and
+   there is a test for it.
+9. **Verified.** 252 tests pass (+7 new in `test/e2e/opentype.test.ts`; the two
+   prefetch tests that used to skip now run, `hot.json` having been rebuilt).
+   Both goldens pass: MetaPost 15/15, TikZ **11/11 against the native oracle**,
+   including the new `11-opentype-fontspec`, byte-identical to TeX Live 2025's
+   `dvilualatex` + dvisvgm. `golden-tikz.mjs` gives OpenType cases their own
+   engine so the opt-in bundles cannot disturb the other ten cases.
+10. **Not done**: not merged to `main`, not released, the site is untouched, and
+    the drop-in tags have no way to ask for the bundles (no `data-bundles`
+    attribute) — so this is a library and CLI feature only, for now.
+
 ## CI — green as of 2026-09-17 (session 8; first green in session 4)
 
 `.github/workflows/ci.yml` runs two jobs on every push, both green:
@@ -583,8 +652,13 @@ and sync the website (`make sync-all`) after a release.
    builds all four engines from a clean checkout on Ubuntu each run
    (`libs/lua53`, `pplib`, `zziplib` are configured explicitly by
    `scripts/native-common.sh`).
-8. **No OpenType font loading**: LuaTeX runs without luaotfload; `fontspec`,
-   `unicode-math` and system fonts are out. Text uses the Type 1 fonts.
+8. ~~**No OpenType font loading**~~ — **done in session 9** (branch
+   `opentype-fonts`, not yet merged): `fontspec`, `unicode-math` and
+   host-supplied system fonts all work under LuaTeX through luaotfload, in the
+   opt-in `opentype` / `otf-fonts` bundles. No engine change was needed — the
+   wasm LuaTeX had compiled `luafontloader` and `luafflib` all along. Still
+   out: HarfBuzz shaping (`mode=harf`), because this is `luatex`, not
+   `luahbtex`. See "What happened in session 9" and `docs/14` §15.
 9. **pplib's licence** is not stated in the vendored source; NOTICE.md
    calls it permissive on the strength of its upstream README.
 10. **Artifact viewer quirks** (claude.ai only): a fresh ~8 MB page can take
@@ -663,6 +737,10 @@ and sync the website (`make sync-all`) after a release.
   design; `docs/08` §5.1 the user-facing account.
 - `patches/luatex/` — the one LuaTeX patch (session 8), applied to copies by
   `scripts/build-luatex-wasm.sh`; `docs/14` §14 has the analysis.
+- `test/e2e/opentype.test.ts`, `src/ts/bundles-config.ts` — OpenType fonts
+  (session 9): the opt-in bundles and why they are opt-in. `docs/14` §15 has
+  the design, `docs/08` §4.1 the user-facing account, the README a worked
+  example including the host-supplied-face path.
 - `test/leak/` — the native leak harness (README there).
 - `~/Sites/jmckalex/CLAUDE.md` — the website's conventions (rsync
   Makefiles, the droplet, what never to upload).
@@ -705,6 +783,12 @@ and the site synced. Still open:
   no luaotfload, so `fontspec`/`unicode-math`/OpenType stay out, and fetching
   arbitrary/newer files breaks the byte-identical-to-TL2025 guarantee (fine for
   an explicit "arbitrary" mode).
+- **Merge, or don't, the `opentype-fonts` branch** (session 9). It is complete
+  and tested — 252 tests, both goldens including a new byte-identical
+  OpenType case — but it has not been reviewed, merged, pushed or released,
+  the website is untouched, and the drop-in tags cannot ask for the bundles
+  yet (no `data-bundles` attribute; the natural next piece of work, along with
+  persisting luaotfload's font cache across sessions).
 - **Re-pin Clew** (session 8, item 5): the one step of the 0.2.1 release
   still open; then flip its ```` ```tex ```` fence back to `luatex`.
 - **Deploy the manual viewer** to `eschatolog.ist/software/mp-tikz-wasm/manual/`

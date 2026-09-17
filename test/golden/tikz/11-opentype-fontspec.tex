@@ -1,0 +1,14 @@
+% OpenType text through luaotfload (docs/14 §15): fontspec loading a real OTF
+% face, which is exactly what cases 09 and 10 had to pin Type 1 fonts to avoid.
+% The face is named by family rather than by path so that both sides resolve it
+% through luaotfload's own database to the same TeX Live 2025 file -- our copy
+% of lmroman10-regular.otf in the `opentype` bundle is that file byte for byte.
+% fontspec selects the engine: the harness runs this under dvilualatex.
+\documentclass[border=3pt]{standalone}
+\usepackage{fontspec}
+\setmainfont{Latin Modern Roman}
+\begin{document}
+Quick brown fox --- ligatures fi ffl ffi, kerning AVATAR Wave To.
+
+\textit{Italic}, \textbf{bold}, \textbf{\textit{both}}, and 0123456789.
+\end{document}

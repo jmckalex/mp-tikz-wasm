@@ -5,6 +5,7 @@
 
 export type BundleName =
   | 'core' | 'cm-tfm' | 'cm-type1' | 'tex-plain' | 'latex-core' | 'latex-extra'
+  | 'opentype' | 'otf-fonts'
   | (string & {});
 
 export interface BundleSpec {
@@ -226,7 +227,8 @@ export interface LatexRunOptions {
    *  plain TeX with e-TeX extensions (TeX Live's etex; PGF needs them); 'tex' is Knuth-compatible
    *  plain.fmt. 'lualatex' and 'luatex' run LuaTeX in DVI mode (TeX Live's dvilualatex/dviluatex),
    *  which is what TikZ's graphdrawing library and \directlua need; text is set in the Type 1
-   *  fonts (no OpenType loader is bundled). 'auto' picks 'lualatex' when the source uses
+   *  fonts unless the `opentype` bundle is loaded, which adds luaotfload and so \usepackage{fontspec}
+   *  with real OTF/TTF faces. 'auto' picks 'lualatex' when the source uses
    *  graphdrawing, \directlua or luacode, 'plain' for a \bye document, 'latex' otherwise. */
   engine?: 'latex' | 'plain' | 'etex' | 'tex' | 'lualatex' | 'luatex' | 'auto';
   /** PGF system driver. 'dvisvgm' (default) prepends \def\pgfsysdriver{pgfsys-dvisvgm.def} so TikZ

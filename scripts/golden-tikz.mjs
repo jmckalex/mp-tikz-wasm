@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { MetaPost } from '../dist/index.js';
+import { DEFAULT_BUNDLES } from '../dist/bundles-config.js';
 
 const REPO = path.resolve(new URL('..', import.meta.url).pathname);
 const CASES = path.join(REPO, 'test/golden/tikz');
@@ -29,11 +30,13 @@ const normalise = (s) => s.replace(/<!--[^>]*-->/g, '').replace(/<defs>\n([\s\S]
 });
 const DVISVGM_ARGS = ['--no-mktexmf', '--exact-bbox', '-v3', '--page=1-', '--no-fonts'];
 
-// LuaTeX cases (graphdrawing, \directlua) run with TeX Live's dvilualatex, or dviluatex when the
-// case is plain TeX (ends in \bye). The LaTeX format loads
-// luaotfload and would set OpenType Latin Modern; ours has no font loader, so such cases must
-// pin the Type 1 fonts with \usepackage[T1]{fontenc}\usepackage{lmodern} to compare equal.
-const needsLua = (src) => /\\usegdlibrary|graphdrawing|\\directlua/.test(src);
+// LuaTeX cases (graphdrawing, \directlua, fontspec) run with TeX Live's dvilualatex, or
+// dviluatex when the case is plain TeX (ends in \bye). Both formats load luaotfload and
+// set OpenType Latin Modern, so a case that wants the Type 1 fonts has to pin them with
+// \usepackage[T1]{fontenc}\usepackage{lmodern} (cases 09 and 10) -- or ask for OpenType
+// deliberately, which is case 11 and needs the opt-in bundles on our side.
+const needsOtf = (src) => /\\usepackage\{(fontspec|unicode-math)\}|\\setmainfont|\\setmathfont/.test(src);
+const needsLua = (src) => /\\usegdlibrary|graphdrawing|\\directlua/.test(src) || needsOtf(src);
 function oracle(caseFile, plain) {
   const dir = fs.mkdtempSync(path.join(OUT, 'oracle-'));
   // the same driver line the library injects (docs/14 §7), same first line
@@ -54,6 +57,13 @@ function oracle(caseFile, plain) {
 fs.mkdirSync(OUT, { recursive: true });
 fs.mkdirSync(EXPECTED, { recursive: true });
 const mp = await MetaPost.create({ logLevel: 'silent' });
+// `opentype` is opt-in, and deliberately so: with it loaded LaTeX finds luaotfload and
+// initialises it on every run, which would change every other case here. A second engine
+// keeps that confined to the cases that ask for it.
+let mpOtf = null;
+const engineFor = async (src) => needsOtf(src)
+  ? (mpOtf ??= await MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'opentype', 'otf-fonts'], logLevel: 'silent' }))
+  : mp;
 let pass = 0, fail = 0;
 const files = fs.readdirSync(CASES).filter((f) => f.endsWith('.tex') && (only.length === 0 || only.some((o) => f.includes(o)))).sort();
 for (const f of files) {
@@ -62,10 +72,11 @@ for (const f of files) {
   const plain = /\\bye\s*$/.test(src.trim());
   const engine = needsLua(src) ? (plain ? 'luatex' : 'lualatex') : plain ? 'plain' : 'latex';
   let r, rs;
+  const engineMp = await engineFor(src);
   try {
-    r = await mp.latex(src, { engine, snapshot: 'none' });
+    r = await engineMp.latex(src, { engine, snapshot: 'none' });
     // the pre-warmed tikz.fmt must produce exactly the same pages as plain latex.fmt
-    rs = await mp.latex(src, { engine });
+    rs = await engineMp.latex(src, { engine });
   } catch (e) { fail++; console.log(`FAIL ${name}: threw ${e?.message ?? e}`); continue; }
   const ours = r.pages.map(normalise);
   const snapPages = rs.pages.map(normalise);
@@ -91,5 +102,6 @@ for (const f of files) {
   else { pass++; console.log(`ok   ${name} (${ours.length} page${ours.length === 1 ? '' : 's'}, ${r.status}, TeX ${r.stats.texMs.toFixed(0)} ms, dvisvgm ${r.stats.dvisvgmMs.toFixed(0)} ms${snapNote})`); }
 }
 mp.dispose();
+mpOtf?.dispose();
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

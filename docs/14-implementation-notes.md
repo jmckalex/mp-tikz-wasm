@@ -295,10 +295,12 @@ header) and a `language.dat.lua`. `texmf.cnf` gains `TEXINPUTS.dvilualatex`,
 `LUAINPUTS` and friends; PGF's graphdrawing Lua tree (212 files) was already
 in the bundles under `tex/generic/pgf`.
 
-No OpenType font loader: `luaotfload` (7 MB of Lua plus a font database that
-scans directories) is not bundled. LaTeX's kernel probes for it at the start
-of every job, prints "Error in luaotfload: reverting to OT1" into the log and
-falls back to the Type 1 fonts; that line is filtered from the diagnostics.
+No OpenType font loader **by default**: `luaotfload` (7 MB of Lua plus a font
+database that scans directories) is not in the default bundles. LaTeX's kernel
+probes for it at the start of every job, prints "Error in luaotfload: reverting
+to OT1" into the log and falls back to the Type 1 fonts; that line is filtered
+from the diagnostics. §15 adds it as the opt-in `opentype` bundle — the probe
+then succeeds and `fontspec` works, which is exactly why it stays opt-in.
 Consequence for the oracle comparison: TeX Live's `dvilualatex` format does
 load luaotfload and sets OpenType Latin Modern by default, so a golden case
 must pin `\usepackage[T1]{fontenc}\usepackage{lmodern}` to compare equal —
@@ -544,3 +546,122 @@ so the walk order varies. Same words, same behaviour, different bytes; the
 goldens pass with any dump. The consequence is only that the `luatex`
 bundle's bytes, and so a release archive's digest, cannot be reproduced from
 source (HANDOVER loose end 15).
+
+## 15. OpenType fonts under LuaTeX (session 9)
+
+`fontspec` with real OTF/TTF faces, from the engine that was already here. No
+new engine and no patch: the wasm LuaTeX build has compiled all 160
+`luafontloader` sources (the FontForge-derived OpenType reader) and the
+`luafflib` binding that exposes them as Lua's `fontloader` table since the
+LuaTeX port itself. luaotfload's default `mode=node` shapes in Lua on top of
+exactly that, so HarfBuzz — which this build does not have, it is plain
+`luatex` rather than `luahbtex` — is only needed for `mode=harf`. What was
+missing was the macro and Lua packages, not engine support.
+
+### What ships
+
+`build-texmf.sh` copies four Lua packages (`luaotfload`, `lualibs`,
+`luatexbase`, `lua-uni-algos`), `fontspec` and `unicode-math` from
+`tex/latex`, `lualatex-math` from `tex/lualatex` (a subtree nothing else here
+used, and `\usepackage{unicode-math}` stops dead without it), and the Latin
+Modern OpenType family. `lua-uni-algos` is not optional and not obvious: it
+supplies `lua-uni-case`, which `luaotfload-database.lua` requires and which
+nothing else pulls in.
+
+Two bundles, because they are wanted at different times:
+
+| bundle | holds | size |
+| --- | --- | --- |
+| `opentype` | the Lua and macro packages, the Unicode tables, and the twelve Latin Modern faces `fontspec`'s own defaults name | 13.6 MB |
+| `otf-fonts` | the other 60 Latin Modern optical sizes and `latinmodern-math` (what `unicode-math` wants) | 6.8 MB |
+
+The twelve default faces travel with the machinery because `\usepackage{fontspec}`
+alone sets up TU-encoded Latin Modern and fails at once if the faces are
+absent — it asks for `lmroman10-regular`, `-bold`, `-italic`, `lmmono10-regular`
+and `lmsans10-regular` before `\setmainfont` is ever reached. Twelve faces is
+1.1 MB against 7.9 MB for the whole family.
+
+### The Unicode tables
+
+`build-bundles.mjs` had always skipped `tex/generic/unicode-data/` as
+build-time-only (it is what the format build reads). That is true of the `.tex`
+loaders and false of the `.txt` tables: `luaotfload-multiscript.lua` opens
+`Scripts.txt` and `ScriptExtensions.txt` through `kpse.find_file` at run time,
+and `lua-uni-algos` builds the name it wants at run time too, so which tables a
+document needs is not decidable at build time. All the `.txt` files now ride in
+`opentype`; being bundle files they are fetched individually on demand, so 3.3 MB
+is a ceiling rather than a cost. This is also why the feature worked against a
+mounted `texmfDir` long before it worked from bundles — a mounted tree has the
+whole of `unicode-data` in it.
+
+### Why it is opt-in, and it is not about size
+
+LaTeX under LuaTeX probes for luaotfload at start-up, so merely making it
+*findable* is enough to make every `lualatex` run load and initialise it.
+Measured here on a document with no `fontspec` in it:
+
+| default bundles | first run | fetched |
+| --- | --- | --- |
+| without `opentype` | 214 ms | 6.6 MB |
+| with `opentype` | 396 ms | 11.9 MB |
+
+Graph drawing, which is what most LuaTeX documents here actually want, would
+pay that for nothing. So neither bundle is in `DEFAULT_BUNDLES`:
+
+```js
+MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'opentype'] })              // fontspec
+MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'opentype', 'otf-fonts'] }) // and unicode-math
+```
+
+`otf-fonts` is separate for a related reason: luaotfload indexes every face it
+can see to build its name database, so a face that ships is a face that is read
+on the first render whether or not the document names it. An application
+supplying its own faces at run time wants the machinery and none of the fonts.
+
+### The font cache
+
+Parsing an OpenType face in Lua costs about a second, and every TeX run here
+gets a fresh filesystem, so luaotfload was rebuilding its cache from nothing
+every time. `MetaPostCore` now carries `/texmf-var` (TEXMFVAR in the bundled
+`texmf.cnf`, where luaotfload writes) from one LuaTeX run to the next in a
+`Map`, installed in `setup` and collected in `collect`. Repeated renders of one
+document went 1052 ms → 430 ms; the cache is 10 files, about 1.7 MB for a single
+face, and is logged at `trace`. It lives as long as the instance. Persisting it
+across sessions — NODEFS in Node, IndexedDB in the browser — is the obvious next
+step and is not done.
+
+### Supplying a face at run time
+
+`addFiles()` writes into `/work`, which is the TeX run's working directory, and
+`TEXMFDOTDIR` leads `OPENTYPEFONTS` and `TTFONTS` in the bundled `texmf.cnf`.
+So a host hands a face over as bytes and names it with a relative path:
+
+```js
+await mp.addFiles({ 'Charter.ttf': bytes });        // e.g. from queryLocalFonts()
+await mp.latex(String.raw`\usepackage{fontspec}\setmainfont{Charter.ttf}[Path=./]...`,
+               { engine: 'lualatex', fonts: 'woff2' });
+```
+
+`fonts: 'woff2'` matters here. The default `paths` mode writes glyph outlines,
+which are self-contained but carry no hinting and no text-specific
+antialiasing; `woff2` makes dvisvgm embed a subset of the face as `@font-face`
+and emit real `<text>`, so the SVG renders through the browser's own text
+rasteriser in the same font file the page's CSS loads. Measured on one line of
+New York: 34.9 KB of outlines against 6.8 KB of embedded webfont.
+
+What the SVG does *not* take from the browser is layout. XDV-style native-font
+positioning aside, dvisvgm writes an explicit position per glyph, so the page
+carries the browser's font with TeX's typesetting: no reflow, no rewrapping.
+That is normally the point, but it is worth being clear about.
+
+### Verified
+
+`test/e2e/opentype.test.ts` (7 cases: family-name lookup, a host-supplied face,
+`woff2` embedding, cache reuse, `unicode-math`, the untouched default engine,
+and a real luaotfload failure still being reported). Golden case
+`11-opentype-fontspec` is byte-identical to TeX Live 2025's `dvilualatex` +
+dvisvgm; the harness gives OpenType cases their own engine so the opt-in
+bundles cannot disturb the other ten. The blanket `/luaotfload/` diagnostic
+filter in `core.ts` was narrowed to the probe-failure lines — with luaotfload
+actually present it was swallowing real errors, including a missing face.
+

@@ -15,6 +15,9 @@ import { postProcessSvg } from './render/svg.js';
 import { Logger, silentLogger, ms, plural } from './logger.js';
 import type { MetaPostOptions, RunOptions, RunResult, FigureResult, Diagnostic, RunStats, Figure, OutputFormat, ProgressEvent, LatexRunOptions, LatexResult } from './types.js';
 
+/** TEXMFVAR in the bundled texmf.cnf — where luaotfload keeps its font cache. */
+const TEXMF_VAR = '/texmf-var';
+
 /** Where MetaPost looks for each file type (docs/06 §2). */
 export const SEARCH_PATHS: Record<number, string[]> = {
   [MpFtype.program]: ['/work', `${TEXMF_ROOT}/metapost/base`, `${TEXMF_ROOT}/metapost`],
@@ -65,6 +68,12 @@ export class MetaPostCore {
   private bridge?: TexBridge;
   readonly version: { metapost: string; tex: string; build: string } = { metapost: '', tex: 'pdfTeX 1.40.27 (DVI)', build: '' };
   private userFiles = new Set<string>();
+  /**
+   * luaotfload's font cache (TEXMF_VAR), carried from one LuaTeX run to the
+   * next. Parsing an OpenType face costs about a second, and every TeX run
+   * gets a fresh filesystem, so without this each render pays that again.
+   */
+  private texmfVar = new Map<string, Uint8Array>();
   private get logger(): Logger { return this.env.logger ?? silentLogger; }
 
   constructor(private env: CoreEnv) {}
@@ -138,6 +147,23 @@ export class MetaPostCore {
     } else {
       mkdirp(FS, TEXMF_ROOT);
     }
+  }
+
+  /** Restore the font cache this instance has accumulated (LuaTeX runs only). */
+  private installTexmfVar(FS: EmscriptenFS): void {
+    mkdirp(FS, TEXMF_VAR);
+    for (const [p, bytes] of this.texmfVar) writeFileDeep(FS, p, bytes);
+  }
+
+  /** Keep whatever luaotfload wrote, so the next run starts warm. */
+  private collectTexmfVar(FS: EmscriptenFS): void {
+    const kept = new Map<string, Uint8Array>();
+    try {
+      for (const p of listFiles(FS, TEXMF_VAR)) kept.set(p, FS.readFile(p, { encoding: 'binary' }) as Uint8Array);
+    } catch { return; }          // nothing was written; keep what we had
+    let bytes = 0; for (const v of kept.values()) bytes += v.length;
+    this.logger.trace('host', `font cache: ${plural(kept.size, 'file')}, ${(bytes / 1024).toFixed(0)} KB`);
+    this.texmfVar = kept;
   }
 
   private copyUserFiles(T: TexModule): void {
@@ -362,8 +388,9 @@ export class MetaPostCore {
       program: lua ? '/bin/luatex' : '/bin/pdftex',
       // LuaTeX has no -parse-first-line option (%& lines are honoured through texmf.cnf instead)
       args: [`-fmt=${fmt}`, `-progname=${progname}`, '-interaction=nonstopmode', ...(lua ? [] : ['-parse-first-line']), `-jobname=${job}`, `${job}.tex`],
-      setup: (M) => { mkdirp(M.FS, '/work'); this.installTexmf(M.FS, M.NODEFS); this.copyUserFiles(M); writeFileDeep(M.FS, `/work/${job}.tex`, doc); M.FS.chdir('/work'); },
+      setup: (M) => { mkdirp(M.FS, '/work'); this.installTexmf(M.FS, M.NODEFS); if (lua) this.installTexmfVar(M.FS); this.copyUserFiles(M); writeFileDeep(M.FS, `/work/${job}.tex`, doc); M.FS.chdir('/work'); },
       collect: (M) => {
+        if (lua) this.collectTexmfVar(M.FS);
         try { dvi = M.FS.readFile(`/work/${job}.dvi`, { encoding: 'binary' }) as Uint8Array; } catch { dvi = null; }
         try { texLog = M.FS.readFile(`/work/${job}.log`, { encoding: 'utf8' }) as string; } catch { texLog = ''; }
         for (const p of listFiles(M.FS, '/work')) {
@@ -378,8 +405,11 @@ export class MetaPostCore {
     const diagnostics = parseTexLogDocument(texLog || tex.log, `${job}.tex`).filter((d) => {
       // environmental noise, not the document's doing: there is never a shell here
       if (/^shellesc: Shell escape disabled/.test(d.message)) return false;
-      // LuaLaTeX probes for the OpenType font loader, which is not bundled, and falls back to the Type 1 fonts
-      if (/luaotfload/.test(d.message)) return false;
+      // Without the `opentype` bundle LuaLaTeX probes for the OpenType font loader, does
+      // not find it and reverts to OT1 and the Type 1 fonts. That is environmental, not the
+      // document's doing. Anything else luaotfload says -- a missing face, a bad feature --
+      // is about this document and has to get through.
+      if (/luaotfload/.test(d.message) && /not found|reverting to OT1/.test(d.message)) return false;
       // the snapshot preloads pgfplots; its compat notice only concerns documents that use it
       if (fmt === 'tikz' && /^pgfplots: running in backwards compatibility mode/.test(d.message) && !/pgfplots/.test(source)) return false;
       return true;
