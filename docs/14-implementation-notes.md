@@ -730,13 +730,45 @@ stock TeX Live 2025 the same way, so it is not this port's doing:
 | plain (`luatex`) | DVI | "Module luatexbase Error: Unable to register callback", then "not loadable" |
 | LaTeX (`dvilualatex`) | DVI | works |
 
-LaTeX has `ltluatex` compiled into its format; plain inputs it at run time, and
-in DVI mode a registration that PDF mode allows is refused. Inputting `ltluatex`
-first, and `mode=base`, were both tried and neither helps. Since the pipeline is
-DVI → dvisvgm, the working combination is unreachable: **OpenType is a
-`lualatex` feature here, not a `luatex` one.** Worth revisiting if the PDF
-backend is ever wired up (a "smaller" next step in the handover), because that
-is the combination that works.
+The registration that is refused is a single one, and naming it took
+instrumenting `luatexbase.add_to_callback` to print its argument before
+delegating: at `\font` time, `luaotfload-dvi.lua:105` (`delayed_register_callback`)
+calls `add_to_callback('pre_shipout_filter', …, 'luaotfload.dvi')`.
+`pre_shipout_filter` is **not a LuaTeX core callback**. The LaTeX kernel creates
+it — `latex.ltx:19683`, `luatexbase.create_callback('pre_shipout_filter', 'list')`
+— and calls it from its own shipout. Plain TeX creates nothing of the sort, so
+the call raises, the Lua chunk aborts, and the font is never defined. luaotfload
+guards it nowhere, which is arguably an upstream bug given that
+`luaotfload.sty` carries an explicit plain-TeX branch.
+
+The hook is not ignorable. It runs `full_vprocess`, which remaps native glyphs
+onto synthetic 256-character fonts so that they can be written as **standard**
+DVI — which is why a working `dvilualatex` DVI comes out as format version 2
+and dvisvgm reads it with no XDV anywhere in sight.
+
+Creating the callback and calling it before shipout is enough to make plain work
+(verified natively: no errors, a valid DVI, real outlines through dvisvgm):
+
+```tex
+\input luaotfload.sty
+\directlua{luatexbase.create_callback('pre_shipout_filter', 'list')}
+\font\b="[./Face.ttf]:mode=node" at 12pt
+\output={\directlua{luatexbase.call_callback('pre_shipout_filter', tex.getbox(255))}%
+         \shipout\box255 }
+```
+
+Creating it alone is not enough; the call is the half LaTeX's output routine
+provides. Tried and useless: `\input ltluatex` first (luaotfload does it
+anyway), `mode=base`, and each of the `"file:…"` / `"[file]"` / `"[./file]"`
+lookup forms — the syntax was never the problem, since `"[./X.ttf]:mode=node"`
+is exactly what fontspec emits in the case that works.
+
+Nothing is shipped for this: where the shim belongs is a real decision (the
+format build, a `.tex` in the `opentype` bundle, or upstream), and putting it in
+`dviluatex.fmt` would make our plain format differ from TeX Live's, which the
+`09-luatex-rules` golden compares against. HANDOVER loose end 11 lays out the
+options. **As things stand OpenType is a `lualatex` feature here, not a
+`luatex` one.**
 
 ### Verified
 

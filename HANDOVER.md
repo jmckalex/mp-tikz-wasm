@@ -439,15 +439,76 @@ tree is clean.
     `@font-face` because the face index is not part of dvisvgm's font key, so
     bold and italic draw garbled glyphs; `fonts: 'paths'` is fine. Workaround
     is one file per face. Both are written up in `docs/14` §15.
-11. **Plain LuaTeX cannot have OpenType, and it is upstream's doing.** Not
-    because fontspec is LaTeX-only — luaotfload loads fine in plain TeX and
-    registers its callbacks — but because the plain format with DVI output
-    refuses a callback registration that PDF output allows ("Module luatexbase
-    Error: Unable to register callback"). Stock TeX Live 2025 fails identically;
-    plain + PDF works, `dvilualatex` + DVI works. Since the pipeline is
-    DVI → dvisvgm, OpenType is a `lualatex` feature here and not a `luatex` one.
-    `docs/14` §15 has the table. This is the one thing that would change if the
-    pdfTeX/LuaTeX PDF backend were ever wired up.
+11. **Plain LuaTeX cannot have OpenType — diagnosed to one missing callback,
+    not yet fixed.** Session 9 took this to root cause and has a working
+    proof of concept; what is left is deciding where the fix belongs. A new
+    session can start here.
+
+    **Symptom.** Under `engine: 'luatex'` (plain, `dviluatex.fmt`), any native
+    font fails with `Module luatexbase Error: Unable to register callback`
+    followed by `Font \b=... not loadable: metric data not found or bad.`
+
+    **Scope, measured on stock TeX Live 2025 (so it is not this port's doing —
+    the wasm build fails identically):**
+
+    | format | output | result |
+    | --- | --- | --- |
+    | plain (`luatex`) | PDF | works |
+    | plain (`luatex`) | DVI | fails |
+    | LaTeX (`dvilualatex`) | DVI | works |
+
+    **Root cause.** `luaotfload-dvi.lua:105` (`delayed_register_callback`, run
+    lazily at `\font` time) does
+    `luatexbase.add_to_callback('pre_shipout_filter', …, 'luaotfload.dvi')`.
+    `pre_shipout_filter` is **not a LuaTeX core callback**: it is created by the
+    LaTeX kernel at `latex.ltx:19683`
+    (`luatexbase.create_callback('pre_shipout_filter', 'list')`) and called from
+    LaTeX's shipout. In plain TeX nobody creates it, so `add_to_callback`
+    raises, the Lua chunk aborts and the font never gets defined. luaotfload
+    guards this nowhere — arguably an upstream bug worth reporting, since
+    `luaotfload.sty` advertises plain support.
+
+    Why the hook matters rather than being ignorable: it runs `full_vprocess`,
+    which remaps native glyphs onto synthetic 256-character fonts so they can be
+    expressed in **standard** DVI. That is why a working `dvilualatex` DVI is
+    format version 2 and dvisvgm reads it with no XDV involved.
+
+    **Proof of concept that works** (native `luatex --output-format=dvi`; no
+    errors, valid DVI, real glyph outlines through dvisvgm):
+
+    ```tex
+    \input luaotfload.sty
+    \directlua{luatexbase.create_callback('pre_shipout_filter', 'list')}
+    \font\b="[./Face.ttf]:mode=node" at 12pt
+    \output={\directlua{luatexbase.call_callback('pre_shipout_filter', tex.getbox(255))}%
+             \shipout\box255 }
+    \b Hi fi ffl.
+    \bye
+    ```
+
+    Creating the callback alone is not enough — it has to be *called* before
+    shipout, which is the half LaTeX's output routine provides.
+
+    **Already tried, none of it helps:** `\input ltluatex` before
+    `luaotfload.sty` (luaotfload does this itself anyway); `mode=base` instead
+    of `mode=node`; the `"file:…"`, `"[file]"` and `"[./file]"` lookup forms.
+    The lookup syntax was never the problem — `"[./X.ttf]:mode=node"` is exactly
+    what fontspec emits in the case that works.
+
+    **Open questions for whoever fixes it.** Where does the shim live? Options:
+    (a) in `dviluatex.fmt` at build time, which is the tidiest for users but
+    makes our plain format differ from TeX Live's — check `09-luatex-rules`
+    still matches the oracle, since the golden compares against TeX Live's own
+    `dviluatex`; (b) a small `.tex` the user `\input`s, shipped in the
+    `opentype` bundle, which keeps the format honest at the cost of a visible
+    incantation; (c) upstream in luaotfload, which is the right long-term home
+    and no help this year. Also: plain's output routine is `\plainoutput`, so a
+    real fix must wrap that rather than replacing `\output` as the proof of
+    concept does.
+
+    Consequence today, and it is in `docs/16` for Clew: OpenType is a
+    `lualatex` feature here, not a `luatex` one, so a ` ```tex ` fence cannot
+    have it. `docs/14` §15 has the analysis.
 12. **Not done**: not merged to `main`, not released, the site is untouched, and
     the drop-in tags have no way to ask for the bundles (no `data-bundles`
     attribute) — so this is a library and CLI feature only, for now.
@@ -808,6 +869,9 @@ and the site synced. Still open:
   no luaotfload, so `fontspec`/`unicode-math`/OpenType stay out, and fetching
   arbitrary/newer files breaks the byte-identical-to-TL2025 guarantee (fine for
   an explicit "arbitrary" mode).
+- **Fix plain LuaTeX + OpenType** (loose end 11): diagnosed to one missing
+  callback, with a working proof of concept and three candidate homes for the
+  shim. The owner has asked for a session on this. Start at loose end 11.
 - **Merge, or don't, the `opentype-fonts` branch** (session 9). It is complete
   and tested — 252 tests, both goldens including a new byte-identical
   OpenType case — but it has not been reviewed, merged, pushed or released,
