@@ -111,6 +111,44 @@ describe.skipIf(!built)('OpenType fonts (luaotfload)', () => {
     expect(r.texLog).toMatch(/reverting to OT1/);
   }, 120_000);
 
+  it('works under plain LuaTeX, headline included', async () => {
+    // Stock TeX Live cannot do this: luaotfload's DVI module registers on
+    // `pre_shipout_filter`, a callback only the LaTeX kernel creates and calls.
+    // patches/texmf/0001 gives luaotfload.sty the same hook for plain TeX. The
+    // headline matters: it is added by the output routine, after everything a
+    // pre_output_filter would have seen, so it proves the hook runs at shipout.
+    const mp = await create(['opentype']);
+    const r = await mp.latex(String.raw`\input luaotfload.sty
+\font\body="[lmroman10-regular.otf]:mode=node;+liga;+kern" at 10pt
+\font\hd="[lmroman10-bold.otf]:mode=node" at 8pt
+\headline={\hd Header in the bold face\hfil page \folio}
+\body Quick brown fox, fi ffl ffi, AVATAR.\par
+\vfill\eject
+Page two.
+\bye`, { engine: 'luatex' });
+    expect(r.status).toBe('ok');
+    expect(r.pages).toHaveLength(2);
+    expect(r.pages[0]).toContain('<path');
+    expect(r.pages[1]).toContain('<path');
+    expect(r.texLog).not.toMatch(/Unable to register callback|not loadable/);
+    expect(r.texLog).toMatch(/luaotfload\.dvi' in `pre_shipout_filter'/);
+  }, 120_000);
+
+  it('works under plain LuaTeX with an output routine that ships \\box255', async () => {
+    // the other branch of the \shipout wrapper: a box that is already built
+    const mp = await create(['opentype']);
+    const r = await mp.latex(String.raw`\input luaotfload.sty
+\font\body="[lmroman10-regular.otf]:mode=node;+liga;+kern" at 10pt
+\output={\shipout\box255 \global\advance\pageno by 1 }
+\body Custom output routine: fi ffl, AVATAR.\par
+\vfill\eject
+\body Page two.
+\bye`, { engine: 'luatex' });
+    expect(r.status).toBe('ok');
+    expect(r.pages).toHaveLength(2);
+    expect(r.pages[1]).toContain('<path');
+  }, 120_000);
+
   it('still reports a real luaotfload failure', async () => {
     // the blanket luaotfload filter used to swallow these
     const mp = await create(['opentype']);

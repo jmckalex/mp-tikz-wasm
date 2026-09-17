@@ -34,14 +34,19 @@ const DVISVGM_ARGS = ['--no-mktexmf', '--exact-bbox', '-v3', '--page=1-', '--no-
 // dviluatex when the case is plain TeX (ends in \bye). Both formats load luaotfload and
 // set OpenType Latin Modern, so a case that wants the Type 1 fonts has to pin them with
 // \usepackage[T1]{fontenc}\usepackage{lmodern} (cases 09 and 10) -- or ask for OpenType
-// deliberately, which is case 11 and needs the opt-in bundles on our side.
-const needsOtf = (src) => /\\usepackage\{(fontspec|unicode-math)\}|\\setmainfont|\\setmathfont/.test(src);
+// deliberately, which is cases 11 and 12 and needs the opt-in bundles on our side.
+const needsOtf = (src) => /\\usepackage\{(fontspec|unicode-math)\}|\\setmainfont|\\setmathfont|\\input luaotfload/.test(src);
 const needsLua = (src) => /\\usegdlibrary|graphdrawing|\\directlua/.test(src) || needsOtf(src);
 function oracle(caseFile, plain) {
   const dir = fs.mkdtempSync(path.join(OUT, 'oracle-'));
   // the same driver line the library injects (docs/14 §7), same first line
   const src = fs.readFileSync(caseFile, 'utf8');
   fs.writeFileSync(path.join(dir, 'doc.tex'), '\\def\\pgfsysdriver{pgfsys-dvisvgm.def}' + src);
+  // Plain LuaTeX + OpenType (case 12) fails in stock TeX Live: luaotfload's DVI module
+  // wants the pre_shipout_filter callback only the LaTeX kernel creates. Our texmf tree
+  // carries luaotfload.sty with that hook added (patches/texmf/0001); give the oracle the
+  // same file next to its document, where kpathsea looks first. Nothing else differs.
+  if (plain && needsOtf(src)) fs.copyFileSync(path.join(REPO, 'build/texmf/tex/luatex/luaotfload/luaotfload.sty'), path.join(dir, 'luaotfload.sty'));
   const env = { ...process.env, SOURCE_DATE_EPOCH: '1735689600', FORCE_SOURCE_DATE: '1' };
   const prog = needsLua(src) ? (plain ? 'dviluatex' : 'dvilualatex') : plain ? 'etex' : 'latex';
   try { execFileSync(prog, ['-interaction=nonstopmode', 'doc.tex'], { cwd: dir, stdio: 'ignore', env }); } catch { /* errors are part of some cases */ }

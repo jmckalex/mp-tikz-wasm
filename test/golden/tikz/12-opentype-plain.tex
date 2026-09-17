@@ -1,0 +1,15 @@
+% OpenType text from plain LuaTeX (docs/14 §15): luaotfload loaded with \input,
+% faces named by file, and a bold header set by the output routine -- material
+% only a hook at shipout time can see. Stock TeX Live 2025 cannot typeset this
+% to DVI (luaotfload's DVI module needs a callback only the LaTeX kernel
+% creates), so the harness puts our patched luaotfload.sty (patches/texmf/0001)
+% next to the oracle's document; the engines are otherwise stock on both sides.
+\input luaotfload.sty
+\font\body="[lmroman10-regular.otf]:mode=node;+liga;+kern;+tlig" at 10pt
+\font\hd="[lmroman10-bold.otf]:mode=node" at 8pt
+\headline={\hd Header in the bold face\hfil page \folio}
+\body Quick brown fox --- ligatures fi ffl ffi, kerning AVATAR Wave To.\par
+Second paragraph, {\hd bold} and back, 0123456789.
+\vfill\eject
+Page two, still native.
+\bye
