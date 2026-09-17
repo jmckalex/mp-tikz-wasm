@@ -29,7 +29,8 @@ const normalise = (s) => s.replace(/<!--[^>]*-->/g, '').replace(/<defs>\n([\s\S]
 });
 const DVISVGM_ARGS = ['--no-mktexmf', '--exact-bbox', '-v3', '--page=1-', '--no-fonts'];
 
-// LuaTeX cases (graphdrawing, \directlua) run with TeX Live's dvilualatex. Its format loads
+// LuaTeX cases (graphdrawing, \directlua) run with TeX Live's dvilualatex, or dviluatex when the
+// case is plain TeX (ends in \bye). The LaTeX format loads
 // luaotfload and would set OpenType Latin Modern; ours has no font loader, so such cases must
 // pin the Type 1 fonts with \usepackage[T1]{fontenc}\usepackage{lmodern} to compare equal.
 const needsLua = (src) => /\\usegdlibrary|graphdrawing|\\directlua/.test(src);
@@ -39,7 +40,7 @@ function oracle(caseFile, plain) {
   const src = fs.readFileSync(caseFile, 'utf8');
   fs.writeFileSync(path.join(dir, 'doc.tex'), '\\def\\pgfsysdriver{pgfsys-dvisvgm.def}' + src);
   const env = { ...process.env, SOURCE_DATE_EPOCH: '1735689600', FORCE_SOURCE_DATE: '1' };
-  const prog = needsLua(src) ? 'dvilualatex' : plain ? 'etex' : 'latex';
+  const prog = needsLua(src) ? (plain ? 'dviluatex' : 'dvilualatex') : plain ? 'etex' : 'latex';
   try { execFileSync(prog, ['-interaction=nonstopmode', 'doc.tex'], { cwd: dir, stdio: 'ignore', env }); } catch { /* errors are part of some cases */ }
   const pages = [];
   if (fs.existsSync(path.join(dir, 'doc.dvi'))) {
@@ -59,7 +60,7 @@ for (const f of files) {
   const name = path.basename(f, '.tex');
   const src = fs.readFileSync(path.join(CASES, f), 'utf8');
   const plain = /\\bye\s*$/.test(src.trim());
-  const engine = needsLua(src) ? 'lualatex' : plain ? 'plain' : 'latex';
+  const engine = needsLua(src) ? (plain ? 'luatex' : 'lualatex') : plain ? 'plain' : 'latex';
   let r, rs;
   try {
     r = await mp.latex(src, { engine, snapshot: 'none' });

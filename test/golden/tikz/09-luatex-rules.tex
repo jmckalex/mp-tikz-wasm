@@ -1,0 +1,12 @@
+% LuaTeX, plain format (dviluatex): every construct that ships a DVI rule.
+% Before patches/luatex/0001 each of these trapped luatex.wasm with "null
+% function or function signature mismatch" (docs/14 §14). \directlua selects
+% LuaTeX for the library and dviluatex for the oracle.
+\directlua{tex.print("Rules under LuaTeX:")}
+\baselineskip=14pt \parindent=0pt
+$\sqrt{2}$, $\sqrt[3]{x+1}$, ${a\over b}$, $\overline{xy}$, $\underline{z}$, $\vrule width 2pt$\par
+\hrule height 0.8pt\par
+\underbar{under} and \vrule width 3pt height 6pt depth 1pt\ and
+\hbox to 4cm{leaders\leaders\hrule\hfil end}\par
+$$\sqrt{{1\over 2}+\overline{\underline{q}}}$$
+\bye

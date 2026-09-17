@@ -479,3 +479,56 @@ Single-figure elements, the common case, save as valid files.
 only thing that starts the engines there, and `?live` removes the attribute
 before the loader runs (module scripts are deferred, so an inline classic
 script can still edit the tag) to typeset everything in the tab.
+
+## 14. LuaTeX rules trapped in DVI mode (session 8)
+
+Every rule shipped by `luatex.wasm` — `\hrule`, `\vrule`, leaders, and in
+maths `\sqrt`, `\over`, `\overline`, `\underline` — threw `null function or
+function signature mismatch` under both LuaTeX formats. Text without a rule
+was fine, which is why it survived the golden corpus (the graphdrawing case
+draws no rule) and the e2e suite (nothing ran `engine: 'luatex'`). It was
+first reported as "plain LuaTeX traps on any math" with the guess that the
+format was to blame; the construct matrix showed the same failures under
+`dvilualatex.fmt` and a plain `\hrule` failing too, which moved the suspect
+from the format to the ship-out.
+
+The cause is in `luatexdir/tex/backend.h`: the back-end dispatch table is an
+array of `backend_function`, typedef'd as the unprototyped `void (*)()`. The
+ship-out in `pdf/pdflistout.c` calls `backend_out[rule_node](pdf, p, size,
+rule_callback_id)` — four arguments, the arity of the PDF back-end's
+`pdf_place_rule` — while `dvi/dvigen.c`'s `dvi_place_rule(pdf, q, size)`
+takes three. A native build passes the extra argument in a register nobody
+reads. WebAssembly has no such slack: `call_indirect` compares the callee's
+type with the call site's, and a three-parameter function called through a
+four-parameter signature traps. (The struct argument `scaledpos` is not the
+problem: the wasm32 C ABI passes it by pointer at both ends.) Two other
+callers, a virtual-font rule packet in `font/vfpacket.c` and `vf.rule()` in
+`lua/lfontlib.c`, pass three arguments, so they had the mirror-image mismatch
+against the PDF back-end; they are only reachable in PDF mode, which this
+project never uses, but the patch fixes them too. Every other slot (glyphs,
+the two whatsits, the eight control functions) matches its callers.
+
+The fix is `patches/luatex/0001-backend-dvi-rule-slot-arity.patch`: a
+four-parameter wrapper in `backend.c` fills the DVI rule slot and the two
+three-argument callers pass four. `scripts/build-luatex-wasm.sh` applies
+`patches/luatex/*.patch` to copies under `build/luatex/patched` (the vendored
+tree is never modified) and compiles a source from its patched copy under the
+same object name and flags, so an incremental build recompiles only the
+patched files. The wrapper rather than a prototype change because
+`dvi/dvigen.h` is reached through `ptexlib.h` in the vendored directory, where
+a patched header would never be found; three `.c` files patch cleanly. The
+link flag `-sEMULATE_FUNCTION_POINTER_CASTS` would also have hidden it, at a
+cost on every indirect call; the source fix is exact.
+
+Guards: `test/e2e/api.test.ts` now runs `$\sqrt{2}$`, `\over` and `\hrule`
+under `luatex` and `\frac`, `\underline` under `lualatex` (written before the
+fix, it failed with the trap). The TikZ golden gained `09-luatex-rules` (plain
+LuaTeX, every rule construct) and `10-lualatex-rules`, both byte-identical to
+TeX Live's `dviluatex` / `dvilualatex` + dvisvgm; `scripts/golden-tikz.mjs`
+runs a plain case that needs LuaTeX under `luatex` / `dviluatex`. Case 10 pins
+Latin Modern in OT1 rather than T1: the oracle's format loads luaotfload,
+which changes the order font ids are allocated, so a page mixing a T1 text
+font with the OT1 maths roman comes out with two DVI font numbers swapped —
+identical glyphs and positions, different `g3-`/`g4-` ids. That is the
+no-luaotfload limitation (§10), not a rule problem; with OT1 the text and the
+maths digits share one font and the pages agree.

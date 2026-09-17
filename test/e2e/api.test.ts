@@ -126,4 +126,19 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     expect(r.status).toBe('ok');
     expect(r.pages).toHaveLength(1);
   }, 60_000);
+
+  it('LuaTeX in DVI mode ships rules: math and text, under both formats', async () => {
+    // The DVI back-end's rule slot took three arguments while the ship-out passes four;
+    // native C drops the extra one, WebAssembly's call_indirect traps on the mismatch. So
+    // every \hrule, \sqrt, \over, \overline and \underline under luatex or lualatex threw
+    // "null function or function signature mismatch" (patches/luatex/0001, docs/14 §14).
+    const plain = await mp.latex('x $\\sqrt{2}$ and ${a\\over b}$\\par\\hrule\\par y\n\\bye', { engine: 'luatex' });
+    expect(plain.status).toBe('ok');
+    expect(plain.pages).toHaveLength(1);
+    expect(plain.pages[0]).toContain('<rect');          // dvisvgm draws DVI rules as rects
+    const latex = await mp.latex('\\documentclass{article}\\pagestyle{empty}\\begin{document}$\\frac{1}{2}$ \\underline{u}\\end{document}', { engine: 'lualatex' });
+    expect(latex.status).toBe('ok');
+    expect(latex.pages).toHaveLength(1);
+    expect(latex.pages[0]).toContain('<rect');
+  }, 60_000);
 });

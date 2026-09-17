@@ -1,0 +1,75 @@
+LuaTeX: give the DVI back-end's rule slot the arity its callers use
+
+backend_function is an unprototyped pointer, `void (*)()`. The ship-out in
+pdflistout.c calls backend_out[rule_node] with four arguments, matching
+pdf_place_rule; dvi_place_rule takes three. A native build drops the extra
+argument on the floor, but WebAssembly's call_indirect checks the callee's
+signature and traps with "null function or function signature mismatch" on
+every rule shipped in DVI mode: \hrule, \vrule, \sqrt, \over, \overline,
+\underline, leaders. The two three-argument callers (a virtual-font rule
+packet and vf.rule() from Lua) had the mirror-image problem in PDF mode.
+
+Applied by scripts/build-luatex-wasm.sh to copies under build/luatex/patched;
+the vendored tree is never modified. Reproduce the defect with
+`mp.latex('x $\\sqrt{2}$\n\\bye', { engine: 'luatex' })` on luatex.wasm built
+without it.
+
+diff --color -ruN a/luatexdir/font/vfpacket.c b/luatexdir/font/vfpacket.c
+--- a/luatexdir/font/vfpacket.c
++++ b/luatexdir/font/vfpacket.c
+@@ -240,7 +240,7 @@
+                 if (ex_glyph != 0 && size.h > 0)
+                     size.h = round_xn_over_d(size.h, 1000 + ex_glyph, 1000);
+                 if (size.h > 0 && size.v > 0)
+-                    backend_out[rule_node](pdf, 0, size);
++                    backend_out[rule_node](pdf, 0, size, 0);   /* four arguments, like the ship-out: wasm checks the arity */
+                 mat_p->pos.h += size.h;
+                 break;
+             case packet_right_code:
+diff --color -ruN a/luatexdir/lua/lfontlib.c b/luatexdir/lua/lfontlib.c
+--- a/luatexdir/lua/lfontlib.c
++++ b/luatexdir/lua/lfontlib.c
+@@ -467,7 +467,7 @@
+     size.h = store_scaled_f(size.h, vsp->fs_f);
+     size.v = store_scaled_f(size.v, vsp->fs_f);
+     if (size.h > 0 && size.v > 0)
+-        backend_out[rule_node](static_pdf, 0, size);    /* the 0 is unused */
++        backend_out[rule_node](static_pdf, 0, size, 0);    /* the 0s are unused; four arguments, like the ship-out: wasm checks the arity */
+     mat_p = &(vsp->packet_stack[vsp->packet_stack_level]);
+     mat_p->pos.h += size.h;
+     synch_pos_with_cur(static_pdf->posstruct, vsp->refpos, mat_p->pos);
+diff --color -ruN a/luatexdir/tex/backend.c b/luatexdir/tex/backend.c
+--- a/luatexdir/tex/backend.c
++++ b/luatexdir/tex/backend.c
+@@ -58,11 +58,30 @@
+     p->control_fu[backend_control_set_reference_point] = &pdf_set_reference_point;
+ }
+ 
++/*tex
++
++    The ship-out (|pdflistout.c|) calls the rule slot with four arguments,
++    |(pdf, p, size, rule_callback_id)|, the arity of the pdf backend's
++    |pdf_place_rule|; |dvi_place_rule| takes three. Through the unprototyped
++    |backend_function| pointer a native build silently drops the extra
++    argument, but WebAssembly's |call_indirect| checks the signature and traps
++    ("null function or function signature mismatch") on every rule shipped in
++    DVI mode. This wrapper gives the DVI slot the arity its callers use; the
++    two three-argument callers (|vfpacket.c|, |lfontlib.c|) pass four now too.
++
++*/
++
++static void dvi_place_rule_slot(PDF pdf, halfword q, scaledpos size, int callback_id)
++{
++    (void) callback_id;
++    dvi_place_rule(pdf, q, size);
++}
++
+ static void init_dvi_backend_functions(void)
+ {
+     backend_struct *p = &backend[OMODE_DVI];
+     p->name = strdup("DVI");
+-    p->node_fu[rule_node] = &dvi_place_rule;
++    p->node_fu[rule_node] = &dvi_place_rule_slot;
+     p->node_fu[glyph_node] = &dvi_place_glyph;
+     p->whatsit_fu[special_node] = &dvi_special;
+     p->whatsit_fu[late_special_node] = &dvi_special;

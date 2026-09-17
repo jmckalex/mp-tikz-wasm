@@ -92,9 +92,21 @@ add "stub-ffi" "$REPO/src/c/luatex/ffi-stub.c" "$LUADEFS"
 TOTAL=$(wc -l < "$OUT/compile-list.tsv" | tr -d ' ')
 echo "==> compiling $TOTAL files with $EMCC ($OPT)"
 OBJS=()
+# ---- source patches: patches/luatex/*.patch are applied to copies under
+# $OUT/patched (the vendored tree is never modified); a source that has a
+# patched copy is compiled from the copy, under the same object name and flags.
+PL="$OUT/patched"; rm -rf "$PL"; mkdir -p "$PL"
+for p in "$REPO"/patches/luatex/*.patch; do
+  [ -f "$p" ] || continue
+  echo "==> applying $(basename "$p")"
+  for f in $(sed -n 's|^+++ b/\([^[:space:]]*\).*|\1|p' "$p"); do mkdir -p "$PL/$(dirname "$f")"; [ -f "$PL/$f" ] || cp "$W2C/$f" "$PL/$f"; done
+  patch -s -p1 -d "$PL" < "$p"
+done
+
 n=0
 while IFS=$'\t' read -r name src flags; do
   obj="$OUT/obj/$name.o"; OBJS+=("$obj")
+  rel="${src#$W2C/}"; [ -f "$PL/$rel" ] && src="$PL/$rel"   # a patched copy replaces its source
   if [ ! -f "$obj" ] || [ "$src" -nt "$obj" ]; then
     # shellcheck disable=SC2086
     $EMCC $COMMON $flags -c -o "$obj" "$src" &

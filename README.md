@@ -406,6 +406,13 @@ With all three leak patches an instance leaks nothing: macOS `leaks` reports
 0 bytes over 31 instances, and 200,000 consecutive jobs on one engine leave the
 allocator's bytes in use unchanged (`scripts/soak-memory.mjs`).
 
+One patch applies to LuaTeX, in `patches/luatex/` (applied by
+`scripts/build-luatex-wasm.sh` to copies under `build/luatex/patched`):
+
+| # | File | Why |
+| --- | --- | --- |
+| luatex 0001 | `backend.c`, `vfpacket.c`, `lfontlib.c` | **wasm-only defect:** the back-end dispatch table is an unprototyped `void (*)()`; the ship-out calls its rule slot with four arguments and the DVI implementation takes three. Native C drops the extra argument, WebAssembly's `call_indirect` traps, so every rule in DVI mode (`\hrule`, `\sqrt`, `\over`, `\overline`, `\underline`, leaders) threw "null function or function signature mismatch". A four-argument wrapper fills the slot; the two three-argument callers pass four |
+
 ## Licence
 
 This project's own code is LGPL-3.0-or-later (`LICENSE`). The wasm modules

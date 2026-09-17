@@ -1,0 +1,16 @@
+% LuaTeX, LaTeX format (dvilualatex): rules in maths and text, the same trap
+% as 09 under the other format. Latin Modern is pinned as Type 1 because the
+% oracle's format would otherwise pick OpenType Latin Modern through
+% luaotfload — and in OT1, not T1: luaotfload also changes the order in which
+% font ids are allocated, so a page mixing a T1 text font with the OT1 maths
+% roman comes out with two font numbers swapped (identical glyphs, identical
+% positions) and cannot be compared byte for byte. With OT1 the text and the
+% maths digits share one font. \directlua selects LuaTeX.
+\documentclass[border=3pt]{standalone}
+\usepackage[OT1]{fontenc}
+\usepackage{lmodern}
+\begin{document}
+\directlua{tex.print("Rules:")}
+$\frac{1}{2}$, $\sqrt{2}$, $\overline{ab}$, \underline{text}, \rule{1cm}{0.4pt},
+$\begin{array}{c|c} a & b \\ \hline c & d \end{array}$
+\end{document}
