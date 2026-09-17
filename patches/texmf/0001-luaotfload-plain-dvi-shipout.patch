@@ -1,0 +1,53 @@
+--- a/tex/luatex/luaotfload/luaotfload.sty
++++ b/tex/luatex/luaotfload/luaotfload.sty
+@@ -50,3 +50,50 @@
+   texio.write_nl('Error in luaotfload - loading aborted')%
+   end %
+ }
++%%
++%% ----------------------------------------------------------------------------
++%%
++%% Plain TeX with DVI output (mp-tikz-wasm patch; see patches/texmf/).
++%%
++%% luaotfload-dvi.lua rewrites every native-font glyph onto a synthetic
++%% 256-glyph font at shipout, so that the page can be written as standard
++%% DVI. It does this from the `pre_shipout_filter' callback, which is not one
++%% of LuaTeX's own: the LaTeX kernel creates it (ltshipout) and calls it
++%% from its \shipout. Under plain TeX nobody does either, so the registration
++%% fails ("Unable to register callback") and no OpenType font can be defined.
++%% Create the callback here and call it from a \shipout wrapper, as LaTeX
++%% does -- only when not under LaTeX, in DVI mode, and if nothing else has
++%% created it already.
++%%
++\ifx\ProvidesPackage\undefined
++  \ifnum\directlua{tex.sprint((tex.outputmode == 0 and
++      not luatexbase.callbacktypes.pre_shipout_filter) and 1 or 0)}=1
++    \edef\luaotfloadrestorecatcode{\catcode64=\the\catcode64\relax}%
++    \catcode64=11 %
++    \directlua{luatexbase.create_callback('pre_shipout_filter', 'list')}%
++    \let\luaotfload@primitive@shipout\shipout
++    \csname newbox\endcsname\luaotfload@shipout@box
++    % \shipout<box>: put the box in a register first (the everyshi/atbegshi
++    % idiom: for \shipout\vbox{...} the test runs inside the box, so it
++    % defers the rest to after the group), then filter and ship it.
++    \def\shipout{%
++      \afterassignment\luaotfload@shipout@test
++      \global\setbox\luaotfload@shipout@box=}%
++    \def\luaotfload@shipout@test{%
++      \ifvoid\luaotfload@shipout@box
++        \expandafter\aftergroup
++      \fi
++      \luaotfload@shipout@do}%
++    \def\luaotfload@shipout@do{%
++      \directlua{
++        local n = \number\luaotfload@shipout@box
++        local head = tex.getbox(n)
++        if head then
++          local result = luatexbase.call_callback('pre_shipout_filter', head)
++          if not (result == head) then tex.setbox(n, result or nil) end
++        end
++      }%
++      \luaotfload@primitive@shipout\box\luaotfload@shipout@box}%
++    \luaotfloadrestorecatcode
++  \fi
++\fi

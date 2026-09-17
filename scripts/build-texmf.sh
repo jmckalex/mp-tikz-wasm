@@ -92,6 +92,22 @@ done
 for d in lm lm-math; do
   [ -d "$TEXMF/fonts/opentype/public/$d" ] && cp -R "$TEXMF/fonts/opentype/public/$d" "$OUT/fonts/opentype/public/$d"
 done
+# Patches to the macro packages copied above: patches/texmf/*.patch, unified
+# diffs against this tree, applied with -p1. One so far: luaotfload.sty gains
+# the shipout hook its DVI module needs and only the LaTeX kernel provides, so
+# OpenType fonts work under plain LuaTeX as well (docs/14 §15). A patch whose
+# target is missing from this TeX Live is skipped; one that fails to apply
+# stops the build rather than shipping a silently stock file.
+for p in "$REPO"/patches/texmf/*.patch; do
+  [ -f "$p" ] || continue
+  target="$(sed -n 's|^+++ b/||p' "$p" | head -1)"
+  if [ -f "$OUT/$target" ]; then
+    echo "==> applying $(basename "$p")"
+    patch -s -t -p1 -d "$OUT" < "$p"
+  else
+    echo "  skipping $(basename "$p"): $target is not in this TeX Live" >&2
+  fi
+done
 
 # pgf's and pgfplots' generic parts live under tex/generic
 for d in pgf pgfplots; do [ -d "$TEXMF/tex/generic/$d" ] && cp -R "$TEXMF/tex/generic/$d" "$OUT/tex/generic/$d"; done
