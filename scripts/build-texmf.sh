@@ -88,9 +88,18 @@ for d in lualatex-math; do
   [ -d "$TEXMF/tex/lualatex/$d" ] && cp -R "$TEXMF/tex/lualatex/$d" "$OUT/tex/lualatex/$d"
 done
 # Latin Modern in OpenType, so fontspec and unicode-math work with no host fonts
-# at all; their own bundle, so a page that only uses supplied faces skips them.
+# at all (the text family rides with the machinery, the maths font on its own).
+# Searched in every configured TeX tree, not just TEXMFDIST: Ubuntu's
+# fonts-lmodern installs these under /usr/share/texmf, as it does the Type 1
+# faces below, and a tree without them ships an opentype bundle that fails at
+# the first \setmainfont.
 for d in lm lm-math; do
-  [ -d "$TEXMF/fonts/opentype/public/$d" ] && cp -R "$TEXMF/fonts/opentype/public/$d" "$OUT/fonts/opentype/public/$d"
+  t="$(tree_with "fonts/opentype/public/$d" || true)"
+  if [ -n "$t" ]; then
+    cp -R "$t/fonts/opentype/public/$d" "$OUT/fonts/opentype/public/$d"
+  else
+    echo "  warning: OpenType Latin Modern ($d) not found in any TeX tree — install lmodern / fonts-lmodern; fontspec documents will fail" >&2
+  fi
 done
 # Patches to the macro packages copied above: patches/texmf/*.patch, unified
 # diffs against this tree, applied with -p1. One so far: luaotfload.sty gains
