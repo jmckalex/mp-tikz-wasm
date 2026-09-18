@@ -22,8 +22,7 @@ golden 15/15. **Nothing on the branch is merged, pushed or released, and CI
 has never built it.** Both Clew apps have verified it end to end against
 the local `dist/` and wait on a release (0.3.0, from the branch); the one
 thing to do before that release is the prebuilt luaotfload name database
-("Suggested next steps"), and the one CI risk to expect is the Latin Modern
-OpenType faces on Ubuntu (loose end 18). `main` is unchanged from session
+("Suggested next steps"). `main` is unchanged from session
 8: in sync with `origin` at ff8a98b (the last code commit is 5e514df, the
 LuaTeX rule fix; ff0271a is the 0.2.1 release commit). **v0.2.1 is
 released** (tag on ff0271a; the GitHub assets match the local archives),
@@ -673,11 +672,23 @@ Everything below is verified unless marked otherwise.
    run read "255 passed, 2 skipped" for that reason. `npm run build:hot`
    restores it. The hot lists have no OpenType kind: the `opentype` bundle
    is fetched on demand, or up front with `mp.preload(['opentype'])`.
-10. **Not done / open**: not merged, pushed or released; CI has never built
+10. **A CI break found and fixed before it was seen.** Consolidating this
+    file turned up that `build-texmf.sh` copied the OpenType Latin Modern
+    faces from `TEXMFDIST` only, while Ubuntu's `fonts-lmodern` (pulled in by
+    the `lmodern` CI installs) puts them under `/usr/share/texmf/fonts/
+    opentype/public/{lm,lm-math}` — checked against the package's file list
+    on packages.ubuntu.com — exactly where session 4 found the Type 1 faces
+    and handled them with `tree_with`. On the runner the `opentype` bundle
+    would have shipped without a single face. The two OpenType directories
+    now go through the same `tree_with` search, with a warning when neither
+    is found. On this machine the rebuilt tree and bundles are byte-for-byte
+    what they were (72 faces, the maths font, opentype 244 / 20,173,172,
+    otf-fonts 1 / 733,736), and the OpenType and prefetch tests pass. Loose
+    end 18 records it.
+11. **Not done / open**: not merged, pushed or released; CI has never built
     the branch — the texmf patch's applicability on Ubuntu's luaotfload is
-    argued from upstream history, and the Latin Modern OpenType faces may be
-    missing from the CI tree altogether (loose end 18) — so pushing it is
-    the next thing to learn from. The prebuilt name database (item 6) before
+    argued from upstream history — so pushing it is the next thing to learn
+    from. The prebuilt name database (item 6) before
     a release. No upstream report to luaotfload yet (the patch is the
     report). luaotfload's font cache is still per instance. The manifest's
     per-file `sha` is not yet in bundle file URLs (next steps).
@@ -704,10 +715,11 @@ is green.
 **The branch `opentype-fonts` has never been pushed, so CI has never built
 it** (sessions 9 and 10). What its first run will exercise: the texmf patch
 applying to Ubuntu's older luaotfload (the hunk sits on the file's stable
-tail), the Latin Modern OpenType faces being found at all (loose end 18:
-`build-texmf.sh` copies them from `TEXMFDIST` only, and Ubuntu keeps `lm`
-in `/usr/share/texmf`), and the OpenType e2e tests, which skip unless both
-`opentype` and `otf-fonts` manifests exist.
+tail), the Latin Modern OpenType faces being found in `/usr/share/texmf`
+(loose end 18, fixed in session 10 before any push: `build-texmf.sh` now
+searches every TeX tree for them, as it already did for the Type 1 faces),
+and the OpenType e2e tests, which skip unless both `opentype` and
+`otf-fonts` manifests exist.
 
 What was wrong and what fixed it (session 4, five commits f822ff3 →
 c24dbb3, all pushed):
@@ -1010,22 +1022,18 @@ and sync the website (`make sync-all`) after a release.
     prebuilt database shipped in the bundle; "Suggested next steps" has the
     plan. Until then the twelve-face alternative is not an option — it fails
     every non-10pt document.
-18. **CI will not find the Latin Modern OpenType faces on Ubuntu** (found
-    while consolidating this file; the cause is confirmed, the failure not
-    yet seen because the branch has never been pushed). `build-texmf.sh`
-    line 93 copies `fonts/opentype/public/{lm,lm-math}` from `$TEXMF`, which
-    is `TEXMFDIST`, while its Type 1 Latin Modern lookup uses `tree_with`
-    because Ubuntu's `lmodern` installs under `/usr/share/texmf` (session 4,
-    CI fix 6). The OpenType faces are in the same place: the `fonts-lmodern`
-    package (a dependency of `lmodern`, which CI installs) puts them at
-    `/usr/share/texmf/fonts/opentype/public/lm/lmroman10-regular.otf` and
-    `.../lm-math/latinmodern-math.otf` (packages.ubuntu.com, noble). So on
-    the runner the tree has no faces, the `opentype` bundle ships without
-    them, and the OpenType e2e tests either skip (if no `otf-fonts` manifest
-    is written for an empty bundle) or fail at the first `\setmainfont`. The
-    fix is the `tree_with fonts/opentype/public/lm` pattern for the two
-    OpenType directories, a few lines next to the existing `LMTREE` block;
-    then push the branch and watch the wasm job's texmf and e2e steps.
+18. ~~**CI will not find the Latin Modern OpenType faces on Ubuntu**~~ —
+    **fixed in session 10** before the branch was ever pushed, so the
+    failure was never seen. `build-texmf.sh` copied
+    `fonts/opentype/public/{lm,lm-math}` from `$TEXMF` (`TEXMFDIST`) only,
+    while Ubuntu's `fonts-lmodern` — a dependency of the `lmodern` CI
+    installs — puts them under `/usr/share/texmf/fonts/opentype/public/`
+    (its file list on packages.ubuntu.com, noble: `.../lm/lmroman10-
+    regular.otf`, `.../lm-math/latinmodern-math.otf`), where session 4 had
+    already found the Type 1 faces and switched to `tree_with`. The two
+    OpenType directories now use the same search, with a warning when a
+    family is absent. Unverified on a runner until the branch is pushed;
+    verified here to reproduce the same tree and bundles byte for byte.
 
 ## Where to look
 
@@ -1113,8 +1121,9 @@ worth doing:
   (sessions 9 and 10). It is complete and tested — 258 tests, both goldens
   including two byte-identical OpenType cases (LaTeX and plain), both Clew
   apps verified end to end — but it has not been reviewed, merged, pushed or
-  released, CI has never built it (loose end 18 is a certain red until its
-  two-line fix goes in), and
+  released, CI has never built it (loose end 18 was the known red and is
+  fixed; the texmf patch applying to Ubuntu's luaotfload is the remaining
+  unknown), and
   the website is untouched (the guide and the tags page say nothing about
   OpenType yet). "Publishing a release" has the 0.3.0 checklist; both Clew
   apps re-pin to it.
