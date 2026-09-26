@@ -40,7 +40,12 @@ export function wrapTikz(source: string, attrs: Record<string, string> = {}): st
   // graph drawing is used through \graph, which the graphs library provides
   for (const l of ['graphs', 'graphdrawing']) if (gd.length && !libs.includes(l)) libs.push(l);
   const pkgs = (attrs.packages ?? '').split(/[,\s]+/).filter(Boolean);
-  const body = /\\begin\{tikzpicture\}|\\tikz\b|\\begin\{axis\}/.test(source) ? source : `\\begin{tikzpicture}\n${source}\n\\end{tikzpicture}`;
+  // A body that is already a picture is not wrapped in another. \chemfig draws its
+  // own tikzpicture and, nested in a second one, typesets at zero size (a page
+  // holding only the border). Only a body that *starts* with it is left alone:
+  // `\node {\chemfig{...}};` is TikZ code and still needs its picture.
+  const isPicture = /\\begin\{tikzpicture\}|\\tikz\b|\\begin\{axis\}/.test(source) || /^\s*\\chemfig\b/.test(source);
+  const body = isPicture ? source : `\\begin{tikzpicture}\n${source}\n\\end{tikzpicture}`;
   return [
     `\\documentclass[tikz,border=${attrs.border ?? '2pt'}]{standalone}`,
     ...(pkgs.length ? [`\\usepackage{${pkgs.join(',')}}`] : []),

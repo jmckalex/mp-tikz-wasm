@@ -164,6 +164,9 @@ A TikZ body without `\documentclass` is wrapped in a `standalone` document
 (`data-libraries`, `data-packages`, `data-preamble`, `data-border`;
 `data-gdlibraries` adds graph drawing and therefore LuaTeX; `data-engine`
 forces `latex`, `lualatex` or `plain`); a complete document is compiled as is.
+A body that is already a picture (`tikzpicture`, `\tikz`, `axis`, or one that
+starts with `\chemfig`, which draws its own) is not put inside another
+`tikzpicture`.
 The SVG of a wrapped body is the standalone page, border included (default
 `2pt`): TikZ leaves its classic arrow tips (`>=latex`, `stealth`, …) out of
 the picture's bounding box, so the border is what keeps an arrowhead on the

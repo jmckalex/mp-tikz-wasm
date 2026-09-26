@@ -112,6 +112,17 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     expect((r.svg.match(/<path /g) ?? []).length).toBe(2);   // the line and the head
   }, 60_000);
 
+  it('typesets a bare \\chemfig body at its size, not nested in a second tikzpicture', async () => {
+    // chemfig draws its own tikzpicture; wrapped in another it came out as a
+    // 4 x 4 bp page holding only the border
+    const { renderFigure } = await import(path.join(REPO, 'dist/figures.js'));
+    const r = await renderFigure(mp, { kind: 'tikz', source: '\\chemfig{A-B}', attrs: { packages: 'chemfig' } });
+    expect(r.ok).toBe(true);
+    const [, w, h] = /viewBox=['"][-\d.]+ [-\d.]+ ([\d.]+) ([\d.]+)['"]/.exec(r.svg)!;
+    expect(Number(w)).toBeGreaterThan(30);
+    expect(Number(h)).toBeGreaterThan(8);
+  }, 60_000);
+
   it('produces one SVG per page and maps errors to lines', async () => {
     const r = await mp.latex(`\\documentclass{article}\\pagestyle{empty}\\begin{document}one\\newpage two \\undefinedmacro\\end{document}`);
     expect(r.pages).toHaveLength(2);

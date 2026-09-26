@@ -9,6 +9,13 @@ describe('wrapTikz', () => {
   it('wraps bare path commands in a tikzpicture too', () => {
     expect(wrapTikz('\\draw (0,0) circle (1);')).toContain('\\begin{tikzpicture}\n\\draw (0,0) circle (1);\n\\end{tikzpicture}');
   });
+  it('does not nest a bare \\chemfig in a second tikzpicture (it typesets at zero size there)', () => {
+    const d = wrapTikz('\\chemfig{A-B}', { packages: 'chemfig' });
+    expect(d).toContain('\\begin{document}\n\\chemfig{A-B}\n\\end{document}');
+    expect(d).not.toContain('tikzpicture');
+    // TikZ code that uses \chemfig inside a node is still TikZ code
+    expect(wrapTikz('\\node {\\chemfig{A-B}};', { packages: 'chemfig' })).toContain('\\begin{tikzpicture}\n\\node');
+  });
   it('leaves complete documents alone', () => {
     const doc = '\\documentclass{article}\\begin{document}x\\end{document}';
     expect(wrapTikz(doc, { libraries: 'calc' })).toBe(doc);
