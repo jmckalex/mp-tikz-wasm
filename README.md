@@ -243,9 +243,39 @@ and [docs/08](docs/08-javascript-api.md). Two worth knowing: `prefetch:
 ['latex']` fetches the files a first LaTeX run needs in parallel before it
 (the tags do this by themselves), and `timeoutMs` is a stall limit, not a
 total: a run is killed only when nothing happens for that long, so a slow
-first load is never cut short. `sanitizeSvg(svg)` is provided for
-`innerHTML` use, since MetaPost's `special` can inject arbitrary text into the
-output; `MetaPostPool` runs batch work across several workers.
+first load is never cut short. `MetaPostPool` runs batch work across several
+workers.
+
+**Untrusted sources.** Output is only as trustworthy as its source. MetaPost's
+`special` and dvisvgm's `raw` specials (`\special{dvisvgm:raw …}`, which PGF's
+own driver uses) put arbitrary markup into the SVG, so TeX or MetaPost written
+by someone else can produce `<script>`, event handlers or `javascript:` links.
+The tags and `renderFigure()` insert SVG as is: right for a page's own
+diagrams, wrong for anyone else's. Before inserting SVG from an untrusted
+source, sanitise it with [DOMPurify](https://github.com/cure53/DOMPurify):
+
+```js
+import DOMPurify from 'dompurify';
+
+function safeSvg(svg) {
+  const clean = DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true, svgFilters: true }, ADD_TAGS: ['use'] });
+  const t = document.createElement('template');
+  t.innerHTML = clean;
+  // <use> is allowed for the glyphs; only same-document references may stay
+  for (const u of t.content.querySelectorAll('use')) {
+    if (!(u.getAttribute('href') ?? u.getAttribute('xlink:href') ?? '').startsWith('#')) u.remove();
+  }
+  return t.innerHTML;
+}
+```
+
+Checked in Chrome: shadings, patterns, opacity, tikz-cd, MetaPost labels and a
+`fonts: 'woff2'` figure keep every element and attribute (the embedded faces
+load from the kept `<style>`), while a figure whose TeX injected `<script>`,
+`onerror`, a `javascript:` link, an external `<use>` and `foreignObject` loses
+all five and keeps its drawing. `sanitizeSvg()` is **deprecated**: it is a
+regular-expression allow-list, not a security boundary, and it destroys
+shadings, patterns and web fonts. It stays exported, unchanged, until 1.0.
 
 ### Logging
 

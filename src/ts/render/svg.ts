@@ -57,9 +57,16 @@ function trim(v: number): string { let r = v.toFixed(3); r = r.replace(/\.?0+$/,
 function escapeXml(s: string): string { return s.replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]!)); }
 
 /**
- * A conservative sanitiser for innerHTML use (docs/10 §3.1): keeps the SVG
- * elements MetaPost emits and drops everything else (scripts, event handlers,
+ * A regular-expression allow-list over the markup: keeps the SVG elements
+ * MetaPost emits and drops everything else (scripts, event handlers,
  * foreignObject, external references).
+ *
+ * @deprecated Not a security boundary, and too narrow for what the engines
+ * produce: it drops gradients (every PGF shading), patterns, `<style>` (the
+ * faces of `fonts: 'woff2'`) and the geometry of circles, ellipses and lines.
+ * Sanitise untrusted output with DOMPurify instead — the README's
+ * "Untrusted sources" has the configuration. Kept, unchanged, so existing
+ * callers do not break; to be removed at 1.0.
  */
 export function sanitizeSvg(svg: string): string {
   const allowedTags = new Set(['svg', 'g', 'path', 'defs', 'use', 'text', 'title', 'desc', 'clipPath', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'tspan']);

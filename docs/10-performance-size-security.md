@@ -87,7 +87,7 @@ that people will paste from the internet.
 | Infinite loop | Worker + `timeoutMs` + `worker.terminate()`. There is no in-wasm interrupt. |
 | Memory exhaustion | `-sMAXIMUM_MEMORY`, `memoryLimitBytes`, and an allocation hook that aborts cleanly rather than growing forever. |
 | Malicious binary input | `.tfm`, `.pfb`, `.dvi` parsers all read untrusted bytes. Fuzz them (`docs/09` §L5). This is the most likely place for a real memory-safety bug — and wasm contains it to the sandbox, which is a genuine advantage over native `mpost`. |
-| Output injection | SVG output can contain arbitrary text from `special` and from label content. **Never `innerHTML` it without sanitising** — say so in the API docs and ship `result.figures[0].svgSafe` (DOMPurify-equivalent, or a strict allow-list serialiser built from the JSON backend). |
+| Output injection | SVG output can contain arbitrary text from `special` and from label content. **Never `innerHTML` it without sanitising** — say so in the API docs and ship `result.figures[0].svgSafe` (DOMPurify-equivalent, or a strict allow-list serialiser built from the JSON backend). *As built (session 11): no `svgSafe`; the README documents a DOMPurify configuration, verified against shadings, patterns and woff2 text, and the early regex `sanitizeSvg()` is deprecated — it destroyed all three.* |
 
 ### 3.1 The `special` primitive
 
