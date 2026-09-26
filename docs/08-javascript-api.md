@@ -310,6 +310,62 @@ the list. A MetaPost element with several `beginfig` blocks saves the several
 `<svg>` roots it injects, joined by newlines — exact for the tags, but not a
 single SVG document.
 
+### 5.2 The drop-in tags, for reference
+
+`dist/auto.js` (`src/ts/auto.ts`) is the tikzjax-style integration; the
+README ("Drop-in tags") and the guide are the user-facing accounts. The
+contract in one place:
+
+| Form | Renders | After a change |
+| --- | --- | --- |
+| `<script type="text/tikz">`, `<script type="text/metapost">` | once, when found; the script is replaced by a `<figure>` | nothing (it is gone) |
+| `<tikz-diagram>`, `<metapost-diagram>` | when connected (custom elements); the SVG goes in a `<figure>` inside the element | typesets again on new text content, `el.source = …`, or an output-affecting attribute; debounced |
+| the same, with `data-replace` | as above, then the element is replaced by its `<svg>` root(s) | nothing: the SVG is static |
+
+**Element attributes** (`data-` prefix optional on the custom elements):
+`libraries`, `packages`, `preamble`, `border`, `gdlibraries`, `engine`
+(`auto` / `latex` / `lualatex` / `luatex` / `plain`), `fonts` (`paths` /
+`woff2`) for TikZ; `tex`, `prologues` for MetaPost; and for all of them `alt`,
+`cache="off"`, `show-console`, `debounce` (ms, default 200; custom elements),
+`replace` (custom elements). Presentational attributes (`class`, `style`,
+`id`, `title`, `aria-*`, …) never trigger a re-render.
+
+**Wrapping** (`wrapTikz`, `wrapMetaPost` in `figures.ts`): a complete document
+is used as is. A TikZ body is otherwise put in
+`\documentclass[tikz,border=2pt]{standalone}` with its packages, libraries
+and preamble, inside a `tikzpicture` unless it is one (`tikzpicture`, `\tikz`,
+`axis`). A body that starts with `\begin{tikzcd}`, `\begin{circuitikz}`,
+`\chemfig` or `\schemestart` draws its own picture: it is not nested, and gets
+`\documentclass[border=…]{standalone}` + `\usepackage{tikz}`, which crops any
+body. A MetaPost body without `beginfig` becomes one figure, `input` lines
+hoisted above it. The SVG of a wrapped body is the standalone page
+(`--bbox=papersize`), border included.
+
+**Loader attributes** (on the `<script>` that loads `auto.js`): `data-base`,
+`data-bundles` (`+name` adds to `DEFAULT_BUNDLES`), `data-worker="off"`,
+`data-observe="off"`, `data-snapshot="on"`, `data-prefetch="off"`,
+`data-figures`, `data-cache="off"`, `data-log`.
+
+**The `mp-tikz-wasm:rendered` event** bubbles from the `<figure>` (or, with
+`data-replace`, from the `<svg>` after the swap), with `detail`: `kind`, `ok`,
+`ms`, `cached`, `from` (`cache` | `file` | `engine`), `hash`, `name`
+(`figure-HASH.svg`), `update` (a re-render of a live element) and `replaced`.
+
+**`window.mpTikzWasm`**: `render({ kind, source, attrs })`, `setLogLevel()`,
+`figures()` (the figures now shown, from any source), `saveFigures()`,
+`addFiles()`, `figureHash()`, `figureName()`, `autoRender(root)`,
+`wrapTikz()`, `wrapMetaPost()`.
+
+**Ids and classes.** The tags prefix every id in a figure with `mpwHASH-`, so
+that figures on one page cannot collide; classes are left alone. The bundled
+TikZ library `svg.attributes` sets them from TikZ (`svg class`, `svg id`,
+`svg attributes` on a scope, path or node); the README has the details and a
+reveal.js example.
+
+**Untrusted sources.** The tags insert SVG as is. Sanitise SVG from someone
+else's source with DOMPurify (README, "Untrusted sources"); `sanitizeSvg()` is
+deprecated.
+
 ## 6. Extension points
 
 * **`runScript`** — `runscript "…"` in MetaPost calls your function; the

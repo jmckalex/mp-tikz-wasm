@@ -29,7 +29,7 @@
  *   data-preamble="..."                  extra preamble lines for wrapped bodies
  *   data-border="2pt"                    standalone border (default 2pt)
  *   data-gdlibraries="trees,layered"     \usegdlibrary (graphdrawing; implies engine lualatex)
- *   data-engine="auto|latex|lualatex|plain" TikZ: which engine (default auto: lualatex for graphdrawing / \directlua)
+ *   data-engine="auto|latex|lualatex|luatex|plain" TikZ: which engine (default auto: lualatex for graphdrawing / \directlua)
  *   data-tex="latex|plain|none"          MetaPost: btex engine (default auto)
  *   data-prologues="3"                   MetaPost: prologues (default 3)
  *   data-fonts="paths|woff2"             TikZ: text as outlines or web fonts

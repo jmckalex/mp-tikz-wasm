@@ -1,7 +1,8 @@
 # Brief for the Clew-app agent: OpenType fonts in mp-tikz-wasm figures
 
 Written 2026-09-17 (session 9), revised the same day (session 10: plain LuaTeX
-now works too), on the branch `opentype-fonts`. This is the embedder's half of
+now works too) and on 2026-09-26 (session 11: the prebuilt font database, and
+"Since session 11" below), on the branch `opentype-fonts`. This is the embedder's half of
 `docs/14` §15: what the *consumer* of the library has to do,
 written for Clew (`~/Source/Clew/Clew-app`) because Clew is the embedder that
 prompted the feature. Numbered 16 rather than 15 because `docs/15-handover.md`
@@ -141,15 +142,22 @@ Bold Italic 1 — note index 0 is Bold, not Regular, so a bare
 to Helvetica Neue and Menlo. `fonts="paths"` renders collections correctly if
 you would rather avoid the whole problem.
 
-**Fonts must be named, not looked up by family.** luaotfload's name database
-only indexes the bundled font directories, not the files you hand over, so
-`\setmainfont{Avenir Next}` will fail. Always `Path=./` with the filename.
+**Name the file, not the family.** `\setmainfont{X.ttf}[Path=./]` always
+works. A lookup by family name of a face handed over with `addFiles()` goes
+through luaotfload's rescan, which does look in the working directory: in
+session 11 `\setmainfont{Arial}` over an added `Arial.ttf` typeset correctly.
+Avenir Next is a `.ttc` and was not retried, and the rescan re-reads every
+face in the loaded bundles once per engine, so the filename form is still the
+one to emit.
 
-**First render is slow.** Parsing a face costs about a second. Upstream now
-carries luaotfload's cache between runs in one engine instance, which takes
-repeats to ~430 ms, but the first figure on a fresh preview pays the full cost
-on top of the bundle fetch. Clew's result cache and saved figures both still
-work and are the real mitigation.
+**First render costs more than later ones.** Parsing a face costs about a
+second. Two things take the edge off: luaotfload's cache is carried between
+runs in one engine instance (repeats ~430 ms), and since session 11 the
+`opentype` bundle ships luaotfload's name database prebuilt, so a fresh engine
+no longer opens all 72 Latin Modern faces before its first page (a 12pt
+article: 4 faces / 0.44 MB instead of 72 / 7.4 MB). A first figure still pays
+for the faces it uses. Clew's result cache and saved figures remain the real
+mitigation.
 
 **Plain LuaTeX needed a fix, and has had it since session 10.** luaotfload is
 not a LaTeX package: it loads in plain TeX with `\input luaotfload.sty`, and
@@ -180,6 +188,35 @@ in another. `postProcessSvg` now namespaces the font families and classes per
 figure. The tags always pass an `idPrefix`, so Clew gets the fix automatically —
 but it means **any multi-figure note using `fonts="woff2"` was affected before
 this commit**, which is worth knowing if you have seen odd weight-mixing.
+
+## Since session 11
+
+Changes in the library that an embedder of the tags will notice. None needs
+action from Clew, but the first two change behaviour.
+
+- **Custom elements are live.** A `<tikz-diagram>` or `<metapost-diagram>`
+  typesets again when its text content, its `source` property or an
+  output-affecting attribute changes (debounced, 200 ms by default,
+  `data-debounce`). If Clew rewrites an element's content in place rather than
+  replacing the element, it now gets a re-render instead of raw text. The
+  rendered event gains `update` and `replaced`; `mpTikzWasm.figures()` lists
+  only figures still on the page.
+- **Some bodies are wrapped differently.** A body that starts with
+  `\begin{tikzcd}`, `\begin{circuitikz}`, `\chemfig` or `\schemestart` is no
+  longer nested in a second `tikzpicture` (it rendered collapsed or blank) and
+  gets `\documentclass[border=…]{standalone}` + `\usepackage{tikz}`. Those
+  figures' hashes change, so a cached or saved copy of one re-renders once;
+  every other figure keeps its hash.
+- **`data-replace`** swaps a custom element for its `<svg>` after a
+  successful render (id, class, style carried over) — for slides.
+- **`svg.attributes`**, a bundled TikZ library: `svg class`, `svg id` and
+  `svg attributes` on scopes, paths and nodes. Ids get the figure's
+  `mpwHASH-` prefix in the tags; classes do not.
+- **More packages** in the default bundles: chemfig, circuitikz (current
+  release only), tikz-3dplot.
+- **`sanitizeSvg()` is deprecated.** It stripped gradients, patterns and the
+  `woff2` faces. If Clew sanitises figure SVG, use DOMPurify as in the README
+  ("Untrusted sources"); Clew's own notes are trusted input and need none.
 
 ## Also worth telling the owner
 
