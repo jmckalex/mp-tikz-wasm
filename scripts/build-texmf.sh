@@ -58,6 +58,11 @@ for d in base tex-ini-files l3kernel l3backend l3packages amsmath amsfonts amscl
          circuitikz tikz-3dplot; do
   [ -d "$TEXMF/tex/latex/$d" ] && cp -R "$TEXMF/tex/latex/$d" "$OUT/tex/latex/$d"
 done
+# circuitikz keeps every earlier release for LaTeX's rollback (\usepackage{circuitikz}[=v0.9.3],
+# or \usepackage{circuitikz-0.9.3}): twelve frozen copies, 8.8 MB of the 8.9 MB it
+# would add. The current release is circuitikz.sty plus the generic pgfcirc*.tex
+# files, so the old ones stay behind and asking for one fails as "not found".
+rm -f "$OUT"/tex/latex/circuitikz/circuitikz-*.sty "$OUT"/tex/latex/circuitikz/circuitikz-*-body.tex
 # LuaTeX in DVI mode (dviluatex.fmt, dvilualatex.fmt): its etex.src loads
 # hyphenation through Lua, babel's format-time hyphenation config has a
 # LuaTeX variant, and language.dat.lua describes the (single) language.
