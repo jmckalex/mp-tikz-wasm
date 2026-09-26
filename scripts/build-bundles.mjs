@@ -30,6 +30,9 @@ const isUnicodeRuntime = (p) => p.startsWith('tex/generic/unicode-data/') && p.e
 // face at a time on demand, so a document costs only the faces it selects). An
 // earlier cut shipped the twelve 10 pt faces alone and broke every non-10pt class.
 const isDefaultFace = (p) => p.startsWith('fonts/opentype/public/lm/');
+// luaotfload's font-name database, prebuilt by make-fontdb.mjs; core.ts seeds each
+// engine's font cache from it so a fresh engine does not open every face to build it.
+const isFontDb = (p) => p.startsWith('luaotfload/');
 
 const SKIP = (p) => (p.startsWith('tex/generic/unicode-data/') && !isUnicodeRuntime(p)) || p === 'fonts/map/texfonts.map' || p.startsWith('tex/generic/config/');
 const RECIPES = [
@@ -44,7 +47,7 @@ const RECIPES = [
   // and a LuaTeX document that never asks for fontspec -- graph drawing, say --
   // should not pay for it. Must precede `luatex` and `latex-extra`, which would
   // otherwise claim tex/luatex/ and tex/latex/ wholesale.
-  ['opentype',   (p) => /^tex\/luatex\/(luaotfload|lualibs|luatexbase|lua-uni-algos)\//.test(p) || /^tex\/latex\/(fontspec|unicode-math)\//.test(p) || p.startsWith('tex/lualatex/') || isUnicodeRuntime(p) || isDefaultFace(p)],
+  ['opentype',   (p) => /^tex\/luatex\/(luaotfload|lualibs|luatexbase|lua-uni-algos)\//.test(p) || /^tex\/latex\/(fontspec|unicode-math)\//.test(p) || p.startsWith('tex/lualatex/') || isUnicodeRuntime(p) || isDefaultFace(p) || isFontDb(p)],
   // everything else with an outline: latinmodern-math (what unicode-math needs) and
   // whatever else lands under fonts/opentype or fonts/truetype. Kept apart because
   // luaotfload scans every face on OPENTYPEFONTS to build its name index the first
@@ -62,6 +65,8 @@ const EAGER = {
 };
 
 const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
+if (fs.existsSync(path.join(TEXMF, 'tex/luatex/luaotfload')) && !fs.existsSync(path.join(TEXMF, 'luaotfload/luaotfload-names.lua.gz')))
+  console.warn('  warning: no prebuilt luaotfload name database; run `npm run build:fontdb` (a fresh engine will scan every face)');
 const all = walk(TEXMF).map((p) => path.relative(TEXMF, p).split(path.sep).join('/')).filter((p) => p !== 'ls-R').sort();
 
 fs.rmSync(OUT, { recursive: true, force: true });

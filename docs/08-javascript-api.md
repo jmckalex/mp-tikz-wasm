@@ -210,12 +210,15 @@ const r = await mp.latex(doc, { engine: 'lualatex' });
 Every bundle file is fetched on demand, so a document costs only the faces it
 selects; the family has to be complete because the fd files name faces by
 optical size (a 12pt class wants `lmroman12-*`, `\small` `lmroman9`, `\textsc`
-`lmromancaps10`) and NFSS fails at the first face that is missing. `otf-fonts`
-is separate because luaotfload builds its name database on the first font
-request of a fresh engine instance by opening every face it can see, whatever
-the lookup form: with `opentype` alone that is 72 faces and 7.2 MB, fetched once
-per engine and then kept in its font cache. An application that supplies its
-own faces wants the machinery and none of the fonts.
+`lmromancaps10`) and NFSS fails at the first face that is missing. `opentype`
+also carries luaotfload's font-name database, prebuilt against the bundled
+tree, so a fresh engine does not open every face to build one: a 12pt article
+fetches the four faces it sets (0.44 MB), not all 72 (7.4 MB). A face looked
+up by a name the database does not know — one the host supplied, say — makes
+luaotfload rescan, and that run pays for every face in the loaded bundles, once
+per engine. `otf-fonts` is separate so that such a rescan stays no larger than
+it must be, and because an application that supplies its own faces wants the
+machinery and none of the fonts.
 
 **A face the host supplies.** `addFiles()` writes into the TeX run's working
 directory, and `TEXMFDOTDIR` leads `OPENTYPEFONTS`/`TTFONTS` in the bundled

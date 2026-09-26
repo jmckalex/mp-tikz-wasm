@@ -105,8 +105,33 @@ describe.skipIf(!built)('OpenType fonts (luaotfload)', () => {
     expect(second.status).toBe('ok');
     // identical output, and the cache was captured after each run rather than rebuilt from nothing
     expect(second.pages[0]).toBe(first.pages[0]);
-    expect(records.length).toBeGreaterThanOrEqual(2);
-    expect(records[0]).toMatch(/\d+ files/);
+    const captured = records.filter((m) => /font cache: \d+ files/.test(m));
+    expect(captured.length).toBeGreaterThanOrEqual(2);
+  }, 180_000);
+
+  it('starts a fresh engine from the prebuilt name database instead of opening every face', async () => {
+    // Without the database scripts/make-fontdb.mjs ships in `opentype`, luaotfload
+    // builds its own on a fresh engine's first font request by opening all 72
+    // Latin Modern faces. Seeded, a 12pt article fetches only the faces it sets.
+    if (!fs.existsSync(path.join(BUNDLES, 'opentype/files/luaotfload/luaotfload-names.lua.gz'))) throw new Error('no prebuilt font database in the opentype bundle; run npm run build:fontdb && npm run build:bundles');
+    const faces = new Set<string>();
+    const messages: string[] = [];
+    const mp = await MetaPost.create({
+      bundles: [...DEFAULT_BUNDLES, 'opentype'], logLevel: 'trace',
+      logger: (rec: any) => {
+        messages.push(rec.message);
+        const m = /(?:fetched|loaded) (fonts\/opentype\/\S+)/.exec(rec.message);
+        if (m) faces.add(m[1]);
+      },
+    });
+    engines.push(mp);
+    const r = await mp.latex(String.raw`\documentclass[12pt]{article}\pagestyle{empty}\usepackage{fontspec}
+\begin{document}\noindent Twelve point, \textbf{bold}.\end{document}`, { engine: 'lualatex' });
+    expect(r.status).toBe('ok');
+    expect(messages.some((m) => /font cache: seeded/.test(m))).toBe(true);
+    expect(messages.some((m) => /generating new one/.test(m))).toBe(false);
+    expect(faces.size).toBeGreaterThan(0);
+    expect(faces.size).toBeLessThan(10);
   }, 180_000);
 
   it('runs unicode-math with the wider font bundle', async () => {

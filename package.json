@@ -27,11 +27,12 @@
   "type": "module",
   "license": "LGPL-3.0-or-later",
   "scripts": {
-    "build": "npm run build:mplib && npm run build:tex && npm run build:luatex && npm run build:dvisvgm && npm run build:texmf && npm run build:formats && npm run build:bundles && npm run build:ts && npm run build:hot",
+    "build": "npm run build:mplib && npm run build:tex && npm run build:luatex && npm run build:dvisvgm && npm run build:texmf && npm run build:formats && npm run build:ts && npm run build:fontdb && npm run build:bundles && npm run build:hot",
     "build:mplib": "make wasm",
     "build:tex": "./scripts/build-tex-wasm.sh",
     "build:texmf": "./scripts/build-texmf.sh",
     "build:formats": "node scripts/make-formats.mjs",
+    "build:fontdb": "node scripts/make-fontdb.mjs",
     "build:bundles": "node scripts/build-bundles.mjs",
     "build:ts": "tsc -p tsconfig.build.json",
     "test": "vitest run",

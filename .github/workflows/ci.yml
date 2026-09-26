@@ -46,8 +46,10 @@ jobs:
         run: ./scripts/native-dvisvgm.sh && ./scripts/build-dvisvgm-wasm.sh
       - name: luatex.wasm (native LuaTeX build recorded, then replayed with emcc)
         run: ./scripts/native-luatex.sh && ./scripts/build-luatex-wasm.sh
-      - name: texmf, formats, bundles, TypeScript
-        run: ./scripts/build-texmf.sh && node scripts/make-formats.mjs && node scripts/build-bundles.mjs && npm ci && npm run build:ts
+      # the TypeScript comes before the bundles: make-fontdb runs the wasm LuaTeX
+      # through dist/ to prebuild luaotfload's name database for the opentype bundle
+      - name: texmf, formats, TypeScript, font database, bundles
+        run: ./scripts/build-texmf.sh && node scripts/make-formats.mjs && npm ci && npm run build:ts && node scripts/make-fontdb.mjs && node scripts/build-bundles.mjs
       - name: end-to-end tests (API, memory, prefetch)
         run: npx vitest run test/e2e
       # MetaPost golden output is reproducible from the pinned mplib and the

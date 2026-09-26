@@ -626,18 +626,52 @@ MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'opentype', 'otf-fonts'] }) // a
 
 `otf-fonts` is separate for a related reason. On the first font request of a
 fresh engine instance — whatever the lookup form, `[file]` included, measured
-in session 10 — luaotfload finds no name database and builds one by opening
-every face on `OPENTYPEFONTS`/`TTFONTS`; a by-name lookup then reads it, and a
-lookup that misses forces a rebuild. Every face shipped in a loaded bundle is
-therefore fetched once per instance before the first OpenType page appears:
-72 files and 7.2 MB now, against twelve and 1.1 MB before the family was
-completed. The database then lives in the per-instance font cache below, so
-the cost is paid once per engine, not per run. What is reached only by
-`unicode-math` stays in `otf-fonts` to keep that scan no larger than it must
-be, and an application supplying its own faces at run time wants the machinery
-and none of the fonts. Shipping a prebuilt name database with the bundle would
-remove the scan altogether — the paths inside it would be the fixed
-`/texmf/fonts/...` ones — and is the natural follow-up.
+in session 10 — luaotfload looks for its name database and, finding none,
+builds one by opening every face on `OPENTYPEFONTS`/`TTFONTS`; a by-name lookup
+then reads it, and a lookup that misses forces a rescan. Unseeded, every face
+in a loaded bundle is fetched once per instance before the first OpenType page
+appears: 72 files and 7.2 MB. What is reached only by `unicode-math` stays in
+`otf-fonts` to keep a rescan no larger than it must be, and an application
+supplying its own faces at run time wants the machinery and none of the fonts.
+
+### The prebuilt name database
+
+`scripts/make-fontdb.mjs` (`npm run build:fontdb`, between `build:ts` and
+`build:bundles`) removes that scan. It runs one `fontspec` document through the
+wasm LuaLaTeX with `build/texmf` mounted as `texmfDir`, catches the
+`luaotfload-names.lua.gz` luaotfload writes to `/texmf-var`, and stores it as
+`build/texmf/luaotfload/luaotfload-names.lua.gz`, which the `opentype` recipe
+claims. `MetaPostCore.installTexmfVar` seeds the per-instance font cache from
+`/texmf/luaotfload/` when the cache has no database yet, so it works the same
+from bundles (fetched like any bundle file: sync in Node and the Worker,
+prefetched on the main thread) and from a mounted `texmfDir`.
+
+Why this is safe:
+
+- **The paths are fixed.** The database records `/texmf/fonts/opentype/...`,
+  which is where every instance sees the faces, bundles or `texmfDir` alike.
+  It indexes the maths face too; an entry for a face whose bundle is not loaded
+  is opened only if a document names that face, and that fails either way.
+- **luaotfload checks one thing on load**, the index version (`names.version`,
+  6 in luaotfload 3.29), and rebuilds on a mismatch — so an upgraded luaotfload
+  with a stale database degrades to the old scan, not to an error.
+- **Misses still work.** A name the database lacks (a host-supplied face by
+  family name) triggers luaotfload's own rescan, exactly as before; verified
+  with `\setmainfont{Arial}` over an `addFiles()`d `Arial.ttf`, seeded and
+  unseeded alike.
+- **Reproducible.** luaotfload stamps `meta.created`/`meta.modified` with the
+  clock and each face with its mtime; the script sets them to zero (the
+  timestamps only decide which faces a rescan re-reads, and in a fresh
+  in-memory filesystem that is all of them anyway). The face list is sorted by
+  luaotfload, so the bytes do not depend on directory order. Only the `.lua.gz`
+  ships: luaotfload falls back to it when there is no `.luc`.
+
+Measured in Node, fresh engine, a 12pt article with bold, `\small` and
+`\textsc`: 72 faces / 7.40 MB / 691 ms unseeded, 4 faces / 0.44 MB / 578 ms
+seeded; the SVG is byte-identical. The database is 5.6 KB. The e2e test
+"starts a fresh engine from the prebuilt name database" guards it, and
+`build-bundles.mjs` warns when luaotfload is in the tree but the database is
+not (a `build:texmf` without `build:fontdb` afterwards).
 
 ### The font cache
 

@@ -17,6 +17,15 @@ import type { MetaPostOptions, RunOptions, RunResult, FigureResult, Diagnostic, 
 
 /** TEXMFVAR in the bundled texmf.cnf — where luaotfload keeps its font cache. */
 const TEXMF_VAR = '/texmf-var';
+/**
+ * luaotfload's font-name database, prebuilt against the bundled tree by
+ * scripts/make-fontdb.mjs and shipped in the `opentype` bundle under
+ * FONT_DB_SEED. Without it every fresh engine builds the database on its
+ * first font request by opening every face it can see (72 of them).
+ */
+const FONT_DB = 'luaotfload-names.lua.gz';
+const FONT_DB_SEED = `${TEXMF_ROOT}/luaotfload/${FONT_DB}`;
+const FONT_DB_PATH = `${TEXMF_VAR}/luatex-cache/generic/names/${FONT_DB}`;
 
 /** Where MetaPost looks for each file type (docs/06 §2). */
 export const SEARCH_PATHS: Record<number, string[]> = {
@@ -152,7 +161,25 @@ export class MetaPostCore {
   /** Restore the font cache this instance has accumulated (LuaTeX runs only). */
   private installTexmfVar(FS: EmscriptenFS): void {
     mkdirp(FS, TEXMF_VAR);
+    if (!this.texmfVar.has(FONT_DB_PATH)) this.seedFontDb(FS);
     for (const [p, bytes] of this.texmfVar) writeFileDeep(FS, p, bytes);
+  }
+
+  /**
+   * Start the font cache from the prebuilt name database, if the tree has one
+   * (the `opentype` bundle, or a mounted texmfDir built by make-fontdb). Its
+   * paths are the /texmf ones every instance sees; luaotfload checks only the
+   * index version, and rescans by itself when a lookup misses.
+   */
+  private seedFontDb(FS: EmscriptenFS): void {
+    if (!FS.analyzePath(FONT_DB_SEED).exists) return;
+    try {
+      ensureLoaded(FS, FONT_DB_SEED);
+      this.texmfVar.set(FONT_DB_PATH, FS.readFile(FONT_DB_SEED, { encoding: 'binary' }) as Uint8Array);
+      this.logger.trace('host', `font cache: seeded from ${FONT_DB_SEED}`);
+    } catch (e) {
+      this.logger.warn('host', `font cache: cannot read ${FONT_DB_SEED}: ${(e as Error)?.message ?? e}`);
+    }
   }
 
   /** Keep whatever luaotfload wrote, so the next run starts warm. */
