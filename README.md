@@ -208,7 +208,8 @@ The two `<script>` forms render once: they are replaced by their figure.
 **Ids and classes in the SVG.** The bundled TikZ library `svg.attributes`
 (`\usetikzlibrary{svg.attributes}`, or `data-libraries="svg.attributes"` on a
 tag) adds three keys for any scope, path or node: `svg class=<classes>`
-(repeatable), `svg id=<id>` and `svg attributes=<name="value" …>`. They land on
+(repeatable), `svg id=<id>` and `svg attributes={name="value", …}` (spaces or
+commas between pairs; unbalanced quotes are a TeX error). They land on
 the `<g>` PGF itself opens for that scope, path or node — through the same hook
 TikZ's `rdf` library uses — so nothing has to be balanced by hand, and under a
 non-SVG driver (pdfTeX, dvips) they do nothing, so one source builds anywhere.

@@ -147,6 +147,16 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     expect(r.svg).toMatch(/<g class='lbl'>/);
     expect(r.svg).not.toContain('clipped');
     expect((r.svg.match(/class='fragment/g) ?? []).length).toBe(1);   // nothing inherited it
+    // commas between attributes (the pgfkeys habit) are separators, not XML; a comma
+    // inside a quoted value stays; unbalanced quotes are a TeX error, not a dvisvgm crash
+    const c = await renderFigure(mp, { kind: 'tikz', attrs: { libraries: 'svg.attributes' },
+      source: '\\draw[svg attributes={data-kind="x", aria-label="a, b",}] (0,0) -- (1,1);' }, 'x');
+    expect(c.ok).toBe(true);
+    expect(c.svg).toMatch(/<g aria-label='a, b' data-kind='x'>/);
+    const bad = await renderFigure(mp, { kind: 'tikz', attrs: { libraries: 'svg.attributes' },
+      source: '\\draw[svg attributes={data-a="1}] (0,0) -- (1,1);' }, 'x');
+    expect(bad.ok).toBe(false);
+    expect(bad.diagnostics.some((d: any) => /unbalanced double quotes/.test(d.message))).toBe(true);
   }, 60_000);
 
   it('produces one SVG per page and maps errors to lines', async () => {

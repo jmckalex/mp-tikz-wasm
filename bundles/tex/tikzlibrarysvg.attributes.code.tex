@@ -9,7 +9,7 @@
 % Keys, in any scope, path or node options (and in styles such as every node):
 %   svg class=<classes>       added to the element's class list; repeatable
 %   svg id=<id>               the element's id (the last one given wins)
-%   svg attributes=<text>     raw attributes, written as given: name="value" ...
+%   svg attributes=<text>     name="value" pairs, separated by spaces or commas
 %
 % How: PGF opens an "id scope" <g> around every scope, path and node, and the
 % SVG drivers write \pgfsys@svg@rdf into its start tag -- the hook TikZ's rdf
@@ -38,9 +38,55 @@
       \expandafter\def\expandafter\tikz@svgattr@class\expandafter{\tikz@svgattr@class\space#1}%
     \fi},
   svg id/.code={\def\tikz@svgattr@id{#1}},
-  svg attributes/.code={%
-    \expandafter\def\expandafter\tikz@svgattr@raw\expandafter{\tikz@svgattr@raw\space#1}},
+  svg attributes/.code={\tikz@svgattr@addraw{#1}},
 }
+
+% svg attributes: name="value" pairs, separated by spaces or -- the pgfkeys habit
+% -- commas. Written straight into the start tag, a comma is malformed XML and
+% dvisvgm aborts, so the value is detokenized (every character becomes plain text,
+% so an active " under babel cannot bite) and scanned: commas outside quotes become
+% spaces, quoted values are copied untouched (aria-label="a, b" keeps its comma).
+% Unbalanced quotes are a TeX error here rather than a dvisvgm crash later.
+\newif\iftikz@svgattr@odd
+\def\tikz@svgattr@stop{\tikz@svgattr@stop}% delimiters, never expanded
+\def\tikz@svgattr@eos{\tikz@svgattr@eos}
+\def\tikz@svgattr@eosm{\tikz@svgattr@eos}
+\def\tikz@svgattr@addraw#1{%
+  \edef\tikz@svgattr@in{#1}%
+  \edef\tikz@svgattr@in{\detokenize\expandafter{\tikz@svgattr@in}}%
+  \tikz@svgattr@oddfalse
+  \expandafter\tikz@svgattr@countq\tikz@svgattr@in"\tikz@svgattr@stop
+  \iftikz@svgattr@odd
+    \pgfutil@packageerror{tikz}{svg attributes: unbalanced double quotes in `\tikz@svgattr@in'}%
+      {Write the attributes as name="value" pairs, separated by spaces or commas.}%
+  \else
+    \let\tikz@svgattr@norm\pgfutil@empty
+    \expandafter\tikz@svgattr@out\tikz@svgattr@in"\tikz@svgattr@eos"%
+    \edef\tikz@svgattr@raw{\tikz@svgattr@raw\space\tikz@svgattr@norm}%
+  \fi}
+% count the double quotes (the one appended by the caller is not counted)
+\def\tikz@svgattr@countq#1"#2\tikz@svgattr@stop{%
+  \def\tikz@svgattr@rest{#2}%
+  \ifx\tikz@svgattr@rest\pgfutil@empty\else
+    \iftikz@svgattr@odd\tikz@svgattr@oddfalse\else\tikz@svgattr@oddtrue\fi
+    \tikz@svgattr@countq#2\tikz@svgattr@stop
+  \fi}
+% alternate: text outside quotes (commas become spaces), then a quoted value
+\def\tikz@svgattr@out#1"#2"{%
+  \tikz@svgattr@commas{#1}%
+  \def\tikz@svgattr@rest{#2}%
+  \ifx\tikz@svgattr@rest\tikz@svgattr@eosm\else
+    \edef\tikz@svgattr@norm{\tikz@svgattr@norm"#2"}%
+    \expandafter\tikz@svgattr@out
+  \fi}
+\def\tikz@svgattr@commas#1{\tikz@svgattr@c#1,\tikz@svgattr@stop}
+\def\tikz@svgattr@c#1,#2\tikz@svgattr@stop{%
+  \edef\tikz@svgattr@norm{\tikz@svgattr@norm#1}%
+  \def\tikz@svgattr@rest{#2}%
+  \ifx\tikz@svgattr@rest\pgfutil@empty\else
+    \edef\tikz@svgattr@norm{\tikz@svgattr@norm\space}%
+    \tikz@svgattr@c#2\tikz@svgattr@stop
+  \fi}
 
 % Hand the collected attributes to the next id scope, then forget them so that
 % nothing inside inherits them. \pgfsys@svg@rdf is global (the driver resets it
