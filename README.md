@@ -184,6 +184,20 @@ fetched. Each render dispatches a `mp-tikz-wasm:rendered` event, and
 `window.mpTikzWasm.render()` renders programmatically. `site/tags.html` is a
 working example page.
 
+**Live elements.** `<tikz-diagram>` and `<metapost-diagram>` typeset again
+when they change: new text content (`el.textContent = …`), the `source`
+property (`el.source = …`; reading it gives the diagram's source, since the
+element's children are the figure), or an attribute that affects the output
+(`class`, `style`, `id`, `aria-*` and the like do not count). Changes are
+debounced — `data-debounce` in milliseconds, default 200 — the old figure stays
+up, dimmed, until the new one is ready, and a result overtaken by a later
+change is dropped, so an editor can set `source` on every keystroke. An
+unchanged source is not typeset again, moving an element in the document does
+not re-render it, and an element with no content waits for some. The
+`mp-tikz-wasm:rendered` event says `update: true` for a re-render, and
+`mpTikzWasm.figures()` (hence `saveFigures()`) lists only figures still shown.
+The two `<script>` forms render once: they are replaced by their figure.
+
 **Saved figures.** A page can carry its figures as static files, so that a
 first visit never starts the engines. `npx mpost-wasm --prerender page.html`
 typesets every diagram element of the page in Node and writes

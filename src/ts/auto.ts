@@ -9,7 +9,9 @@
  *   <metapost-diagram>draw fullcircle scaled 50;</metapost-diagram>
  *
  * Every such element is replaced (script tags) or filled (custom elements)
- * with the rendered SVG. A TikZ body without \documentclass is wrapped in a
+ * with the rendered SVG. The custom elements stay live: new text content, the
+ * `source` property or an output-affecting attribute typesets them again
+ * (debounced; see "live custom elements" below). Script tags render once. A TikZ body without \documentclass is wrapped in a
  * standalone document; a MetaPost body without beginfig is wrapped in one
  * figure. Results are cached in IndexedDB by content hash, so a page renders
  * from cache on the second visit without running TeX at all.
@@ -33,6 +35,7 @@
  *   data-fonts="paths|woff2"             TikZ: text as outlines or web fonts
  *   data-cache="off"                     skip the result cache and the saved figures
  *   data-show-console                    keep the log visible under the figure
+ *   data-debounce="200"                  custom elements: ms to wait after a change before typesetting again
  *
  * Loader script attributes: data-base (bundle/wasm base URL), data-worker="off",
  * data-bundles="+opentype" (add a bundle to the defaults; `+otf-fonts` too for
@@ -209,6 +212,11 @@ export class AutoRenderer {
     return out;
   }
 
+  /** Drop a figure from figures() (and so from saveFigures()): a live element has replaced it. */
+  forget(nameOrHash: string): void {
+    for (const [hash, f] of this.rendered) if (hash === nameOrHash || f.name === nameOrHash) this.rendered.delete(hash);
+  }
+
   /** Resolves when no render is in flight. */
   async idle(): Promise<void> { while (this.inFlight.size) await Promise.allSettled([...this.inFlight]); }
 
@@ -278,7 +286,7 @@ function sourceOf(el: Element): string {
 function prefetchKinds(): PrefetchKind[] {
   const kinds = new Set<PrefetchKind>();
   for (const el of Array.from(document.querySelectorAll(SELECTOR))) {
-    const a = attrsOf(el), src = sourceOf(el);
+    const a = attrsOf(el), src = liveSource(el);
     if (kindOf(el) === 'tikz') {
       const engine = a.engine ?? 'auto';
       if (engine === 'plain') kinds.add('plain');
@@ -292,22 +300,30 @@ function prefetchKinds(): PrefetchKind[] {
   return [...kinds];
 }
 
-export async function renderElement(el: Element): Promise<void> {
-  if (pending.has(el)) return;
-  pending.add(el);
-  const kind = kindOf(el), attrs = attrsOf(el), source = sourceOf(el);
-  const isScript = el.tagName.toLowerCase() === 'script';
+/** A figure host: the <figure> a rendered diagram lives in. */
+function makeHost(kind: FigureKind, attrs: Record<string, string>): HTMLElement {
   const host = document.createElement('figure');
   host.className = `mpw-figure mpw-${kind} mpw-pending`;
   host.setAttribute('role', 'img');
   if (attrs.alt) host.setAttribute('aria-label', attrs.alt);
   host.innerHTML = `<span class="mpw-status">rendering ${kind === 'tikz' ? 'TikZ' : 'MetaPost'}…</span>`;
-  if (isScript) el.replaceWith(host); else { el.innerHTML = ''; el.appendChild(host); }
+  return host;
+}
+
+/** Drop a figure from figures() once nothing on the page shows it (a live element replaced, emptied or overtook it). */
+function forgetIfUnshown(name: string | undefined): void {
+  if (name && renderer && !document.querySelector(`figure[data-figure="${name}"]`)) renderer.forget(name);
+}
+
+/** Typeset one request. `stale()` is asked before painting, so a result overtaken by a newer edit is dropped. */
+async function typesetInto(host: HTMLElement, kind: FigureKind, source: string, attrs: Record<string, string>, update: boolean, stale: () => boolean = () => false): Promise<void> {
   const status = host.querySelector<HTMLElement>('.mpw-status');
   if (status) statusSpans.add(status);
   try {
     renderer ??= new AutoRenderer(loaderOptions());
     const r = await renderer.render({ kind, source, attrs });
+    if (stale()) { forgetIfUnshown(r.name); return; }
+    const previous = host.dataset.figure;
     host.className = `mpw-figure mpw-${kind} ${r.ok ? 'mpw-ok' : 'mpw-error'}`;
     host.dataset.figure = r.name;
     host.innerHTML = r.svg || '';
@@ -317,14 +333,123 @@ export async function renderElement(el: Element): Promise<void> {
       pre.textContent = (r.diagnostics.map((d) => `${d.severity}: ${d.message}${d.line ? ` (line ${d.line})` : ''}`).join('\n') + '\n' + r.log).trim();
       host.appendChild(pre);
     }
-    host.dispatchEvent(new CustomEvent('mp-tikz-wasm:rendered', { bubbles: true, detail: { kind, ok: r.ok, ms: r.ms, cached: r.cached, from: r.from, hash: r.hash, name: r.name } }));
+    // a figure no longer shown anywhere on the page is not one saveFigures() should write
+    if (previous !== r.name) forgetIfUnshown(previous);
+    host.dispatchEvent(new CustomEvent('mp-tikz-wasm:rendered', { bubbles: true, detail: { kind, ok: r.ok, ms: r.ms, cached: r.cached, from: r.from, hash: r.hash, name: r.name, update } }));
   } catch (e: any) {
+    if (stale()) return;
     host.className = `mpw-figure mpw-${kind} mpw-error`;
     const msg = typeof e === 'string' ? e : e?.message ?? e?.error ?? (() => { try { return JSON.stringify(e); } catch { return String(e); } })();
     host.innerHTML = `<pre class="mpw-console">${String(msg).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!))}</pre>`;
   } finally {
     if (status) statusSpans.delete(status);
   }
+}
+
+// ---- live custom elements
+// <tikz-diagram> and <metapost-diagram> typeset again when they change: new text
+// content (el.textContent = …, el.innerHTML = …), the `source` property, or an
+// attribute that is not purely presentational. The source is kept here because
+// the element's children become the figure. Changes are debounced (data-debounce,
+// in ms, default 200), the old figure stays up until the new one is ready, and a
+// result overtaken by a later change is dropped. Script tags render once.
+
+/** Attributes that never change the typeset result. */
+const PRESENTATIONAL = /^(class|style|id|hidden|title|role|tabindex|slot|lang|dir|aria-.*|data-figure)$/;
+const DEFAULT_DEBOUNCE_MS = 200;
+
+interface LiveState {
+  source: string;
+  /** the source and output-affecting attributes last asked for; an equal request is skipped */
+  key: string;
+  host: HTMLElement | null;
+  generation: number;
+  timer?: ReturnType<typeof setTimeout>;
+  observer: MutationObserver;
+}
+const live = new WeakMap<Element, LiveState>();
+
+function requestKey(kind: FigureKind, source: string, attrs: Record<string, string>): string {
+  return `${figureHash({ kind, source, attrs })}${'show-console' in attrs ? '+console' : ''}`;
+}
+
+/** Take new source text out of the element's children (anything but the figure), leaving just the figure. */
+function absorbContent(el: Element, st: LiveState): boolean {
+  const others = Array.from(el.childNodes).filter((n) => n !== st.host);
+  if (!others.length && st.host?.parentNode === el) return false;
+  st.source = others.map((n) => n.textContent ?? '').join('').replace(/^\s*\n/, '').replace(/\s+$/, '');
+  for (const n of others) n.remove();
+  return true;
+}
+
+function scheduleLive(el: Element, st: LiveState, immediate = false): void {
+  clearTimeout(st.timer);
+  const d = Number(el.getAttribute('data-debounce'));
+  const delay = immediate ? 0 : Number.isFinite(d) && d >= 0 ? d : DEFAULT_DEBOUNCE_MS;
+  const run = () => { void renderLive(el, st); };
+  if (delay === 0) run(); else st.timer = setTimeout(run, delay);
+}
+
+async function renderLive(el: Element, st: LiveState): Promise<void> {
+  const kind = kindOf(el), attrs = attrsOf(el);
+  if (!st.source.trim()) {                     // nothing to typeset (yet): an empty element stays empty
+    st.key = ''; st.generation++;
+    if (st.host) { const shown = st.host.dataset.figure; st.host.remove(); st.host = null; forgetIfUnshown(shown); }
+    st.observer.takeRecords();
+    return;
+  }
+  const key = requestKey(kind, st.source, attrs);
+  if (key === st.key && st.host?.parentNode === el) return;
+  st.key = key;
+  const gen = ++st.generation;
+  const update = !!st.host;
+  if (!st.host) st.host = makeHost(kind, attrs);
+  else st.host.classList.add('mpw-pending');   // keep the old figure up, dimmed, until the new one is ready
+  if (st.host.parentNode !== el) el.appendChild(st.host);
+  st.observer.takeRecords();                   // our own writes are not edits
+  await typesetInto(st.host, kind, st.source, attrs, update, () => gen !== st.generation);
+}
+
+function onLiveMutations(el: Element, st: LiveState, records: MutationRecord[]): void {
+  let changed = false;
+  for (const m of records) {
+    if (st.host?.contains(m.target)) continue;          // the figure and everything in it: our own writes
+    if (m.type === 'attributes' && PRESENTATIONAL.test(m.attributeName ?? '')) continue;
+    changed = true;
+  }
+  if (!changed) return;
+  absorbContent(el, st);
+  st.observer.takeRecords();
+  scheduleLive(el, st);
+}
+
+/** First sight of a custom element: read its source, start watching it, typeset. Later calls do nothing. */
+function startLive(el: Element): void {
+  if (live.has(el)) return;
+  const st: LiveState = { source: '', key: '', host: null, generation: 0, observer: new MutationObserver((recs) => onLiveMutations(el, st, recs)) };
+  live.set(el, st);
+  absorbContent(el, st);
+  st.observer.observe(el, { childList: true, characterData: true, subtree: true, attributes: true });
+  scheduleLive(el, st, true);
+}
+
+/** The `source` property of the two custom elements: read the diagram's source, or set it to typeset again. */
+function liveSource(el: Element): string { return live.get(el)?.source ?? sourceOf(el); }
+function setLiveSource(el: Element, value: string): void {
+  const st = live.get(el);
+  if (!st) { el.textContent = value; return; }          // not rendered yet: connecting it will read this
+  st.source = String(value).replace(/^\s*\n/, '').replace(/\s+$/, '');
+  scheduleLive(el, st);
+}
+
+export async function renderElement(el: Element): Promise<void> {
+  if (el.tagName.toLowerCase() !== 'script') { startLive(el); return; }
+  if (pending.has(el)) return;
+  pending.add(el);
+  const kind = kindOf(el), attrs = attrsOf(el), source = sourceOf(el);
+  const host = makeHost(kind, attrs);
+  el.replaceWith(host);
+  await typesetInto(host, kind, source, attrs, false);
 }
 
 function loaderOptions(): AutoOptions {
@@ -358,10 +483,15 @@ export function autoRender(root: ParentNode = document): void {
 
 if (typeof document !== 'undefined' && typeof customElements !== 'undefined') {
   for (const tag of ['tikz-diagram', 'metapost-diagram']) {
-    if (!customElements.get(tag)) customElements.define(tag, class extends HTMLElement { connectedCallback() { queueMicrotask(() => { if (this.isConnected) void renderElement(this); }); } });
+    if (!customElements.get(tag)) customElements.define(tag, class extends HTMLElement {
+      connectedCallback() { queueMicrotask(() => { if (this.isConnected) void renderElement(this); }); }
+      /** The diagram's source; setting it typesets the diagram again. */
+      get source(): string { return liveSource(this); }
+      set source(value: string) { setLiveSource(this, value); }
+    });
   }
   const style = document.createElement('style');
-  style.textContent = `.mpw-figure{display:inline-block;margin:0;vertical-align:middle;max-width:100%}.mpw-figure svg{max-width:100%;height:auto}.mpw-status{font:13px system-ui,sans-serif;color:#777}.mpw-console{font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;color:#a33;background:#fff5f5;border:1px solid #f0c0c0;padding:6px 8px;margin:4px 0 0;max-width:60em}`;
+  style.textContent = `.mpw-figure{display:inline-block;margin:0;vertical-align:middle;max-width:100%}.mpw-figure svg{max-width:100%;height:auto}.mpw-figure.mpw-pending>svg{opacity:.55;transition:opacity .2s}.mpw-status{font:13px system-ui,sans-serif;color:#777}.mpw-console{font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;color:#a33;background:#fff5f5;border:1px solid #f0c0c0;padding:6px 8px;margin:4px 0 0;max-width:60em}`;
   document.head.appendChild(style);
   const start = () => {
     autoRender();

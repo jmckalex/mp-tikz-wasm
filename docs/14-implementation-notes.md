@@ -230,6 +230,40 @@ statements above `beginfig`; and mplib handles that limit with a hard
 exception. The core now catches it and reports a fatal diagnostic carrying the
 last lines the engine printed, instead of failing the whole call.
 
+**Live custom elements (session 11).** `<tikz-diagram>` and
+`<metapost-diagram>` used to render once: the source was read from
+`textContent`, the children were replaced by the figure, and a `WeakSet`
+turned every later call away, so editing an element left raw text and no
+figure. Each one now carries a small state in a `WeakMap` (the source, the
+key of the last request, its `<figure>`, a generation counter, a debounce
+timer) and its own `MutationObserver` on child list, character data and
+attributes. The design points:
+
+- **The source lives in the state, not the DOM**, because the children are the
+  figure. New text nodes are absorbed into the source and removed, leaving the
+  figure; the `source` property reads and writes the state.
+- **Our own writes are not edits.** Records whose target is the figure or
+  inside it are skipped, and `takeRecords()` discards what re-appending the
+  figure queues. Presentational attributes (`class`, `style`, `id`, `aria-*`,
+  …) are ignored; any other attribute can change the output.
+- **Stale results are dropped.** Each render takes a generation number and
+  paints only if it is still the latest; the engine queue is serial, so a burst
+  of edits costs at most the render in flight plus one. Debouncing
+  (`data-debounce`, default 200 ms) keeps a keystroke stream to one render.
+- **An equal request is skipped** (the figure hash plus `show-console`), so a
+  no-op assignment or a presentational change does not flash the figure.
+- **`figures()` tracks what is shown.** A superseded, overtaken or emptied
+  figure is forgotten once no `figure[data-figure]` on the page shows it, so
+  `saveFigures()` does not write files for diagrams that are gone.
+
+Checked in Chrome on a test page: `textContent`, `source`, filling an empty
+element, a `data-border` change, a `class` change (no render), an unchanged
+source (no render), five edits 20 ms apart (one render), a move in the
+document (no render), an error and its fix (the console goes away), and an
+edit landing while a slow render was in flight (only the second result
+painted). `tags.html?live` renders its 13 figures as before. The script forms
+are unchanged: they are replaced by their figure and render once.
+
 ## 9. The PGF manual as a stress test
 
 The complete PGF/TikZ manual (`doc/generic/pgf/pgfmanual.tex`, 1181 pages in
