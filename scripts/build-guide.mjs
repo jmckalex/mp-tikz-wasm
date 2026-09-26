@@ -5,9 +5,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { MetaPost } from '../dist/index.js';
+import { MetaPost, DEFAULT_BUNDLES } from '../dist/index.js';
 import { GUIDE } from './guide-examples.mjs';
 import { highlightPage } from './highlight.mjs';
+import { chrome } from './site-chrome.mjs';
 
 const REPO = path.resolve(new URL('..', import.meta.url).pathname);
 const REPO_URL = process.env.REPO_URL ?? 'https://github.com/jmckalex/mp-tikz-wasm';
@@ -16,6 +17,10 @@ const esc = (s) => s.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': 
 const MB = (n) => (n / 1048576).toFixed(1);
 
 const mp = await MetaPost.create({ logLevel: 'silent' });
+// the OpenType figures get their own engine: with the opt-in bundles loaded, LaTeX under LuaTeX initialises luaotfload on every run
+let mpOT = null;
+const engineFor = async (ex) => ex.opentype ? (mpOT ??= await MetaPost.create({ logLevel: 'silent', bundles: [...DEFAULT_BUNDLES, 'opentype', 'otf-fonts'] })) : mp;
+const sourceName = (ex) => ex.kind === 'mp' ? 'MetaPost' : ex.plain ? 'plain TeX' : ex.engine === 'luatex' ? 'plain LuaTeX' : ex.engine === 'lualatex' ? 'LuaLaTeX' : 'LaTeX';
 const figures = {};
 for (const ex of GUIDE) {
   let svg, ms;
@@ -24,7 +29,7 @@ for (const ex of GUIDE) {
     if (r.status === 'error' || r.status === 'fatal') console.log(`  ! ${ex.id}: ${r.diagnostics.map((d) => d.message).join('; ')}`);
     svg = r.figures[0]?.svg ?? ''; ms = `${r.stats.metapostMs.toFixed(0)} ms MetaPost${r.stats.texRuns ? `, ${r.stats.texMs.toFixed(0)} ms TeX` : ''}`;
   } else {
-    const r = await mp.latex(ex.src, { engine: ex.engine ?? (ex.plain ? 'plain' : 'latex'), svg: { idPrefix: `${ex.id}-`, precision: false } });
+    const r = await (await engineFor(ex)).latex(ex.src, { engine: ex.engine ?? (ex.plain ? 'plain' : 'latex'), fonts: ex.fonts ?? 'paths', svg: { idPrefix: `${ex.id}-`, precision: false } });
     if (r.status !== 'ok') console.log(`  ! ${ex.id}: ${r.diagnostics.map((d) => d.message).join('; ')}`);
     svg = r.pages[0] ?? ''; ms = `${r.stats.texMs.toFixed(0)} ms ${/lua/.test(r.format) ? 'LuaTeX' : 'TeX'}, ${r.stats.dvisvgmMs.toFixed(0)} ms dvisvgm${r.format === 'tikz' ? ' (snapshot)' : ''}`;
   }
@@ -38,20 +43,20 @@ for (const ex of GUIDE) {
   const scaled = svg.replace(/^(<svg[^>]*?)\sheight=['"][^'"]*['"]/, '$1').replace(/^(<svg[^>]*?)\swidth=['"][^'"]*['"]/, `$1 style="width:min(100%,${shown}px)"`);
   if (!/^<svg[^>]*style=/.test(scaled)) console.log(`  ! ${ex.id}: could not size svg`);
   figures[ex.id] = `<figure class="ex" id="${ex.id}">
-  <div class="fig">${scaled}</div>
+  <div class="fig paper">${scaled}</div>
   <figcaption><b>${esc(ex.title)}</b>${ex.note ? ` — ${ex.note.replace(/`([^`]+)`/g, (_m, c) => `<code>${esc(c)}</code>`)}` : ''} <span class="ms">${ms}</span></figcaption>
-  <details><summary>source (${ex.kind === 'mp' ? 'MetaPost' : ex.plain ? 'plain TeX' : 'LaTeX'})</summary><pre><code>${esc(ex.src)}</code></pre></details>
+  <details class="source"><summary>source (${sourceName(ex)}${ex.opentype ? `, bundles +opentype${ex.opentype === 'math' ? ' +otf-fonts' : ''}` : ''}${ex.fonts ? `, fonts: '${ex.fonts}'` : ''})</summary><pre class="code"><code>${esc(ex.src)}</code></pre></details>
 </figure>`;
   console.log(`  ${ex.id.padEnd(12)} ${ms}`);
 }
 const wordmark = (await mp.run('prologues:=3; beginfig(1); draw "mp-tikz-wasm" infont "cmbx10" scaled 4.5; endfig; end.', { format: 'svg', svg: { idPrefix: 'wm-' } })).figures[0].svg;
-mp.dispose();
+mp.dispose(); mpOT?.dispose();
 
 const sz = (f) => fs.statSync(path.join(REPO, 'dist', f)).size;
 const gz = (f) => zlib.gzipSync(fs.readFileSync(path.join(REPO, 'dist', f)), { level: 6 }).length;
 const numbers = { mplib: sz('mplib.wasm'), tex: sz('tex.wasm'), dvisvgm: sz('dvisvgm.wasm'), gz: gz('mplib.wasm') + gz('tex.wasm') + gz('dvisvgm.wasm') };  // luatex.wasm is optional and listed separately
 
-let html = fs.readFileSync(path.join(REPO, 'site/guide.template.html'), 'utf8');
+let html = chrome(fs.readFileSync(path.join(REPO, 'site/guide.template.html'), 'utf8'));   // theme.css, theme.js, the site bar
 html = html.replace(/__FIG:([a-z0-9-]+)__/g, (_m, id) => figures[id] ?? `<p class="missing">missing figure ${id}</p>`)
   .replace(/__WORDMARK__/g, () => wordmark)
   .replace(/__REPO_URL__/g, REPO_URL)

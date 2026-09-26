@@ -12,6 +12,7 @@ import { execFileSync } from 'node:child_process';
 import { MetaPost } from '../dist/index.js';
 import { EXAMPLES } from '../site/examples.js';
 import { TIKZ_EXAMPLES } from '../site/examples-tikz.js';
+import { chrome, SITE_URL } from './site-chrome.mjs';
 
 const REPO = path.resolve(new URL('..', import.meta.url).pathname);
 const DIST = path.join(REPO, 'dist');
@@ -29,6 +30,8 @@ const mp = await MetaPost.create({ bundleIO: io, bundleBaseUrl: 'file://' + BUND
 const gallery = [];
 for (let i = 0; i < EXAMPLES.length; i++) {
   const ex = EXAMPLES[i];
+  // the examples that set the demo's toolbar (number system, worker, log level) belong to the hosted gallery, which has one
+  if (ex.settings) { console.log(`  ${ex.id.padEnd(8)} skipped (needs the gallery's toolbar)`); continue; }
   const r = await mp.run(ex.src, { format: 'svg', svg: { idPrefix: `g${i}-` } });
   gallery.push({ id: ex.id, title: ex.title, tier: ex.tier, blurb: ex.blurb, src: ex.src, svg: r.figures[0]?.svg ?? '', status: r.status, stats: r.stats, diagnostics: r.diagnostics.slice(0, 3) });
   console.log(`  ${ex.id.padEnd(8)} ${r.status.padEnd(6)} ${r.stats.totalMs.toFixed(0).padStart(4)} ms  ${(r.figures[0]?.svg?.length ?? 0)} B`);
@@ -39,7 +42,7 @@ const tikzGallery = [];
 for (let i = 0; i < TIKZ_EXAMPLES.length; i++) {
   const ex = TIKZ_EXAMPLES[i];
   // LuaTeX (graph drawing) stays out of the single file: luatex.wasm plus its format would add ~5 MB
-  if (/graphdrawing|\\directlua|contour lua/.test(ex.src)) { console.log(`  ${ex.id.padEnd(12)} skipped (needs LuaTeX)`); continue; }
+  if (ex.engine || ex.opentype || /graphdrawing|\\directlua|contour lua/.test(ex.src)) { console.log(`  ${ex.id.padEnd(12)} skipped (needs LuaTeX)`); continue; }
   // no snapshot here: tikz.fmt is 5.8 MB and does not compress, and a run
   // without it must touch every pgf file the page needs to embed
   const r = await mp.latex(ex.src, { engine: ex.plain ? 'plain' : 'latex', snapshot: 'none', svg: { idPrefix: `t${i}-`, precision: false } });
@@ -110,7 +113,7 @@ const numbers = {
 };
 const safe = (s) => s.replace(/<\/script/gi, '<\\/script');
 // function replacements: the payloads contain `$` sequences that String.replace would interpret
-let html = template
+let html = chrome(template, { base: SITE_URL })   // theme.css, theme.js, the site bar; links go to the hosted pages, since this file travels alone
   .replace('__WORDMARK__', () => wordmark)
   .replace('__GALLERY_JSON__', () => safe(JSON.stringify(gallery)))
   .replace('__TIKZ_GALLERY_JSON__', () => safe(JSON.stringify(tikzGallery)))

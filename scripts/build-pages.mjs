@@ -12,6 +12,7 @@ import zlib from 'node:zlib';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { MetaPost } from '../dist/index.js';
+import { chrome, SITE_URL } from './site-chrome.mjs';
 
 const REPO = path.resolve(new URL('..', import.meta.url).pathname);
 const DIST = path.join(REPO, 'dist'), BUNDLES = path.join(DIST, 'bundles'), SITE = path.join(REPO, 'site'), OUT = path.join(REPO, 'build/pages');
@@ -157,7 +158,8 @@ for (const [name, page] of Object.entries(PAGES)) {
   const S = loadSources(page.sources);
   const assets = await recordAssets(page.warm(S), page.extras !== false);
   for (const mode of ['remote', 'inline']) {
-    const html = template
+    // the shared look (site/theme.css, theme.js, the site bar); a single file's links point at the hosted site
+    const html = chrome(template, { base: mode === 'remote' ? '' : SITE_URL })
       .replace('__CM_CSS__', () => cmCss)
       .replace('__SOURCES_SCRIPT__', () => mode === 'remote' ? `<script src="./${page.sources}"></script>` : `<script>${safe(fs.readFileSync(path.join(SITE, page.sources), 'utf8'))}</script>`)
       .replace('__COMMON_SCRIPT__', () => mode === 'remote' ? '<script src="./page-common.js"></script>' : `<script>${safe(fs.readFileSync(path.join(SITE, 'page-common.js'), 'utf8'))}</script>`)

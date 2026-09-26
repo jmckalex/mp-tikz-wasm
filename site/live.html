@@ -3,45 +3,234 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Live Graphics</title>
+<title>mp-tikz-wasm Live Graphics</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%229.5%22%20fill%3D%22none%22%20stroke%3D%22%231f4e9c%22%20stroke-width%3D%221.6%22%2F%3E%3Cpath%20d%3D%22M3.6%2015.2C7%205.5%2010.6%2018.5%2020.4%208.6%22%20fill%3D%22none%22%20stroke%3D%22%23b5651d%22%20stroke-width%3D%221.9%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
 <style>
-  :root { --bg: #f6f7f9; --panel: #fff; --ink: #1b2430; --muted: #66707c; --line: #d9dee5; --accent: #1f4e9c; --err: #b3372c; }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding-block: 0 40px; padding-inline: clamp(14px, 3vw, 32px); }
-  header { max-width: 1200px; margin: 28px auto 8px; }
-  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
-  header p { margin: 0; color: var(--muted); max-width: 80ch; }
-  a { color: var(--accent); }
-  .grid { max-width: 1200px; margin: 18px auto 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; }
-  .card h2 { font-size: 17px; margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 10px; }
-  .card h2 small { color: var(--muted); font-weight: normal; font-size: 13px; }
-  .card h2 .ms { margin-left: auto; color: var(--muted); font-weight: normal; font-size: 12.5px; font-variant-numeric: tabular-nums; }
-  .fig { min-height: 260px; display: flex; align-items: center; justify-content: center; padding: 12px; background: #fff; background-image: linear-gradient(#f0f2f5 1px, transparent 1px), linear-gradient(90deg, #f0f2f5 1px, transparent 1px); background-size: 20px 20px; }
+/* theme.css — the shared look of the mp-tikz-wasm pages: design tokens (light
+   and dark, following the system unless the reader picks one with the theme
+   button, which sets data-theme on <html>), the site bar, and the components
+   every page uses: buttons, fields, chips, cards, figure "paper", code blocks,
+   status lines and diagnostics. Page-specific layout stays in each page.
+
+   Linked by index.html and tags.html; inlined by the page builders
+   (build-pages.mjs, build-guide.mjs, build-standalone.mjs) into the generated
+   pages, so a single-file build carries it too. No build step, no framework. */
+
+:root {
+  color-scheme: light;
+  --bg: #f4f6f8; --bg-2: #eaeef2; --surface: #ffffff; --surface-2: #f8fafb;
+  --ink: #18212b; --ink-2: #33404d; --muted: #5d6b7a; --line: #d5dbe2; --line-2: #e6eaef;
+  --accent: #1f4e9c; --accent-2: #2f63bf; --accent-ink: #ffffff; --accent-soft: #e5edf9;
+  --copper: #b5651d; --copper-soft: #f7ebdf;
+  --ok: #2f7d4f; --warn: #a8741a; --bad: #b3372c; --bad-soft: #fbeceb;
+  --code: #111820; --code-2: #1a2430; --code-ink: #e9eef3; --code-muted: #8fa0b0;
+  --paper: #ffffff; --paper-grid: #eef1f5; --paper-edge: #dfe4ea;
+  --shadow: 0 1px 2px rgba(20, 30, 45, .06), 0 4px 16px rgba(20, 30, 45, .06);
+  --radius: 10px; --radius-sm: 6px;
+  --display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f141a; --bg-2: #141b23; --surface: #171e26; --surface-2: #1c242e;
+    --ink: #e6ebf0; --ink-2: #c5ced8; --muted: #93a1b0; --line: #2a343f; --line-2: #222b35;
+    --accent: #86ade9; --accent-2: #a3c1f0; --accent-ink: #0f141a; --accent-soft: #1d2a3b;
+    --copper: #e39a5b; --copper-soft: #2c2219;
+    --ok: #7fcf9a; --warn: #e2b660; --bad: #f08a7e; --bad-soft: #2e1c1b;
+    --code: #0a0e13; --code-2: #111820; --code-ink: #dfe6ee; --code-muted: #8596a8;
+    --paper: #f6f7f9; --paper-grid: #e8ecf1; --paper-edge: #3a4550;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f141a; --bg-2: #141b23; --surface: #171e26; --surface-2: #1c242e;
+  --ink: #e6ebf0; --ink-2: #c5ced8; --muted: #93a1b0; --line: #2a343f; --line-2: #222b35;
+  --accent: #86ade9; --accent-2: #a3c1f0; --accent-ink: #0f141a; --accent-soft: #1d2a3b;
+  --copper: #e39a5b; --copper-soft: #2c2219;
+  --ok: #7fcf9a; --warn: #e2b660; --bad: #f08a7e; --bad-soft: #2e1c1b;
+  --code: #0a0e13; --code-2: #111820; --code-ink: #dfe6ee; --code-muted: #8596a8;
+  --paper: #f6f7f9; --paper-grid: #e8ecf1; --paper-edge: #3a4550;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); line-height: 1.55; overflow-wrap: break-word; }
+a { color: var(--accent); text-underline-offset: 2px; text-decoration-thickness: 1px; }
+a:hover { color: var(--accent-2); }
+code, kbd, samp { font-family: var(--mono); font-size: .9em; }
+:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }
+[hidden] { display: none !important; }
+::selection { background: var(--accent-soft); }
+
+/* ---------------------------------------------------------------- site bar */
+.sitebar { display: flex; align-items: center; gap: 6px 18px; flex-wrap: wrap; padding: 10px clamp(16px, 3vw, 32px); border-bottom: 1px solid var(--line); background: var(--surface); font-family: var(--ui); font-size: 14px; position: relative; z-index: 5; }
+.sitebar .brand { display: inline-flex; align-items: center; gap: 9px; font: 600 17px/1 var(--display); letter-spacing: -.01em; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.sitebar .brand svg { width: 22px; height: 22px; flex: none; }
+.sitebar nav { display: flex; gap: 2px; flex-wrap: wrap; margin-right: auto; }
+.sitebar nav a { color: var(--muted); text-decoration: none; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+.sitebar nav a:hover { color: var(--ink); background: var(--bg); }
+.sitebar nav a[aria-current="page"] { color: var(--accent); background: var(--accent-soft); font-weight: 500; }
+.sitebar .gh { color: var(--muted); text-decoration: none; white-space: nowrap; }
+.sitebar .gh:hover { color: var(--ink); }
+.theme-toggle { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; padding: 0; flex: none; }
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.theme-toggle svg { width: 16px; height: 16px; }
+@media (max-width: 640px) {
+  .sitebar { padding: 8px 12px; gap: 6px 10px; }
+  .sitebar nav { order: 3; width: 100%; margin: 0 -6px; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .sitebar nav::-webkit-scrollbar { display: none; }
+  .sitebar .gh { margin-left: auto; }
+}
+
+/* ---------------------------------------------------------------- type */
+.eyebrow { font: 500 12px/1.3 var(--mono); text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.display { font-family: var(--display); font-weight: 600; letter-spacing: -.01em; text-wrap: balance; }
+.lede { font-size: clamp(17px, 2.2vw, 20px); line-height: 1.5; color: var(--ink-2); }
+.muted { color: var(--muted); }
+
+/* ---------------------------------------------------------------- controls */
+.btn, .field select, .field input[type="text"] { font: 500 13px/1.2 var(--ui); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 12px; }
+.btn { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; white-space: nowrap; text-decoration: none; transition: border-color .12s, background .12s, color .12s; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { background: var(--accent-2); border-color: var(--accent-2); color: var(--accent-ink); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.btn.ghost:hover { color: var(--ink); background: var(--bg); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn kbd { font: 11px/1 var(--mono); padding: 2px 5px; border-radius: 4px; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.3); }
+.field { display: inline-flex; align-items: center; gap: 6px; font: 12px/1.2 var(--ui); color: var(--muted); white-space: nowrap; }
+.field select { padding: 6px 26px 6px 9px; appearance: none; -webkit-appearance: none; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 55%, calc(100% - 9px) 55%; background-size: 4px 4px; background-repeat: no-repeat; }
+.field select:hover { border-color: var(--accent); }
+.check { display: inline-flex; align-items: center; gap: 6px; font: 12px/1.2 var(--ui); color: var(--muted); cursor: pointer; white-space: nowrap; user-select: none; }
+.check input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+input[type="range"] { accent-color: var(--accent); }
+
+/* ---------------------------------------------------------------- chips, pills */
+.chip { display: inline-flex; align-items: center; gap: 4px; font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .06em; padding: 4px 7px; border-radius: 999px; background: var(--bg-2); color: var(--muted); white-space: nowrap; }
+.chip.mp { background: var(--accent-soft); color: var(--accent); }
+.chip.tikz { background: var(--copper-soft); color: var(--copper); }
+.chip.lua { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+.chip.otf { background: color-mix(in srgb, #8a4fd1 16%, transparent); color: #7b44c4; }
+:root[data-theme="dark"] .chip.otf { color: #c3a2f2; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .chip.otf { color: #c3a2f2; } }
+
+/* ---------------------------------------------------------------- cards and figure paper */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+/* TeX and MetaPost draw in black on nothing: their output always sits on paper, in both themes */
+.paper { background-color: var(--paper); background-image: linear-gradient(var(--paper-grid) 1px, transparent 1px), linear-gradient(90deg, var(--paper-grid) 1px, transparent 1px); background-size: 20px 20px; background-position: -1px -1px; color: #18212b; }
+.paper svg { max-width: 100%; height: auto; }
+.paper .placeholder { color: #6b7886; font: 13px var(--ui); }
+
+/* ---------------------------------------------------------------- code */
+pre.code, .code-block { margin: 0; background: var(--code); color: var(--code-ink); font: 12.5px/1.55 var(--mono); padding: 14px 16px; border-radius: var(--radius-sm); overflow: auto; tab-size: 2; }
+pre.code code { font-size: inherit; }
+details.source { border-top: 1px solid var(--line); }
+details.source > summary { cursor: pointer; padding: 9px 16px; font: 500 12.5px var(--mono); color: var(--muted); list-style: none; display: flex; align-items: center; gap: 8px; }
+details.source > summary::-webkit-details-marker { display: none; }
+details.source > summary::before { content: ""; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .15s; }
+details.source[open] > summary::before { transform: rotate(45deg); }
+details.source > summary:hover { color: var(--ink); }
+details.source pre { margin: 0; border-radius: 0; max-height: 360px; }
+
+/* ---------------------------------------------------------------- status and diagnostics */
+.status-line { display: inline-flex; align-items: center; gap: 8px; font: 12.5px/1.4 var(--mono); color: var(--muted); min-width: 0; }
+.status-line b { color: var(--ink); font-weight: 500; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--copper); flex: none; }
+.dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); }
+@media (prefers-reduced-motion: no-preference) { .dot.busy { animation: mptw-pulse 1s ease-in-out infinite; } }
+@keyframes mptw-pulse { 50% { opacity: .3; } }
+.spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: mptw-spin .8s linear infinite; vertical-align: -2px; flex: none; }
+@keyframes mptw-spin { to { transform: rotate(360deg); } }
+.diag { border-left: 3px solid var(--bad); padding: 8px 12px; margin: 0 0 10px; background: var(--surface-2); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font: 14px/1.45 var(--ui); }
+.diag.warning { border-color: var(--warn); }
+.diag .where { color: var(--muted); font: 12px var(--mono); margin-top: 2px; }
+.diag .help { color: var(--muted); font-size: 13px; margin-top: 4px; white-space: pre-wrap; }
+
+/* ---------------------------------------------------------------- figures from the drop-in tags */
+.mpw-figure .mpw-status { font: 13px var(--ui); color: #6b7886; }
+.mpw-figure .mpw-console { border-radius: var(--radius-sm); }
+
+  body { font-family: var(--ui); font-size: 15px; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 clamp(14px, 3vw, 32px) 48px; }
+  .masthead { padding: 34px 0 6px; }
+  h1 { font: 600 clamp(28px, 4.4vw, 40px)/1.1 var(--display); letter-spacing: -.015em; margin: 6px 0 10px; }
+  .masthead p { margin: 0; color: var(--ink-2); max-width: 84ch; font: 17px/1.55 var(--body); }
+  .masthead .status-line { margin-top: 14px; }
+  .grid { margin-top: 22px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 350px), 1fr)); gap: 18px; align-items: start; }
+  .card h2 { font: 600 17px/1.25 var(--display); margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+  .card h2 small { color: var(--muted); font: 400 12.5px var(--ui); }
+  .card h2 .ms { margin-left: auto; color: var(--muted); font: 400 12px var(--mono); font-variant-numeric: tabular-nums; }
+  .fig { min-height: 270px; display: flex; align-items: center; justify-content: center; padding: 14px; }
   .fig svg { max-width: 100%; height: auto; max-height: 300px; }
-  .fig .placeholder { color: var(--muted); font-size: 14px; }
-  .controls { display: grid; grid-template-columns: max-content 1fr max-content; gap: 6px 10px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 13.5px; }
+  .controls { display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; gap: 8px 12px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); }
   .controls input[type=range] { width: 100%; }
-  .controls .v { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 3.5em; text-align: right; }
-  .controls button { grid-column: 1 / -1; justify-self: start; font: inherit; padding: 4px 12px; border: 1px solid var(--line); background: #fff; border-radius: 4px; cursor: pointer; }
-  details { border-top: 1px solid var(--line); }
-  summary { cursor: pointer; padding: 7px 14px; font-size: 13px; color: var(--muted); }
-  pre { margin: 0; font: 12px/1.45 ui-monospace, Menlo, Consolas, monospace; background: #111820; color: #e9eef3; padding: 10px 14px; overflow: auto; max-height: 240px; }
-  footer { max-width: 1200px; margin: 24px auto 0; color: var(--muted); font-size: 13px; }
-  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; opacity: .65; margin: 0 0 4px; }
+  .controls .v { font: 12px var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); min-width: 3.5em; text-align: right; }
+  .controls button { grid-column: 1 / -1; justify-self: start; }
+  #formula-input { font: 13.5px var(--mono); padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); width: 100%; }
+  #formula-input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+  footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font: 14px/1.6 var(--body); max-width: 100ch; }
 </style>
+<script>
+// theme.js — the light/dark switch shared by the demo pages. The pages follow
+// the system setting until the reader presses a [data-theme-toggle] button;
+// the choice is kept in localStorage (when the browser allows it) and applied
+// before first paint, because this is a classic script in <head>. Inlined by
+// the page builders into the generated pages, linked by the others.
+(function () {
+  var KEY = 'mp-tikz-wasm-theme', root = document.documentElement;
+  try { var saved = localStorage.getItem(KEY); if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved); } catch (e) { /* storage blocked: follow the system */ }
+  function current() {
+    var t = root.getAttribute('data-theme');
+    if (t === 'light' || t === 'dark') return t;
+    return window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function label() {
+    var next = current() === 'dark' ? 'light' : 'dark';
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    for (var i = 0; i < buttons.length; i++) { buttons[i].setAttribute('aria-label', 'Switch to ' + next + ' mode'); buttons[i].title = 'Switch to ' + next + ' mode'; }
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('[data-theme-toggle]') : null;
+    if (!b) return;
+    var next = current() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem(KEY, next); } catch (err) { /* not remembered, still applied */ }
+    label();
+  });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', label); else label();
+})();
+
+</script>
 </head>
 <body>
-<header>
-  <div class="eyebrow">mp-tikz-wasm</div>
+<header class="sitebar">
+  <a class="brand" href="guide.html"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.6 15.2C7 5.5 10.6 18.5 20.4 8.6" fill="none" stroke="#b5651d" stroke-width="1.9" stroke-linecap="round"/></svg>mp-tikz-wasm</a>
+  <nav aria-label="Demo pages"><a href="guide.html">Guide</a><a href="index.html">Gallery</a><a href="tags.html">Tags</a><a href="live.html" aria-current="page">Live</a><a href="minimal.html">Editors</a><a href="standalone.html">Single file</a></nav>
+  <a class="gh" href="https://github.com/jmckalex/mp-tikz-wasm">GitHub ↗</a>
+  <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch between light and dark"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg></button>
+</header>
+<div class="wrap">
+<header class="masthead">
+  <div class="eyebrow">mp-tikz-wasm · real-time</div>
   <h1>Live graphics with MetaPost and TikZ</h1>
-  <p>Every picture here is re-typeset by MetaPost or LaTeX in your browser each time it changes: the harmonograph, the cube and the pendulum by MetaPost (a few milliseconds a frame); the plot, the clock and the formula by pdfTeX and dvisvgm (a few hundred milliseconds). <span id="status">Loading the engines…</span> <a href="./guide.html">Feature guide</a> · <a href="https://github.com/jmckalex/mp-tikz-wasm">Source</a></p>
+  <p>Every picture here is typeset again by MetaPost or LaTeX in your browser each time it changes: the harmonograph, the cube and the pendulum by MetaPost (a few milliseconds a frame); the plot, the clock and the formula by pdfTeX and dvisvgm (a few hundred milliseconds). <a href="./guide.html">Feature guide</a> · <a href="https://github.com/jmckalex/mp-tikz-wasm">Source</a></p>
+  <div class="status-line"><span class="dot busy"></span><span id="status">Loading the engines…</span></div>
 </header>
 
 <div class="grid">
   <div class="card" id="c-harm">
     <h2>Harmonograph <small>MetaPost, on every slider move</small><span class="ms"></span></h2>
-    <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
+    <div class="fig paper"><span class="placeholder">waiting for the engine…</span></div>
     <div class="controls">
       <label>f<sub>1</sub></label><input type="range" min="1" max="8" step="0.05" value="3" data-k="f1"><span class="v">3</span>
       <label>f<sub>2</sub></label><input type="range" min="1" max="8" step="0.05" value="2" data-k="f2"><span class="v">2</span>
@@ -51,57 +240,58 @@
       <label>damping</label><input type="range" min="0" max="1" step="0.01" value="0.3" data-k="damping"><span class="v">0.3</span>
       <label>colour</label><input type="range" min="0" max="1" step="0.01" value="0.62" data-k="hue"><span class="v">0.62</span>
     </div>
-    <details><summary>MetaPost source of the last frame</summary><pre></pre></details>
+    <details class="source"><summary>MetaPost source of the last frame</summary><pre class="code"></pre></details>
   </div>
 
   <div class="card" id="c-cube">
     <h2>Spinning cube <small>MetaPost, one run per animation frame</small><span class="ms"></span></h2>
-    <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
+    <div class="fig paper"><span class="placeholder">waiting for the engine…</span></div>
     <div class="controls">
       <label>speed</label><input type="range" min="0" max="3" step="0.05" value="1" data-k="speed"><span class="v">1</span>
-      <button id="cube-toggle">Pause</button>
+      <button class="btn" type="button" id="cube-toggle">Pause</button>
     </div>
-    <details><summary>MetaPost source of the last frame</summary><pre></pre></details>
+    <details class="source"><summary>MetaPost source of the last frame</summary><pre class="code"></pre></details>
   </div>
 
   <div class="card" id="c-pend">
     <h2>Double pendulum <small>simulated in JavaScript, drawn by MetaPost each frame</small><span class="ms"></span></h2>
-    <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
+    <div class="fig paper"><span class="placeholder">waiting for the engine…</span></div>
     <div class="controls">
       <label>trail</label><input type="range" min="0" max="400" step="10" value="150" data-k="trail"><span class="v">150</span>
-      <button id="pend-restart">Restart</button>
+      <button class="btn" type="button" id="pend-restart">Restart</button>
     </div>
-    <details><summary>MetaPost source of the last frame</summary><pre></pre></details>
+    <details class="source"><summary>MetaPost source of the last frame</summary><pre class="code"></pre></details>
   </div>
 
   <div class="card" id="c-plot">
     <h2>Damped oscillator <small>pgfplots, re-typeset on release</small><span class="ms"></span></h2>
-    <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
+    <div class="fig paper"><span class="placeholder">waiting for the engine…</span></div>
     <div class="controls">
       <label>amplitude</label><input type="range" min="0.1" max="1" step="0.05" value="1" data-k="A"><span class="v">1</span>
       <label>damping</label><input type="range" min="0" max="1" step="0.01" value="0.3" data-k="k"><span class="v">0.3</span>
       <label>frequency</label><input type="range" min="0.5" max="6" step="0.1" value="2" data-k="w"><span class="v">2</span>
     </div>
-    <details><summary>LaTeX source of the last render</summary><pre></pre></details>
+    <details class="source"><summary>LaTeX source of the last render</summary><pre class="code"></pre></details>
   </div>
 
   <div class="card" id="c-clock">
     <h2>Clock <small>TikZ, typeset every second</small><span class="ms"></span></h2>
-    <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
-    <details><summary>LaTeX source of the last render</summary><pre></pre></details>
+    <div class="fig paper"><span class="placeholder">waiting for the engine…</span></div>
+    <details class="source"><summary>LaTeX source of the last render</summary><pre class="code"></pre></details>
   </div>
 
   <div class="card" id="c-formula">
     <h2>Formula <small>LaTeX with amsmath, as you type</small><span class="ms"></span></h2>
-    <div class="fig"><span class="placeholder">waiting for the engine…</span></div>
+    <div class="fig paper"><span class="placeholder">waiting for the engine…</span></div>
     <div class="controls" style="grid-template-columns: 1fr">
-      <input type="text" id="formula-input" spellcheck="false" style="font: 14px ui-monospace, Menlo, monospace; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px" value="\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}">
+      <input type="text" id="formula-input" spellcheck="false" aria-label="LaTeX formula" value="\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}">
     </div>
-    <details><summary>LaTeX source of the last render</summary><pre></pre></details>
+    <details class="source"><summary>LaTeX source of the last render</summary><pre class="code"></pre></details>
   </div>
 </div>
 
 <footer>Four engine instances run in Web Workers: MetaPost-only ones for the harmonograph, the cube and the pendulum, and one with pdfTeX and dvisvgm for the LaTeX documents, so neither a TeX run nor a slider drag ever stalls an animation frame. Sources: <code>live-sources.js</code>.</footer>
+</div>
 
 <script src="./live-sources.js"></script>
 <script src="./page-common.js"></script>
@@ -124,7 +314,8 @@ let mpEngine, cubeEngine, pendEngine, texEngine;
 try {
   [mpEngine, cubeEngine, pendEngine, texEngine] = await Promise.all([globalThis.enginePromise, globalThis.cubeEnginePromise, globalThis.pendulumEnginePromise, globalThis.texEnginePromise]);
   $('#status').textContent = globalThis.ENGINE_MODE === 'workers' ? 'Engines ready, each in its own Web Worker.' : 'Engines ready, running in-process: this host allows no workers, so the animation pauses while TeX runs.';
-} catch (e) { $('#status').textContent = `The engines could not start here: ${e.message}`; throw e; }
+  $('.masthead .dot').className = 'dot ok';
+} catch (e) { $('#status').textContent = `The engines could not start here: ${e.message}`; $('.masthead .dot').className = 'dot bad'; throw e; }
 
 // -- harmonograph: one MetaPost run per slider event, coalesced while busy
 const harm = card('c-harm');

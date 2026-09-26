@@ -1,5 +1,17 @@
 // guide-examples.mjs — every figure in site/guide.html, with the exact source
 // that produced it. Rendered by scripts/build-guide.mjs with the wasm engines.
+// The later TikZ, LuaTeX and OpenType figures share their source with the demo
+// gallery (site/examples-tikz.js), so the guide and the gallery cannot drift.
+import { TIKZ_EXAMPLES } from '../site/examples-tikz.js';
+
+/** A gallery example as a guide figure: same source and engine options, the guide's own id, title and note. */
+function fromGallery(galleryId, id, title, note) {
+  const ex = TIKZ_EXAMPLES.find((e) => e.id === galleryId);
+  if (!ex) throw new Error(`guide-examples: no gallery example ${galleryId}`);
+  const engine = ex.engine ?? (/graphdrawing|\\directlua/.test(ex.src) ? 'lualatex' : undefined);   // the gallery relies on engine 'auto' for these
+  return { id, section: 'tikz', title, kind: 'tikz', note, src: ex.src, plain: ex.plain, engine, opentype: ex.opentype, fonts: ex.fonts };
+}
+
 export const GUIDE = [
   // ---------------------------------------------------------------- MetaPost
   { id: 'mp-paths', section: 'metapost', title: 'Paths, tension and curl', kind: 'mp',
@@ -344,4 +356,21 @@ endfig; end.` },
   \\node at (0,-1.4) {plain \\TeX\\ with TikZ};
 \\endtikzpicture
 \\bye` },
+  // ---------------------------------------------------------------- more TikZ libraries (shared with the gallery)
+  fromGallery('tikz-arrows', 'tz-arrows', 'Arrow tips', 'The `arrows.meta` tips, filled and `open`, stacked, `round`, harpoons and `Bar`s, and the `bending` library\'s tips that follow a curved path.'),
+  fromGallery('tikz-decorations', 'tz-decorations', 'Decorations', 'Path morphing, shapes and markings along a path, footprints, and `text along path`.'),
+  fromGallery('tikz-knots', 'tz-knots', 'Knots (spath3)', 'spath3\'s `knots` library, bundled although pgf does not ship it: every crossing of a self-intersecting strand is found and the upper strand redrawn.'),
+  fromGallery('tikz-calligraphy', 'tz-calligraphy', 'Calligraphy (spath3)', 'A broad nib, a copperplate nib, and the calligraphic brace and parentheses built on them.'),
+  fromGallery('tikz-matrix', 'tz-matrix', 'Matrices', 'A `matrix of math nodes` with delimiters and a highlighted diagonal on the background layer, and arrows between the cells of a second matrix.'),
+  fromGallery('tikz-concepts', 'tz-mindmap', 'A mind map', 'The `mindmap` library, whose shaded connection bars become SVG gradients.'),
+  fromGallery('plain-parshape', 'tz-plain-parshape', 'A diamond, in plain TeX', 'No packages: a plain-TeX loop builds a 21-line `\\parshape` and the line breaker pours the paragraph into it.'),
+  // ---------------------------------------------------------------- LuaTeX
+  fromGallery('gd-trees', 'lua-gd-trees', 'More graph drawing', 'A binary tree layout and a spring-electrical layout, both computed in Lua.'),
+  fromGallery('luatex-plain', 'lua-plain', 'Plain LuaTeX', '`engine: \'luatex\'`: `\\directlua` sieves the primes and hands the counts to TeX with `token.set_macro`; the bars are `\\vrule`s and the table an `\\halign`.'),
+  fromGallery('lualatex-lua', 'lua-latex', 'LuaLaTeX', '`engine: \'lualatex\'`: Lua writes one `\\rule` per odd entry of Pascal\'s triangle into the paragraph, and amsmath sets the theorem.'),
+  // ---------------------------------------------------------------- OpenType
+  fromGallery('otf-fontspec', 'otf-fontspec', 'fontspec under LuaLaTeX', 'With the `opentype` bundle: ligatures, kerning, Unicode input, letter-spacing, a small-caps face and optical sizes, all from Latin Modern\'s OpenType faces.'),
+  fromGallery('otf-plain-luatex', 'otf-plain', 'luaotfload in plain LuaTeX', '`\\input luaotfload.sty` and a `\\font` with a feature list; no LaTeX involved.'),
+  fromGallery('otf-woff2', 'otf-woff2', 'Web fonts, not outlines', 'With `fonts: \'woff2\'` the text in this figure is real `<text>` in an embedded subset of the face: select it.'),
+  fromGallery('otf-unicode-math', 'otf-math', 'unicode-math', 'Unicode maths input in Latin Modern Math; needs the `otf-fonts` bundle as well.'),
 ];

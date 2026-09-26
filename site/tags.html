@@ -3,39 +3,90 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Diagram tags</title>
+<title>mp-tikz-wasm Diagram Tags</title>
+<meta name="description" content="A page whose diagrams are plain script and custom-element tags, typeset by MetaPost, pdfTeX, LuaTeX and dvisvgm compiled to WebAssembly, or loaded as saved figures.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%229.5%22%20fill%3D%22none%22%20stroke%3D%22%231f4e9c%22%20stroke-width%3D%221.6%22%2F%3E%3Cpath%20d%3D%22M3.6%2015.2C7%205.5%2010.6%2018.5%2020.4%208.6%22%20fill%3D%22none%22%20stroke%3D%22%23b5651d%22%20stroke-width%3D%221.9%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<link rel="stylesheet" href="./theme.css">
+<script src="./theme.js"></script>
 <style>
-  body { margin: 0 auto; max-width: 820px; padding: 32px 20px 64px; font: 16px/1.55 Georgia, "Times New Roman", serif; color: #1c1b18; background: #fbfaf7; }
-  h1 { font-size: 26px; margin: 0 0 6px; } h2 { font-size: 19px; margin: 36px 0 8px; }
-  p, li { max-width: 68ch; } code, pre { font: 13px/1.45 Menlo, Consolas, monospace; } pre { background: #f0efe9; padding: 10px 12px; border-radius: 4px; overflow-x: auto; }
-  .row { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; }
-  .muted { color: #6b6860; font-size: 14px; }
-  #stats { font: 13px Menlo, monospace; color: #6b6860; }
+  body { font-size: 17px; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px) 72px; }
+  .masthead { padding: 40px 0 8px; }
+  h1 { font: 600 clamp(30px, 5vw, 44px)/1.08 var(--display); letter-spacing: -.015em; margin: 6px 0 12px; }
+  h2 { font: 600 clamp(22px, 3vw, 27px)/1.2 var(--display); letter-spacing: -.01em; margin: 52px 0 6px; padding-top: 22px; border-top: 1px solid var(--line); }
+  p, li { max-width: 72ch; }
+  p { margin: 10px 0 0; }
+  .intro { color: var(--ink-2); }
+  .panel { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); font-family: var(--ui); font-size: 14px; }
+  .panel .grow { flex: 1 1 260px; color: var(--muted); font: 12.5px/1.45 var(--mono); }
+  /* each diagram tag sits in a frame of paper; the badge says where the SVG came from */
+  .figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; margin-top: 18px; align-items: stretch; }
+  .figs.one { grid-template-columns: minmax(0, 1fr); }
+  .tagfig { position: relative; margin: 0; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px 16px 30px; display: flex; align-items: center; justify-content: center; min-height: 150px; overflow: hidden; }
+  .tagfig .mpw-figure { max-width: 100%; }
+  .tagfig .mpw-figure svg { display: block; margin: 0 auto; }
+  .tagfig::after { content: attr(data-from); position: absolute; right: 8px; bottom: 7px; font: 500 10.5px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: #6b7886; background: rgba(255,255,255,.85); padding: 3px 6px; border-radius: 999px; border: 1px solid #dfe4ea; }
+  .tagfig:not([data-from])::after { display: none; }
+  .tagfig[data-from^="saved"]::after { color: #2f7d4f; border-color: #bfe0cb; }
+  .tagfig[data-from^="typeset"]::after { color: #b5651d; border-color: #efd3b9; }
+  .tagfig.wide { padding: 26px 20px 34px; }
+  .tagfig.error { display: block; }
+  .tagfig .mpw-console { background: #fff5f5; border-color: #f0c0c0; color: #a33; }
+  code { background: var(--bg-2); padding: 1px 5px; border-radius: 4px; }
+  pre.code code { background: none; padding: 0; }
+  pre.code { margin-top: 14px; }
+  .note { border-left: 3px solid var(--copper); padding: 4px 14px; margin-top: 16px; color: var(--muted); font-size: 15.5px; }
+  footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+  @media (max-width: 560px) { body { font-size: 16px; } .tagfig { padding: 18px 10px 30px; } }
 </style>
-<!-- the whole integration is this one line; data-figures names the folder of saved figures (mpost-wasm --prerender) -->
-<script type="module" src="../dist/auto.js" data-figures="figures/"></script>
+<!-- the whole integration is this one line; data-figures names the folder of saved figures (mpost-wasm --prerender),
+     data-bundles="+opentype" adds the opt-in OpenType bundle for the fontspec figures -->
+<script type="module" src="../dist/auto.js" data-figures="figures/" data-bundles="+opentype"></script>
 <script>
   // ?live: ignore the saved figures and the browser cache, typeset everything in this tab
   const live = new URLSearchParams(location.search).has('live');
   if (live) { const loader = document.querySelector('script[src$="auto.js"]'); loader.removeAttribute('data-figures'); loader.setAttribute('data-cache', 'off'); }
-  // optional: listen for renders
+  // optional: listen for renders; each figure's frame gets a badge saying where its SVG came from
   const from = { file: 0, cache: 0, engine: 0 }; let n = 0, total = 0;
+  const words = { file: 'saved file', cache: 'browser cache', engine: 'typeset here' };
   document.addEventListener('mp-tikz-wasm:rendered', (e) => {
     n++; from[e.detail.from]++; total += e.detail.ms;
+    const frame = e.target.closest && e.target.closest('.tagfig');
+    // show each figure 1.4 times its natural size, within its frame
+    for (const svg of e.target.querySelectorAll('svg')) { if (svg.parentElement.closest('svg')) continue; const a = svg.getAttribute('width') || ''; const w = parseFloat(a) * (/pt$/.test(a) ? 4 / 3 : 1); if (w) { svg.style.width = `min(100%, ${Math.round(w * 1.4)}px)`; svg.style.height = 'auto'; } }
+    if (frame) frame.dataset.from =(words[e.detail.from] ?? e.detail.from) + (e.detail.from === 'engine' ? ` · ${Math.round(e.detail.ms)} ms` : '');
     document.getElementById('stats').textContent = `${n} diagrams: ${from.file} from saved files, ${from.cache} from the browser cache, ${from.engine} typeset here (${total.toFixed(0)} ms of engine time).`;
   });
 </script>
 </head>
 <body>
-<div style="font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.65">mp-tikz-wasm</div>
-<h1>Diagram tags</h1>
-<p class="muted" id="intro-saved">Every figure below is a <code>&lt;script&gt;</code> or custom tag in the HTML source, typeset by MetaPost, pdfTeX, LuaTeX (for graph drawing) and dvisvgm. On this copy of the page the figures were saved in advance — <code>mpost-wasm --prerender tags.html</code> wrote them to <code>figures/</code> — so they load as small static files, and the engines start only for the deliberately broken figure at the bottom. <a href="?live">Typeset everything in this tab instead.</a> <span id="stats"></span></p>
-<p class="muted" id="intro-live" hidden>Every figure below is typeset on load by MetaPost, pdfTeX, LuaTeX (for graph drawing) and dvisvgm running in this tab, from a <code>&lt;script&gt;</code> or custom tag in the HTML source; the saved copies in <code>figures/</code> and the browser's cache are being ignored. <a href="tags.html">Load the saved figures instead.</a> <span id="stats"></span></p>
+<header class="sitebar">
+  <a class="brand" href="guide.html"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.6 15.2C7 5.5 10.6 18.5 20.4 8.6" fill="none" stroke="#b5651d" stroke-width="1.9" stroke-linecap="round"/></svg>mp-tikz-wasm</a>
+  <nav aria-label="Demo pages"><a href="guide.html">Guide</a><a href="index.html">Gallery</a><a href="tags.html" aria-current="page">Tags</a><a href="live.html">Live</a><a href="minimal.html">Editors</a><a href="standalone.html">Single file</a></nav>
+  <a class="gh" href="https://github.com/jmckalex/mp-tikz-wasm">GitHub ↗</a>
+  <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch between light and dark"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg></button>
+</header>
+<div class="wrap">
+<header class="masthead">
+  <div class="eyebrow">mp-tikz-wasm · drop-in tags</div>
+  <h1>Diagram tags</h1>
+  <p class="intro" id="intro-saved">Every figure below is a <code>&lt;script&gt;</code> or custom tag in the HTML source, typeset by MetaPost, pdfTeX, LuaTeX and dvisvgm. On this copy of the page the figures were saved in advance — <code>mpost-wasm --prerender tags.html</code> wrote them to <code>figures/</code> — so they load as small static files, and the engines start only for the deliberately broken figure at the bottom. <a href="?live">Typeset everything in this tab instead.</a></p>
+  <p class="intro" id="intro-live" hidden>Every figure below is typeset on load by MetaPost, pdfTeX, LuaTeX and dvisvgm running in this tab, from a <code>&lt;script&gt;</code> or custom tag in the HTML source; the saved copies in <code>figures/</code> and the browser's cache are being ignored. <a href="tags.html">Load the saved figures instead.</a></p>
+  <div class="panel">
+    <span class="grow" id="stats">waiting for the figures…</span>
+    <label class="field" title="how much the tags write to the browser console: mpTikzWasm.setLogLevel()">console <select id="loglevel"><option value="silent">silent</option><option value="error">error</option><option value="warn" selected>warn</option><option value="info">info</option><option value="debug">debug</option><option value="trace">trace</option></select></label>
+    <button class="btn" type="button" id="save" title="mpTikzWasm.saveFigures(): write every figure on the page as figures/figure-HASH.svg">Save the figures…</button>
+  </div>
+</header>
 <script>if (live) { document.getElementById('intro-saved').remove(); document.getElementById('intro-live').hidden = false; }</script>
 
 <h2>TikZ, the tikzjax way</h2>
 <p>A <code>&lt;script type="text/tikz"&gt;</code> holding just a <code>tikzpicture</code>. It is wrapped in a <code>standalone</code> document automatically; libraries come from <code>data-libraries</code>.</p>
-<div class="row">
+<div class="figs">
+<div class="tagfig paper">
 <script type="text/tikz" data-libraries="arrows.meta,calc">
 \begin{tikzpicture}[scale=1.2]
   \draw[->,thick] (0,0) -- (3,0) node[right] {$x$};
@@ -44,6 +95,8 @@
   \node[fill=yellow!30,draw,rounded corners] at ($(1.5,1.7)$) {$y=\sin x+1$};
 \end{tikzpicture}
 </script>
+</div>
+<div class="tagfig paper">
 <script type="text/tikz" data-libraries="shadings,patterns">
 \begin{tikzpicture}
   \shade[ball color=red!70] (0,0) circle (0.6);
@@ -52,9 +105,12 @@
 \end{tikzpicture}
 </script>
 </div>
+</div>
 
 <h2>A whole document</h2>
 <p>If the body contains <code>\documentclass</code>, it is compiled as is — any class, any package in the bundles, pgfplots included.</p>
+<div class="figs one">
+<div class="tagfig paper wide">
 <script type="text/tikz">
 \documentclass[border=3pt]{standalone}
 \usepackage{amsmath,pgfplots}
@@ -69,10 +125,13 @@
 \end{tikzpicture}
 \end{document}
 </script>
+</div>
+</div>
 
 <h2>Custom elements</h2>
-<p><code>&lt;tikz-diagram&gt;</code> and <code>&lt;metapost-diagram&gt;</code> work the same way and render when they enter the page (a <code>MutationObserver</code> catches later additions). Inside a custom element the content is HTML, so write <code>&amp;lt;</code> for <code>&lt;</code>. A <code>data-gdlibraries</code> attribute (or any use of graphdrawing or <code>\directlua</code>) switches that diagram to LuaTeX.</p>
-<div class="row">
+<p><code>&lt;tikz-diagram&gt;</code> and <code>&lt;metapost-diagram&gt;</code> work the same way and render when they enter the page (a <code>MutationObserver</code> catches later additions). Inside a custom element the content is HTML, so write <code>&amp;lt;</code> for <code>&lt;</code>. A <code>data-gdlibraries</code> attribute (or any use of graph drawing or <code>\directlua</code>) switches that diagram to LuaTeX.</p>
+<div class="figs">
+<div class="tagfig paper">
 <tikz-diagram data-libraries="positioning,shapes.geometric" alt="two connected nodes">
 \begin{tikzpicture}[node distance=1.4cm]
   \node[circle,draw,fill=blue!15] (a) {$a$};
@@ -80,45 +139,113 @@
   \draw[-latex,thick] (a) -- node[above] {$f$} (b);
 \end{tikzpicture}
 </tikz-diagram>
+</div>
+<div class="tagfig paper">
 <tikz-diagram data-gdlibraries="layered" alt="a layered graph drawn by LuaTeX">
 \graph[layered layout, nodes={draw,circle,fill=green!15,font=\small}, sibling distance=7mm, level distance=7mm] {
   a -> {b -> {d, e}, c -> {f, g}}; e -> g;
 };
 </tikz-diagram>
+</div>
+<div class="tagfig paper">
 <metapost-diagram alt="a MetaPost figure">
   draw fullcircle scaled 60 withpen pencircle scaled 1.2 withcolor (0.1,0.3,0.8);
   for i = 0 upto 11: draw origin -- 30 dir (30i) withcolor (i/11)[blue,red]; endfor
-  label.top(btex $\oint_\gamma f = 2\pi i\sum \mathrm{Res}$ etex, (0,32));
+  label.top(btex $\oint_\gamma f = 2\pi i\sum {\rm Res}$ etex, (0,32));
 </metapost-diagram>
+</div>
+</div>
+
+<h2>More TikZ libraries</h2>
+<p>Every PGF/TikZ library is bundled, and so is spath3, whose <code>knots</code> and <code>calligraphy</code> libraries pgf does not ship: here decorations along a path, and a braid whose crossings the knots library finds and redraws.</p>
+<div class="figs">
+<div class="tagfig paper">
+<script type="text/tikz" data-libraries="decorations.pathmorphing,decorations.markings,arrows.meta" data-border="6pt">
+\begin{tikzpicture}[thick]
+  \draw[decorate,decoration={coil,aspect=0.5,amplitude=4pt,segment length=6pt},blue!70!black] (0,0) -- (3.4,0);
+  \draw[decorate,decoration={zigzag,amplitude=3pt,segment length=7pt},green!45!black] (0,-0.6) -- (3.4,-0.6);
+  \draw[postaction={decorate},decoration={markings,mark=between positions 0.15 and 0.85 step 0.35 with {\arrow{Stealth}}},red!70!black] (0,-1.3) .. controls (1.1,-0.7) and (2.3,-1.9) .. (3.4,-1.3);
+\end{tikzpicture}
+</script>
+</div>
+<div class="tagfig paper">
+<tikz-diagram data-libraries="knots" data-border="6pt" alt="two strands braided, drawn by the spath3 knots library">
+\begin{tikzpicture}
+  \begin{knot}[clip width=5, flip crossing=2]
+    \strand[red!70!black, ultra thick] (0,0) .. controls +(1,0) and +(-1,0) .. (2,1) .. controls +(1,0) and +(-1,0) .. (4,0);
+    \strand[blue!70!black, ultra thick] (0,1) .. controls +(1,0) and +(-1,0) .. (2,0) .. controls +(1,0) and +(-1,0) .. (4,1);
+  \end{knot}
+\end{tikzpicture}
+</tikz-diagram>
+</div>
 </div>
 
 <h2>MetaPost script tags</h2>
 <p><code>&lt;script type="text/metapost"&gt;</code>: a body without <code>beginfig</code> becomes one figure; <code>data-tex</code> chooses the label engine.</p>
-<div class="row">
+<div class="figs">
+<div class="tagfig paper">
 <script type="text/metapost">
   input boxes;
   boxit.a(btex lexer etex); boxit.b(btex parser etex); circleit.c(btex AST etex);
   b.w = a.e + (22,0); c.w = b.e + (22,0);
   drawboxed(a,b,c); drawarrow a.e -- b.w; drawarrow b.e -- c.w;
 </script>
+</div>
+<div class="tagfig paper">
 <script type="text/metapost" data-tex="latex">
   verbatimtex \documentclass{article}\usepackage{amsmath}\begin{document} etex
   draw (0,0)--(80,0)--(80,50)--cycle;
   label.lft(btex $\displaystyle\int_0^1\!x\,dx$ etex, (0,25));
 </script>
 </div>
+</div>
+
+<h2>OpenType fonts, under LuaTeX</h2>
+<p>With <code>data-bundles="+opentype"</code> on the loader, a diagram can use <code>fontspec</code> under <code>data-engine="lualatex"</code>, or luaotfload directly in plain <code>data-engine="luatex"</code>. <code>data-fonts="woff2"</code> embeds a subset of each face as a web font and writes real <code>&lt;text&gt;</code> instead of outlines: try selecting the words in the first figure. The bundle is opt-in because LaTeX under LuaTeX initialises luaotfload on every run once it can find it.</p>
+<div class="figs">
+<div class="tagfig paper">
+<script type="text/tikz" data-engine="lualatex" data-fonts="woff2">
+\documentclass[border=4pt]{standalone}
+\usepackage{fontspec}
+\setmainfont{Latin Modern Roman}
+\begin{document}
+Selectable OpenType text: ffi, ffl, Dvořák, Łódź.
+\end{document}
+</script>
+</div>
+<div class="tagfig paper">
+<script type="text/tikz" data-engine="luatex">
+\input luaotfload.sty
+\font\body="[lmroman10-regular.otf]:mode=node;+liga;+kern" at 12pt
+\font\caps="[lmromancaps10-regular.otf]:mode=node;+kern" at 12pt
+\nopagenumbers \hsize=7cm \parindent=0pt
+\body Plain Lua\TeX{} with luaotfload: fi, ffl, Ærøskøbing, {\caps and small capitals.}
+\bye
+</script>
+</div>
+</div>
 
 <h2>Errors</h2>
 <p>A broken diagram shows its diagnostics instead of failing silently.</p>
+<div class="figs one">
+<div class="tagfig paper error">
 <script type="text/tikz">\begin{tikzpicture}\draw (0,0) -- (1,1) node {\undefinedmacro};\end{tikzpicture}</script>
+</div>
+</div>
 
 <h2>How to use it on your page</h2>
-<pre>&lt;script type="module" src="https://your-host/mp-tikz-wasm/dist/auto.js" data-figures="figures/"&gt;&lt;/script&gt;
+<pre class="code"><code>&lt;script type="module" src="https://your-host/mp-tikz-wasm/dist/auto.js" data-figures="figures/"&gt;&lt;/script&gt;
 &lt;script type="text/tikz" data-libraries="arrows.meta"&gt;
   \begin{tikzpicture} \draw[-&gt;] (0,0) -- (2,1); \end{tikzpicture}
 &lt;/script&gt;
-&lt;metapost-diagram&gt;draw fullcircle scaled 50;&lt;/metapost-diagram&gt;</pre>
-<p class="muted">Host the <code>dist/</code> folder (the three <code>.wasm</code> files, the JS, and <code>bundles/</code>) anywhere static; the script finds them relative to itself. Rendered SVGs are cached in IndexedDB by content hash, so a revisit shows the figures without running TeX.</p>
-<p class="muted">To spare first visits too, save the figures next to the page: <code>npx mpost-wasm --prerender page.html</code> writes <code>figures/figure-HASH.svg</code> for every diagram on the page (HASH is six characters of the hash of the element's source and attributes), or open the page and call <code>mpTikzWasm.saveFigures()</code> in the browser console, which writes the same files into a folder you pick (Chrome, Edge) or downloads them as a zip. With <code>data-figures="figures/"</code> on the loader, each element loads its file if it exists and the engines start only for the figures that are missing. The name is the content: a changed diagram gets a new file, and an old one is simply never requested.</p>
+&lt;metapost-diagram&gt;draw fullcircle scaled 50;&lt;/metapost-diagram&gt;</code></pre>
+<p class="muted">Host the <code>dist/</code> folder (the <code>.wasm</code> files, the JavaScript and <code>bundles/</code>) anywhere static; the script finds them relative to itself. Rendered SVGs are cached in IndexedDB by content hash, so a revisit shows the figures without running TeX. Add <code>data-bundles="+opentype"</code> for fontspec, <code>data-worker="off"</code> to run the engines on the page's own thread instead of a Web Worker, and <code>data-log="debug"</code> to watch the engines' output in the console (the menu above calls <code>mpTikzWasm.setLogLevel()</code>, which does the same at any time).</p>
+<p class="note">To spare first visits too, save the figures next to the page: <code>npx mpost-wasm --prerender page.html</code> writes <code>figures/figure-HASH.svg</code> for every diagram on the page (HASH is six characters of the hash of the element's source and attributes; add <code>--opentype</code> when the page uses fontspec), or open the page and call <code>mpTikzWasm.saveFigures()</code> — the button above — which writes the same files into a folder you pick (Chrome, Edge) or downloads them as a zip. With <code>data-figures="figures/"</code> on the loader, each element loads its file if it exists and the engines start only for the figures that are missing. The name is the content: a changed diagram gets a new file, and an old one is simply never requested.</p>
+<footer>The badge in the corner of each figure says where its SVG came from: a <b>saved file</b>, the <b>browser cache</b>, or <b>typeset here</b> by the engines in this tab.</footer>
+</div>
+<script>
+  document.getElementById('loglevel').onchange = (e) => window.mpTikzWasm?.setLogLevel(e.target.value);
+  document.getElementById('save').onclick = () => window.mpTikzWasm?.saveFigures();
+</script>
 </body>
 </html>

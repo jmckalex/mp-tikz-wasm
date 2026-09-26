@@ -63,6 +63,36 @@ endfig;
 end.`,
   },
   {
+    id: 'unit-circle', title: 'The unit circle', tier: 'tier 1', group: 'mp',
+    blurb: 'Eight btex … etex labels, maths and all, typeset by plain TeX in a single batched run and placed with MetaPost\'s label suffixes; edit one and only that one is typeset again.',
+    src: `% btex ... etex labels, typeset by plain TeX in one batched run
+prologues := 3;
+beginfig(1);
+  numeric u, t; u := 3cm; t := 35;
+  path c; c := fullcircle scaled 2u;
+  pair P; P := u*dir t;
+  fill origin -- subpath (0, t/45) of fullcircle scaled 0.56u -- cycle withcolor (1, 0.93, 0.8);
+  drawarrow (-1.2u,0) -- (1.25u,0) withcolor 0.5white;
+  drawarrow (0,-1.2u) -- (0,1.25u) withcolor 0.5white;
+  draw c withpen pencircle scaled 0.8;
+  draw origin -- P withpen pencircle scaled 1.1;
+  draw (xpart P, 0) -- P withcolor (0.8, 0.15, 0.1) withpen pencircle scaled 1.4;
+  draw origin -- (xpart P, 0) withcolor (0.1, 0.3, 0.8) withpen pencircle scaled 1.4;
+  draw P -- (u, u*sind t/cosd t) dashed evenly withcolor (0.1, 0.55, 0.3);
+  draw (u,0) -- (u, u*sind t/cosd t) withcolor (0.1, 0.55, 0.3) withpen pencircle scaled 1.4;
+  drawdot P withpen pencircle scaled 4;
+  label.ulft(btex $P=(\\cos\\theta,\\sin\\theta)$ etex, P);
+  label(btex $\\theta$ etex, 0.2u*dir(t/2));
+  label.lft(btex $\\sin\\theta$ etex, (xpart P, 0.5ypart P)) withcolor (0.8, 0.15, 0.1);
+  label.bot(btex $\\cos\\theta$ etex, (0.5xpart P, 0)) withcolor (0.1, 0.3, 0.8);
+  label.rt(btex $\\tan\\theta$ etex, (u, 0.5u*sind t/cosd t)) withcolor (0.1, 0.55, 0.3);
+  label.llft(btex $O$ etex, origin);
+  label.lrt(btex $1$ etex, (u,0));
+  label.bot(btex $\\displaystyle\\sin^2\\theta+\\cos^2\\theta=1$ etex, (0,-1.25u));
+endfig;
+end.`,
+  },
+  {
     id: 'boxes', title: 'boxes.mp diagram', tier: 'tier 1',
     blurb: 'The standard macro packages ship in the core bundle: boxes, graph, format, sarith…',
     src: `input boxes;
@@ -96,7 +126,6 @@ beginfig(1);
 endfig;
 end.`,
   },
-
   {
     id: 'koch', title: 'Recursion: Koch snowflake', tier: 'geometry',
     blurb: 'MetaPost is a real programming language; vardefs recurse and paths are first-class values joined with &.',
@@ -119,7 +148,6 @@ beginfig(1);
 endfig;
 end.`,
   },
-
   {
     id: 'clip', title: 'Clipping, pens, dashes', tier: 'geometry',
     blurb: 'Elliptical and polygonal pens, dash patterns, clip and setbounds — all rendered as SVG paths by MetaPost\'s own backend.',
@@ -156,7 +184,6 @@ end.`,
 endfig;
 end.`,
   },
-
   {
     id: 'lissajous', title: 'Lissajous curve', tier: 'geometry',
     blurb: 'A parametric curve traced by 720 pen dabs, each coloured by its phase — the colour is a blend picked by MetaPost arithmetic.',
@@ -235,6 +262,95 @@ end.`,
   fill A--C--E--B--D--cycle withcolor (1,0.82,0.2);
   fill AA--BB--CC--DD--EE--cycle withcolor (0.65,0.12,0.12);
   draw A--C--E--B--D--cycle withpen pencircle scaled 1.5 withcolor (0.4,0.05,0.05);
+endfig;
+end.`,
+  },
+  {
+    id: 'numbers-double', title: 'Beyond 4096: double arithmetic', tier: 'double', group: 'mp',
+    settings: { numbers: 'double' },
+    blurb: 'Twelve factorials, up to 479001600, overflow MetaPost\'s default scaled numbers (whose limit is 4096). Choosing this example switches the toolbar\'s numbers to double; switch back to scaled to see the overflow reported.',
+    src: `% Numbers above 4096 overflow MetaPost's default 'scaled' arithmetic.
+% This example needs numbersystem 'double' (selected with it: see the toolbar).
+prologues := 3;
+beginfig(1);
+  numeric f[], ux, uy; f[0] := 1;
+  for n = 1 upto 12: f[n] := n * f[n-1]; endfor      % 12! = 479001600
+  ux := 18; uy := 8;
+  draw (0,0) -- (12.5ux, 0); draw (0,0) -- (0, 21uy);
+  path p; p := (0, 0) for n = 1 upto 12: -- (n*ux, uy*mlog(f[n])/256) endfor;
+  draw p withpen pencircle scaled 1.2 withcolor (0.1, 0.3, 0.8);
+  for n = 1 upto 12:
+    drawdot (n*ux, uy*mlog(f[n])/256) withpen pencircle scaled 3.5;
+    label.bot(decimal n, (n*ux, 0));
+  endfor
+  for k = 0, 5, 10, 15, 20:
+    draw (-2, k*uy) -- (0, k*uy); label.lft(decimal k, (-2, k*uy));
+  endfor
+  label.top(btex $\\ln n!$ etex, (0, 21uy));
+  label.rt("12!=" & decimal f[12], (2ux, 18uy));
+endfig;
+end.`,
+  },
+  {
+    id: 'logging', title: 'Watching the engine: log levels', tier: 'console', group: 'features',
+    settings: { log: 'debug' },
+    blurb: 'MetaPost\'s message and show write to its terminal. This example sets the log level to debug, so each line reaches the browser console as it is written (open the developer tools), and the Log tab keeps the whole transcript at any level.',
+    src: `% MetaPost's own messages: 'message' and 'show' write to the terminal. The
+% library streams it to the browser console at log level 'debug' (set in the
+% toolbar; open the developer tools to watch) and keeps it in the Log tab.
+prologues := 3;
+beginfig(1);
+  numeric a, b, x, y, w, h, q, s, n; a := 144; b := 89; s := 2;
+  message "Euclid on " & decimal a & " and " & decimal b & ", as squares cut from a rectangle:";
+  x := 0; y := 0; w := a; h := b; n := 0;
+  forever:
+    exitif (w = 0) or (h = 0);
+    n := n + 1;
+    if w >= h:
+      q := floor(w/h);
+      message "  step " & decimal n & ": " & decimal w & " = " & decimal q & " x " & decimal h & " + " & decimal (w - q*h);
+      for k = 0 upto q-1:
+        fill unitsquare scaled (s*h) shifted (s*(x + k*h), s*y) withcolor (n/10)[(0.75,0.85,1), (1,0.8,0.6)];
+        draw unitsquare scaled (s*h) shifted (s*(x + k*h), s*y) withcolor white;
+      endfor
+      x := x + q*h; w := w - q*h;
+    else:
+      q := floor(h/w);
+      message "  step " & decimal n & ": " & decimal h & " = " & decimal q & " x " & decimal w & " + " & decimal (h - q*w);
+      for k = 0 upto q-1:
+        fill unitsquare scaled (s*w) shifted (s*x, s*(y + k*w)) withcolor (n/10)[(0.75,0.85,1), (1,0.8,0.6)];
+        draw unitsquare scaled (s*w) shifted (s*x, s*(y + k*w)) withcolor white;
+      endfor
+      y := y + q*w; h := h - q*w;
+    fi
+  endfor
+  show n;
+  draw unitsquare xscaled (s*a) yscaled (s*b) withpen pencircle scaled 1.5;
+  label.bot(btex $\\gcd(144, 89) = 1$, in ten steps etex, (s*a/2, 0));
+endfig;
+end.`,
+  },
+  {
+    id: 'main-thread', title: 'Worker or main thread', tier: 'in-process', group: 'features',
+    settings: { worker: false },
+    blurb: 'A Hilbert curve of order 6, 4096 points found by recursion. This example unticks worker, so the engine runs on the page\'s own thread rather than in a Web Worker; compare the round trip in the Stats tab with the box ticked again.',
+    src: `% A Hilbert curve of order 6: 4096 points found by recursion in MetaPost.
+% This example turns the toolbar's 'worker' box off, so the engine runs on the
+% page's own thread: compare the round trip in the Stats tab with the box on.
+vardef hilbert(expr n, p, X, Y) =
+  % the curve through the square at p spanned by the vectors X and Y
+  if n = 0: p + 0.5(X + Y)
+  else:
+    hilbert(n-1, p, 0.5Y, 0.5X) --
+    hilbert(n-1, p + 0.5X, 0.5X, 0.5Y) --
+    hilbert(n-1, p + 0.5X + 0.5Y, 0.5X, 0.5Y) --
+    hilbert(n-1, p + 0.5X + Y, -0.5Y, -0.5X)
+  fi
+enddef;
+beginfig(1);
+  path h; h := hilbert(6, origin, (256,0), (0,256));
+  draw h withpen pencircle scaled 0.9 withcolor (0.1, 0.3, 0.8);
+  draw unitsquare scaled 256 withcolor 0.7white;
 endfig;
 end.`,
   },

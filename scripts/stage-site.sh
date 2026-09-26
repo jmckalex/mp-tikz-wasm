@@ -17,7 +17,7 @@ STAGE="$(mktemp -d)"; trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/site"
 cp -R "$REPO/dist" "$STAGE/dist"
 rm -f "$STAGE"/dist/*.map "$STAGE"/dist/*/*.map
-for f in index.html app.js examples.js examples-tikz.js tags.html guide.html minimal.html minimal-sources.js live.html live-sources.js page-common.js standalone.html; do
+for f in index.html app.js examples.js examples-tikz.js theme.css theme.js tags.html guide.html minimal.html minimal-sources.js live.html live-sources.js page-common.js standalone.html; do
   cp "$REPO/site/$f" "$STAGE/site/$f"
 done
 cp -R "$REPO/site/examples" "$STAGE/site/examples"
