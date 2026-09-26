@@ -16,7 +16,9 @@ luaotfload name database (the release blocker session 10 named), live
 `<tikz-diagram>`/`<metapost-diagram>` elements that typeset again when they
 change, restyled demo pages with examples of every feature, chemfig /
 simplekv / circuitikz / tikz-3dplot in the bundles (for Folio), and three
-small fixes, and deprecated `sanitizeSvg()` for DOMPurify. 261 tests pass;
+small fixes, deprecated `sanitizeSvg()` for DOMPurify, and added the
+`svg.attributes` TikZ library and `data-replace` (reveal.js fragments inside
+diagrams). 262 tests pass;
 TikZ golden 12/12, MetaPost golden 15/15. **Nothing blocks a 0.3.0 release
 from the branch now** except pushing it and seeing CI go green. The local staging copy
 `~/Sites/jmckalex/software/mp-tikz-wasm` holds **this unreleased branch**
@@ -747,10 +749,17 @@ replacing its tikzjax with this library).
    page). Other bodies keep their document and hash (the tags page's saved
    figures still match).
 7. **`sanitizeSvg()` deprecated in favour of DOMPurify** — loose end 20.
-8. **Hot lists skip the OpenType guide examples (6adfde4)**: they need the
+8. **`svg.attributes` and `data-replace` (247d58b)**, for reveal.js
+   fragments inside diagrams. A bundled TikZ library
+   (`bundles/tex/`, in `tex-plain`) gives `svg class`, `svg id` and
+   `svg attributes` on scopes, paths and nodes through PGF's own id-scope
+   `<g>` (the rdf hook); no-op under non-SVG drivers. `data-replace` swaps a
+   custom element for its `<svg>` after a successful render. Checked with
+   reveal.js 5 in Chrome; README has the example.
+9. **Hot lists skip the OpenType guide examples (6adfde4)**: they need the
    opt-in bundles and failed on the default engine ("! otf-math: error").
    The lists are unchanged.
-9. **Found, not fixed** — loose ends 19, 21 and 22 below.
+10. **Found, not fixed** — loose ends 19, 21 and 22 below.
 
 ## CI — green as of 2026-09-17 (session 8; first green in session 4)
 
