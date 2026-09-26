@@ -19,6 +19,11 @@ for (const name of ['fetchAsync', 'fetchSyncFile']) {
 }
 const kinds = { metapost: [], latex: [], lualatex: [], plain: [] };
 for (const ex of GUIDE) {
+  // The OpenType examples need the opt-in bundles, which a default engine (and so
+  // every hot list) does not have: run here they only fail ("! otf-math: error").
+  // The opentype bundle is fetched on demand, or up front with
+  // mp.preload(['opentype']); it has no hot list.
+  if (ex.opentype) continue;
   if (ex.kind === 'mp') kinds.metapost.push(ex);
   else if (ex.plain) kinds.plain.push(ex);
   else if (ex.engine === 'lualatex' || ex.engine === 'luatex') kinds.lualatex.push(ex);
