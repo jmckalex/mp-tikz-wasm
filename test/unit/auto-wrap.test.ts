@@ -9,12 +9,20 @@ describe('wrapTikz', () => {
   it('wraps bare path commands in a tikzpicture too', () => {
     expect(wrapTikz('\\draw (0,0) circle (1);')).toContain('\\begin{tikzpicture}\n\\draw (0,0) circle (1);\n\\end{tikzpicture}');
   });
-  it('does not nest a bare \\chemfig in a second tikzpicture (it typesets at zero size there)', () => {
-    const d = wrapTikz('\\chemfig{A-B}', { packages: 'chemfig' });
-    expect(d).toContain('\\begin{document}\n\\chemfig{A-B}\n\\end{document}');
-    expect(d).not.toContain('tikzpicture');
-    // TikZ code that uses \chemfig inside a node is still TikZ code
-    expect(wrapTikz('\\node {\\chemfig{A-B}};', { packages: 'chemfig' })).toContain('\\begin{tikzpicture}\n\\node');
+  it('gives a body that is its own picture the plain standalone class, not a second tikzpicture', () => {
+    // tikzcd, circuitikz, \\chemfig and \\schemestart draw their own tikzpicture: nested in
+    // another they collapse or vanish, and under standalone's `tikz` option (which crops
+    // only tikzpicture environments) a bare circuitikz is a whole letter page
+    for (const [src, pkg] of [
+      ['\\begin{tikzcd} A \\arrow[r] & B \\end{tikzcd}', 'tikz-cd'],
+      ['\\begin{circuitikz}\\draw (0,0) to[R] (2,0);\\end{circuitikz}', 'circuitikz'],
+      ['\\chemfig{A-B}', 'chemfig'],
+      ['\\schemestart A\\arrow B\\schemestop', 'chemfig'],
+    ]) {
+      expect(wrapTikz(src, { packages: pkg, border: '3pt' })).toBe(`\\documentclass[border=3pt]{standalone}\n\\usepackage{tikz}\n\\usepackage{${pkg}}\n\\begin{document}\n${src}\n\\end{document}`);
+    }
+    // TikZ code that uses \\chemfig inside a node is still TikZ code, in the old document
+    expect(wrapTikz('\\node {\\chemfig{A-B}};', { packages: 'chemfig' })).toBe('\\documentclass[tikz,border=2pt]{standalone}\n\\usepackage{chemfig}\n\\begin{document}\n\\begin{tikzpicture}\n\\node {\\chemfig{A-B}};\n\\end{tikzpicture}\n\\end{document}');
   });
   it('leaves complete documents alone', () => {
     const doc = '\\documentclass{article}\\begin{document}x\\end{document}';

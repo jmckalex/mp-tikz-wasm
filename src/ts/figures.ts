@@ -40,14 +40,21 @@ export function wrapTikz(source: string, attrs: Record<string, string> = {}): st
   // graph drawing is used through \graph, which the graphs library provides
   for (const l of ['graphs', 'graphdrawing']) if (gd.length && !libs.includes(l)) libs.push(l);
   const pkgs = (attrs.packages ?? '').split(/[,\s]+/).filter(Boolean);
-  // A body that is already a picture is not wrapped in another. \chemfig draws its
-  // own tikzpicture and, nested in a second one, typesets at zero size (a page
-  // holding only the border). Only a body that *starts* with it is left alone:
-  // `\node {\chemfig{...}};` is TikZ code and still needs its picture.
-  const isPicture = /\\begin\{tikzpicture\}|\\tikz\b|\\begin\{axis\}/.test(source) || /^\s*\\chemfig\b/.test(source);
+  // A body that is already a picture is not wrapped in another. Environments that
+  // draw their own tikzpicture -- tikzcd, circuitikz, chemfig's \chemfig and
+  // \schemestart -- break when nested in a second one: the page keeps its size but
+  // the drawing collapses to its edge, or vanishes. Standalone's `tikz` option,
+  // though, crops only tikzpicture environments, and left bare under it a circuitikz
+  // comes out as a whole letter page; so such a body gets the plain class, which
+  // crops whatever the body is, with TikZ loaded by hand. Only a body that *starts*
+  // with one is treated so (`\node {\chemfig{...}};` is TikZ code), and every
+  // other body keeps the document -- hence the figure hash -- it always had.
+  const ownPicture = /^\s*(\\begin\{(tikzcd|circuitikz)\}|\\chemfig\b|\\schemestart\b)/.test(source);
+  const isPicture = ownPicture || /\\begin\{tikzpicture\}|\\tikz\b|\\begin\{axis\}/.test(source);
   const body = isPicture ? source : `\\begin{tikzpicture}\n${source}\n\\end{tikzpicture}`;
+  const border = attrs.border ?? '2pt';
   return [
-    `\\documentclass[tikz,border=${attrs.border ?? '2pt'}]{standalone}`,
+    ...(ownPicture ? [`\\documentclass[border=${border}]{standalone}`, '\\usepackage{tikz}'] : [`\\documentclass[tikz,border=${border}]{standalone}`]),
     ...(pkgs.length ? [`\\usepackage{${pkgs.join(',')}}`] : []),
     ...(libs.length ? [`\\usetikzlibrary{${libs.join(',')}}`] : []),
     ...(gd.length ? [`\\usegdlibrary{${gd.join(',')}}`] : []),

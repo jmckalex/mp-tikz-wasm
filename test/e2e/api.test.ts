@@ -112,15 +112,20 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     expect((r.svg.match(/<path /g) ?? []).length).toBe(2);   // the line and the head
   }, 60_000);
 
-  it('typesets a bare \\chemfig body at its size, not nested in a second tikzpicture', async () => {
-    // chemfig draws its own tikzpicture; wrapped in another it came out as a
-    // 4 x 4 bp page holding only the border
+  it('typesets bodies that are their own picture (\\chemfig, circuitikz) on a cropped page', async () => {
+    // nested in a second tikzpicture \\chemfig came out as a 4 x 4 bp page holding only
+    // the border; left bare under standalone's tikz option a circuitikz is a letter page
     const { renderFigure } = await import(path.join(REPO, 'dist/figures.js'));
-    const r = await renderFigure(mp, { kind: 'tikz', source: '\\chemfig{A-B}', attrs: { packages: 'chemfig' } });
-    expect(r.ok).toBe(true);
-    const [, w, h] = /viewBox=['"][-\d.]+ [-\d.]+ ([\d.]+) ([\d.]+)['"]/.exec(r.svg)!;
-    expect(Number(w)).toBeGreaterThan(30);
-    expect(Number(h)).toBeGreaterThan(8);
+    const size = (svg: string) => /viewBox=['"][-\d.]+ [-\d.]+ ([\d.]+) ([\d.]+)['"]/.exec(svg)!.slice(1).map(Number);
+    const chem = await renderFigure(mp, { kind: 'tikz', source: '\\chemfig{A-B}', attrs: { packages: 'chemfig' } });
+    expect(chem.ok).toBe(true);
+    const [cw, ch] = size(chem.svg);
+    expect(cw).toBeGreaterThan(30); expect(ch).toBeGreaterThan(8);
+    const circ = await renderFigure(mp, { kind: 'tikz', source: '\\begin{circuitikz}\\draw (0,0) to[R] (2,0);\\end{circuitikz}', attrs: { packages: 'circuitikz' } });
+    expect(circ.ok).toBe(true);
+    const [w, h] = size(circ.svg);
+    expect(w).toBeGreaterThan(50); expect(w).toBeLessThan(120);
+    expect(h).toBeLessThan(60);
   }, 60_000);
 
   it('produces one SVG per page and maps errors to lines', async () => {

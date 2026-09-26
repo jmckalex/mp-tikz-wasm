@@ -325,7 +325,7 @@ __FIG:otf-math__
   <li>No PNG output and no <code>binary</code>/<code>interval</code> number systems (they need cairo and GMP/MPFR, which are not built).</li>
   <li>Worker mode cannot forward the <code>runScript</code>, <code>makeText</code> and <code>onFindFile</code> callbacks; providing one selects in-process mode.</li>
   <li>MetaPost's <code>mplib</code> library does not write figure files during a run, so a document cannot <code>readfrom</code> its own output; and it exits on a few hard limits (such as an input-stack overflow, which native <code>mpost</code> hits too) rather than raising an error — reported as a fatal diagnostic.</li>
-  <li>Packages not in the bundles are one recipe line away but not yet included: beamer, babel, siunitx, circuitikz, chemfig.</li>
+  <li>Packages not in the bundles are one recipe line away but not yet included: beamer, babel, siunitx (so circuitikz's <code>siunitx</code> option does not work). chemfig, circuitikz and tikz-3dplot are bundled; circuitikz's rollback releases are not.</li>
 </ul>
 
 <h2 id="build">Building</h2>
