@@ -39,7 +39,12 @@ mkdir -p "$OUT/tex/generic/config"
 # the first line must match etex.src's header check ("%% e-TeX V2.0;2")
 printf '%%%% e-TeX V2.0;2\n%%%% language.def for tex.wasm: US English only\n\\addlanguage{USenglish}{hyphen}{}{0}{0}\n\\uselanguage{USenglish}\n' > "$OUT/tex/generic/config/language.def"
 printf '%%%% language.dat for tex.wasm: US English only\nenglish hyphen.tex\n=usenglish\n=USenglish\n' > "$OUT/tex/generic/config/language.dat"
-for d in hyphen tex-ini-files pdftex unicode-data iftex kvsetkeys kvdefinekeys ltxcmds pdftexcmds infwarerr etexcmds atbegshi atveryend xkeyval gettitlestring bigintcalc bitset intcalc uniquecounter tikz-cd pdfescape stringenc luatex85; do
+# chemfig, simplekv (chemfig's key-value parser) and circuitikz's generic half
+# are here for parity with TikZJax, which shipped them; embedders replacing it
+# (Folio) have notes that use them. They land in the tex-plain bundle, which
+# claims tex/generic/ apart from pgf and tikz-cd.
+for d in hyphen tex-ini-files pdftex unicode-data iftex kvsetkeys kvdefinekeys ltxcmds pdftexcmds infwarerr etexcmds atbegshi atveryend xkeyval gettitlestring bigintcalc bitset intcalc uniquecounter tikz-cd pdfescape stringenc luatex85 \
+         chemfig simplekv circuitikz; do
   [ -d "$TEXMF/tex/generic/$d" ] && cp -R "$TEXMF/tex/generic/$d" "$OUT/tex/generic/$d"
 done
 # spath3 is here for its TikZ libraries rather than for its own sake: pgf does
@@ -49,7 +54,8 @@ done
 for d in base tex-ini-files l3kernel l3backend l3packages amsmath amsfonts amscls tools graphics graphics-cfg graphics-def latexconfig \
          xcolor pgf tikz-cd pgfplots spath3 psnfss kvoptions etoolbox xkeyval geometry booktabs mathtools \
          ec standalone varwidth preview currfile filehook fontenc \
-         hyperref hycolor kvsetkeys refcount rerunfilecheck atveryend letltxmacro auxhook url listings fp imakeidx todonotes firstaid; do
+         hyperref hycolor kvsetkeys refcount rerunfilecheck atveryend letltxmacro auxhook url listings fp imakeidx todonotes firstaid \
+         circuitikz tikz-3dplot; do
   [ -d "$TEXMF/tex/latex/$d" ] && cp -R "$TEXMF/tex/latex/$d" "$OUT/tex/latex/$d"
 done
 # LuaTeX in DVI mode (dviluatex.fmt, dvilualatex.fmt): its etex.src loads
