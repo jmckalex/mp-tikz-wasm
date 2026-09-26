@@ -11,15 +11,14 @@ repository is `~/Source/mp-tikz-wasm`, remote
 **State now (end of session 11, 2026-09-26):** the working tree is clean and
 **HEAD is still the branch `opentype-fonts`, not `main`**: sessions 9–11,
 none of it merged, pushed or released, and **CI has never built it**. Session
-11 added seven commits (85fe86f → dc5c303, then this handover): the prebuilt
+11 added the commits from 85fe86f to the latest handover commit: the prebuilt
 luaotfload name database (the release blocker session 10 named), live
 `<tikz-diagram>`/`<metapost-diagram>` elements that typeset again when they
 change, restyled demo pages with examples of every feature, chemfig /
 simplekv / circuitikz / tikz-3dplot in the bundles (for Folio), and three
-small fixes. 261 tests pass; TikZ golden 12/12, MetaPost golden 15/15.
-**Nothing blocks a 0.3.0 release from the branch now** except pushing it and
-seeing CI go green. One decision is open with the owner: the `sanitizeSvg()`
-defect (loose end 20). The local staging copy
+small fixes, and deprecated `sanitizeSvg()` for DOMPurify. 261 tests pass;
+TikZ golden 12/12, MetaPost golden 15/15. **Nothing blocks a 0.3.0 release
+from the branch now** except pushing it and seeing CI go green. The local staging copy
 `~/Sites/jmckalex/software/mp-tikz-wasm` holds **this unreleased branch**
 (staged in session 11 so the owner could view the pages): do not `make sync`
 from it before the release, or restage from `main` first. `main` is
@@ -690,7 +689,7 @@ Everything below is verified unless marked otherwise.
 
 ## What happened in session 11 (2026-09-24 to 2026-09-26, on `opentype-fonts`)
 
-Seven commits on the branch, 85fe86f → dc5c303. Three of them (the pages,
+Commits 85fe86f → the latest handover commit. Several of them (the pages,
 the packages, the chemfig fix) came out of requests from elsewhere: the
 owner's, a subagent's work, and the Folio session (another embedder,
 replacing its tikzjax with this library).
@@ -739,10 +738,19 @@ replacing its tikzjax with this library).
    `\chemfig` is now left bare. Measured: `\schemestart`, `circuitikz` and
    `tikzcd` bodies are the same size nested or not, so they were left alone
    (Folio's report included circuitikz; it did not reproduce).
-6. **Hot lists skip the OpenType guide examples (6adfde4)**: they need the
+6. **Own-picture bodies (75b46d1)**, found while checking DOMPurify: bare
+   `tikzcd`, `circuitikz`, `\chemfig` and `\schemestart` bodies were nested
+   in a second `tikzpicture` and collapsed or vanished (the size comparison
+   behind 8a5d378 had missed it). A body that starts with one now gets
+   `\documentclass[border=…]{standalone}` + `\usepackage{tikz}`, which crops
+   any body (standalone's `tikz` option would leave a circuitikz on a letter
+   page). Other bodies keep their document and hash (the tags page's saved
+   figures still match).
+7. **`sanitizeSvg()` deprecated in favour of DOMPurify** — loose end 20.
+8. **Hot lists skip the OpenType guide examples (6adfde4)**: they need the
    opt-in bundles and failed on the default engine ("! otf-math: error").
    The lists are unchanged.
-7. **Found, not fixed** — loose ends 19–22 below.
+9. **Found, not fixed** — loose ends 19, 21 and 22 below.
 
 ## CI — green as of 2026-09-17 (session 8; first green in session 4)
 
@@ -1087,15 +1095,16 @@ and sync the website (`make sync-all`) after a release.
     `renderElement()` has already replaced every `<script type="text/…">`
     with its figure, so a page using only the script forms would prefetch
     nothing. The custom elements are fine (their source is kept now).
-20. **`sanitizeSvg()` destroys shadings, patterns and woff2 text** (session
-    11, reported by Folio, confirmed here). Its allowlist lacks
-    `linearGradient`/`radialGradient`/`stop`/`pattern`/`symbol`/`mask`, the
-    geometry attributes (`cx cy r rx ry x1 y1 x2 y2 points`), and it deletes
-    `<style>`, which holds the `fonts: 'woff2'` faces. Nothing internal calls
-    it, but the README recommends it. **Waiting on the owner:** widen the
-    allowlist (and keep a scrubbed `<style>`) or deprecate it in favour of
-    DOMPurify (`USE_PROFILES {svg, svgFilters}`, `ADD_TAGS ['use']`, drop
-    non-`#` `<use>` hrefs — what Folio uses).
+20. ~~**`sanitizeSvg()` destroys shadings, patterns and woff2 text**~~ —
+    **resolved in session 11 by deprecation** (the owner's decision). It is a
+    regex allow-list, not a security boundary, and it dropped gradients,
+    patterns, `<style>` (the woff2 faces) and shape geometry. It stays
+    exported, unchanged, marked `@deprecated`, until 1.0. The README
+    ("Untrusted sources") documents DOMPurify with `USE_PROFILES {svg,
+    svgFilters}`, `ADD_TAGS ['use']` and non-`#` `<use>` removal, checked in
+    Chrome: shadings, patterns, opacity, tikz-cd, MetaPost and woff2 figures
+    lose nothing (the faces load), and TeX-injected `<script>`, `onerror`,
+    `javascript:`, external `<use>` and `foreignObject` all go.
 21. **`texmfDir` and bundles render one fontspec document differently**
     (session 11): same status, different SVG, seeded or not, so not the name
     database. Not investigated; the goldens run on bundles.
@@ -1173,8 +1182,6 @@ same branch, verified by both Clew apps. Done in session 11: the prebuilt
 name database, live custom elements, the restyled pages, four more packages.
 Still open, in the order they are worth doing:
 
-- **Decide `sanitizeSvg()`** (loose end 20) — fix or deprecate — before
-  the release, since the README points people at it.
 - **Push, then merge and release the `opentype-fonts` branch as 0.3.0**
   (sessions 9–11). It is complete and tested — 261 tests, both goldens
   including two byte-identical OpenType cases (LaTeX and plain), both Clew
