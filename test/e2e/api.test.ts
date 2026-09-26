@@ -128,6 +128,27 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     expect(h).toBeLessThan(60);
   }, 60_000);
 
+  it('puts svg class, svg id and svg attributes from the svg.attributes library on the SVG', async () => {
+    // the keys hand their attributes to the <g> PGF opens for each scope, path and node;
+    // renderFigure namespaces ids, classes pass as written, a clip path's are dropped
+    const { renderFigure } = await import(path.join(REPO, 'dist/figures.js'));
+    const r = await renderFigure(mp, { kind: 'tikz', attrs: { libraries: 'svg.attributes' }, source: [
+      '\\begin{scope}[svg class=fragment, svg class=fade-up, svg attributes={data-fragment-index="2"}]',
+      '  \\draw (0,0) rectangle (1,1); \\begin{scope}[svg id=inner] \\draw (0,0) -- (1,1); \\end{scope}',
+      '\\end{scope}',
+      '\\draw[svg id=line, svg class=thin] (2,0) -- (3,1);',
+      '\\node[svg class=lbl] at (4,0.5) {N};',
+      '\\clip[svg class=clipped] (5,0) rectangle (6,1); \\draw (5,0) -- (6,1);',
+    ].join('\n') }, 'x');
+    expect(r.ok).toBe(true);
+    expect(r.svg).toMatch(/<g class='fragment fade-up' data-fragment-index='2'>/);
+    expect(r.svg).toMatch(/<g id='mpwx-inner'>/);
+    expect(r.svg).toMatch(/<g class='thin' id='mpwx-line'>/);
+    expect(r.svg).toMatch(/<g class='lbl'>/);
+    expect(r.svg).not.toContain('clipped');
+    expect((r.svg.match(/class='fragment/g) ?? []).length).toBe(1);   // nothing inherited it
+  }, 60_000);
+
   it('produces one SVG per page and maps errors to lines', async () => {
     const r = await mp.latex(`\\documentclass{article}\\pagestyle{empty}\\begin{document}one\\newpage two \\undefinedmacro\\end{document}`);
     expect(r.pages).toHaveLength(2);

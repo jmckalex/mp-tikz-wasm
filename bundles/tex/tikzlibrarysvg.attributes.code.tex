@@ -1,0 +1,87 @@
+% tikzlibrarysvg.attributes.code.tex -- ids, classes and other attributes on
+% the SVG that PGF's dvisvgm driver writes. Part of mp-tikz-wasm (LGPL-3.0).
+%
+%   \usetikzlibrary{svg.attributes}
+%   \begin{scope}[svg class=fragment] ... \end{scope}
+%   \draw[svg id=axis, svg class={thin grey}] ...;
+%   \node[svg attributes={data-fragment-index="2"}] {...};
+%
+% Keys, in any scope, path or node options (and in styles such as every node):
+%   svg class=<classes>       added to the element's class list; repeatable
+%   svg id=<id>               the element's id (the last one given wins)
+%   svg attributes=<text>     raw attributes, written as given: name="value" ...
+%
+% How: PGF opens an "id scope" <g> around every scope, path and node, and the
+% SVG drivers write \pgfsys@svg@rdf into its start tag -- the hook TikZ's rdf
+% library uses for RDFa. These keys collect attributes and hand them to that
+% hook, so they land on PGF's own <g>, which PGF also closes: no raw specials
+% and nothing to balance. Under a driver that is not SVG (pdfTeX, dvips) the
+% hook does not exist and the keys do nothing, so one source builds anywhere.
+%
+% Not supported: a clip-only path (\clip ...;), which PGF gives no <g> -- its
+% attributes would land on the next element instead, so they are dropped.
+% With PGF animations on the same element, PGF writes its own id too; use
+% svg class there. Executing `rdf engine on` after loading this library
+% replaces the hook and turns these keys off.
+
+\ProvidesFileRCS{tikzlibrarysvg.attributes.code.tex}
+
+\let\tikz@svgattr@class\pgfutil@empty
+\let\tikz@svgattr@id\pgfutil@empty
+\let\tikz@svgattr@raw\pgfutil@empty
+
+\tikzset{
+  svg class/.code={%
+    \ifx\tikz@svgattr@class\pgfutil@empty
+      \def\tikz@svgattr@class{#1}%
+    \else
+      \expandafter\def\expandafter\tikz@svgattr@class\expandafter{\tikz@svgattr@class\space#1}%
+    \fi},
+  svg id/.code={\def\tikz@svgattr@id{#1}},
+  svg attributes/.code={%
+    \expandafter\def\expandafter\tikz@svgattr@raw\expandafter{\tikz@svgattr@raw\space#1}},
+}
+
+% Hand the collected attributes to the next id scope, then forget them so that
+% nothing inside inherits them. \pgfsys@svg@rdf is global (the driver resets it
+% as it opens the <g>); what is already in it (RDFa) is kept in front.
+\def\tikz@svgattr@flush{%
+  \ifx\pgfsys@svg@rdf\pgfutil@undefined\else
+    \tikz@svgattr@compose
+    \ifx\tikz@svgattr@all\pgfutil@empty\else
+      \toks0=\expandafter{\pgfsys@svg@rdf}%
+      \toks2=\expandafter{\tikz@svgattr@all}%
+      \xdef\pgfsys@svg@rdf{\the\toks0 \the\toks2}%
+    \fi
+  \fi
+  \tikz@svgattr@clear}
+\def\tikz@svgattr@compose{%
+  \let\tikz@svgattr@all\pgfutil@empty
+  \ifx\tikz@svgattr@id\pgfutil@empty\else
+    \edef\tikz@svgattr@all{\space id="\tikz@svgattr@id"}\fi
+  \ifx\tikz@svgattr@class\pgfutil@empty\else
+    \edef\tikz@svgattr@all{\tikz@svgattr@all\space class="\tikz@svgattr@class"}\fi
+  \ifx\tikz@svgattr@raw\pgfutil@empty\else
+    \edef\tikz@svgattr@all{\tikz@svgattr@all\tikz@svgattr@raw}\fi}
+\def\tikz@svgattr@clear{%
+  \let\tikz@svgattr@class\pgfutil@empty
+  \let\tikz@svgattr@id\pgfutil@empty
+  \let\tikz@svgattr@raw\pgfutil@empty}
+
+% The hook TikZ calls before every id scope. Keeping the rdf library's
+% behaviour (its option lists are empty unless it is loaded and switched on)
+% means loading both works.
+\ifx\tikz@rdf@pre@options\pgfutil@undefined \let\tikz@rdf@pre@options\pgfutil@empty \fi
+\ifx\tikz@rdf@post@options\pgfutil@undefined \let\tikz@rdf@post@options\pgfutil@empty \fi
+\def\tikz@clear@rdf@options{%
+  \let\tikz@rdf@pre@options\pgfutil@empty
+  \let\tikz@rdf@post@options\pgfutil@empty
+  \tikz@svgattr@clear}
+\def\tikz@do@rdf@pre@options{%
+  \tikz@rdf@pre@options\let\tikz@rdf@pre@options\pgfutil@empty
+  % a clip path gets no id scope (tikz.code.tex, \tikz@finish): drop, do not leak
+  \iftikz@mode@clip\tikz@svgattr@clear\else\tikz@svgattr@flush\fi}
+\def\tikz@do@rdf@post@options{%
+  \tikz@rdf@post@options\let\tikz@rdf@post@options\pgfutil@empty}
+
+\endinput

@@ -63,6 +63,10 @@ done
 # would add. The current release is circuitikz.sty plus the generic pgfcirc*.tex
 # files, so the old ones stay behind and asking for one fails as "not found".
 rm -f "$OUT"/tex/latex/circuitikz/circuitikz-*.sty "$OUT"/tex/latex/circuitikz/circuitikz-*-body.tex
+# this project's own TeX files (bundles/tex): the svg.attributes TikZ library.
+# tex/generic, so plain TeX finds it too; it rides in the tex-plain bundle.
+mkdir -p "$OUT/tex/generic/mp-tikz-wasm"
+cp "$REPO"/bundles/tex/*.tex "$OUT/tex/generic/mp-tikz-wasm/"
 # LuaTeX in DVI mode (dviluatex.fmt, dvilualatex.fmt): its etex.src loads
 # hyphenation through Lua, babel's format-time hyphenation config has a
 # LuaTeX variant, and language.dat.lua describes the (single) language.

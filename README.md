@@ -205,6 +205,41 @@ not re-render it, and an element with no content waits for some. The
 `mpTikzWasm.figures()` (hence `saveFigures()`) lists only figures still shown.
 The two `<script>` forms render once: they are replaced by their figure.
 
+**Ids and classes in the SVG.** The bundled TikZ library `svg.attributes`
+(`\usetikzlibrary{svg.attributes}`, or `data-libraries="svg.attributes"` on a
+tag) adds three keys for any scope, path or node: `svg class=<classes>`
+(repeatable), `svg id=<id>` and `svg attributes=<name="value" …>`. They land on
+the `<g>` PGF itself opens for that scope, path or node — through the same hook
+TikZ's `rdf` library uses — so nothing has to be balanced by hand, and under a
+non-SVG driver (pdfTeX, dvips) they do nothing, so one source builds anywhere.
+A clip path gets no `<g>`, so its attributes are dropped. Classes pass as
+written; the tags and `renderFigure()` prefix ids per figure (`id="box"`
+becomes `mpwHASH-box`), so select by class, or by `[id$="-box"]`.
+
+**Replacing the element (`data-replace`).** With `data-replace` on a
+`<tikz-diagram>` or `<metapost-diagram>`, a successful render replaces the
+element by the `<svg>` itself; the element's `id`, `class` and `style` move to
+the SVG root. The diagram is then plain SVG in the page — what reveal.js needs
+to step through fragments inside it — and static: it no longer re-typesets. A
+failed render keeps the element and its diagnostics. The rendered event is
+dispatched from the SVG after the swap, with `replaced: true`.
+
+```html
+<section>
+  <tikz-diagram data-replace data-libraries="svg.attributes" class="r-stretch">
+    \draw[thick] (0,0) rectangle (4,3);
+    \begin{scope}[svg class=fragment]\fill[red!60] (1,1) circle (0.5);\end{scope}
+    \begin{scope}[svg class={fragment fade-up}]\fill[blue!60] (3,1) circle (0.5);\end{scope}
+    \node[svg class=fragment, svg attributes={data-fragment-index="0"}] at (2,2.5) {first};
+  </tikz-diagram>
+</section>
+```
+
+Checked with reveal.js 5 in Chrome: the three groups step in the right order
+(`data-fragment-index` honoured) with no `Reveal.sync()` — reveal looks
+fragments up as it navigates, and its CSS hides a `.fragment` the moment the
+SVG arrives.
+
 **Saved figures.** A page can carry its figures as static files, so that a
 first visit never starts the engines. `npx mpost-wasm --prerender page.html`
 typesets every diagram element of the page in Node and writes

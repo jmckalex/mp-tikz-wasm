@@ -36,6 +36,8 @@
  *   data-cache="off"                     skip the result cache and the saved figures
  *   data-show-console                    keep the log visible under the figure
  *   data-debounce="200"                  custom elements: ms to wait after a change before typesetting again
+ *   data-replace                         custom elements: once rendered, replace the element by the <svg>
+ *                                        itself (its id, class and style move to the SVG); static after that
  *
  * Loader script attributes: data-base (bundle/wasm base URL), data-worker="off",
  * data-bundles="+opentype" (add a bundle to the defaults; `+otf-fonts` too for
@@ -312,17 +314,49 @@ function makeHost(kind: FigureKind, attrs: Record<string, string>): HTMLElement 
 
 /** Drop a figure from figures() once nothing on the page shows it (a live element replaced, emptied or overtook it). */
 function forgetIfUnshown(name: string | undefined): void {
-  if (name && renderer && !document.querySelector(`figure[data-figure="${name}"]`)) renderer.forget(name);
+  if (name && renderer && !document.querySelector(`[data-figure="${name}"]`)) renderer.forget(name);
 }
 
-/** Typeset one request. `stale()` is asked before painting, so a result overtaken by a newer edit is dropped. */
-async function typesetInto(host: HTMLElement, kind: FigureKind, source: string, attrs: Record<string, string>, update: boolean, stale: () => boolean = () => false): Promise<void> {
+/**
+ * Swap `el` for the <svg> root(s) now in `host` (data-replace): the diagram becomes plain
+ * SVG in the page, so that e.g. reveal.js sees its `class="fragment"` groups as ordinary
+ * elements of the slide. The element's id, class and style go to the (first) SVG root.
+ * Returns the root that now stands for the figure.
+ */
+function replaceWithSvg(el: Element, host: HTMLElement, name: string, attrs: Record<string, string>): Element | null {
+  const roots = Array.from(host.children).filter((n) => n.localName === 'svg');
+  if (!roots.length) return null;
+  const first = roots[0];
+  const cls = el.getAttribute('class');
+  if (cls) first.setAttribute('class', `${first.getAttribute('class') ?? ''} ${cls}`.trim());
+  const style = el.getAttribute('style');
+  if (style) first.setAttribute('style', `${first.getAttribute('style') ?? ''};${style}`.replace(/^;/, ''));
+  if (el.id) first.id = el.id;
+  first.setAttribute('role', 'img');
+  if (attrs.alt) first.setAttribute('aria-label', attrs.alt);
+  for (const r of roots) r.setAttribute('data-figure', name);   // what forgetIfUnshown() looks for
+  el.replaceWith(...roots);
+  return first;
+}
+
+/** Is data-replace on (present, and not "false" or "off")? */
+function wantsReplace(el: Element): boolean {
+  const v = el.getAttribute('data-replace') ?? el.getAttribute('replace');
+  return v !== null && !/^(false|off|no)$/i.test(v.trim());
+}
+
+/**
+ * Typeset one request. `stale()` is asked before painting, so a result overtaken by a newer
+ * edit is dropped. With `replace`, a successful result replaces that element (see
+ * replaceWithSvg); returns true when it did.
+ */
+async function typesetInto(host: HTMLElement, kind: FigureKind, source: string, attrs: Record<string, string>, update: boolean, stale: () => boolean = () => false, replace?: Element): Promise<boolean> {
   const status = host.querySelector<HTMLElement>('.mpw-status');
   if (status) statusSpans.add(status);
   try {
     renderer ??= new AutoRenderer(loaderOptions());
     const r = await renderer.render({ kind, source, attrs });
-    if (stale()) { forgetIfUnshown(r.name); return; }
+    if (stale()) { forgetIfUnshown(r.name); return false; }
     const previous = host.dataset.figure;
     host.className = `mpw-figure mpw-${kind} ${r.ok ? 'mpw-ok' : 'mpw-error'}`;
     host.dataset.figure = r.name;
@@ -333,14 +367,18 @@ async function typesetInto(host: HTMLElement, kind: FigureKind, source: string, 
       pre.textContent = (r.diagnostics.map((d) => `${d.severity}: ${d.message}${d.line ? ` (line ${d.line})` : ''}`).join('\n') + '\n' + r.log).trim();
       host.appendChild(pre);
     }
+    // replace before announcing, so a listener (Reveal.sync(), say) sees the final DOM
+    const root = replace && r.ok ? replaceWithSvg(replace, host, r.name, attrs) : null;
     // a figure no longer shown anywhere on the page is not one saveFigures() should write
     if (previous !== r.name) forgetIfUnshown(previous);
-    host.dispatchEvent(new CustomEvent('mp-tikz-wasm:rendered', { bubbles: true, detail: { kind, ok: r.ok, ms: r.ms, cached: r.cached, from: r.from, hash: r.hash, name: r.name, update } }));
+    (root ?? host).dispatchEvent(new CustomEvent('mp-tikz-wasm:rendered', { bubbles: true, detail: { kind, ok: r.ok, ms: r.ms, cached: r.cached, from: r.from, hash: r.hash, name: r.name, update, replaced: !!root } }));
+    return !!root;
   } catch (e: any) {
-    if (stale()) return;
+    if (stale()) return false;
     host.className = `mpw-figure mpw-${kind} mpw-error`;
     const msg = typeof e === 'string' ? e : e?.message ?? e?.error ?? (() => { try { return JSON.stringify(e); } catch { return String(e); } })();
     host.innerHTML = `<pre class="mpw-console">${String(msg).replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!))}</pre>`;
+    return false;
   } finally {
     if (status) statusSpans.delete(status);
   }
@@ -407,7 +445,12 @@ async function renderLive(el: Element, st: LiveState): Promise<void> {
   else st.host.classList.add('mpw-pending');   // keep the old figure up, dimmed, until the new one is ready
   if (st.host.parentNode !== el) el.appendChild(st.host);
   st.observer.takeRecords();                   // our own writes are not edits
-  await typesetInto(st.host, kind, st.source, attrs, update, () => gen !== st.generation);
+  const replaced = await typesetInto(st.host, kind, st.source, attrs, update, () => gen !== st.generation, wantsReplace(el) ? el : undefined);
+  if (replaced) {                              // the element is gone: the SVG is static from here on
+    st.observer.disconnect();
+    clearTimeout(st.timer);
+    st.host = null;
+  }
 }
 
 function onLiveMutations(el: Element, st: LiveState, records: MutationRecord[]): void {

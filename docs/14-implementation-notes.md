@@ -264,6 +264,26 @@ edit landing while a slow render was in flight (only the second result
 painted). `tags.html?live` renders its 13 figures as before. The script forms
 are unchanged: they are replaced by their figure and render once.
 
+**Ids, classes and `data-replace` (session 11).** `bundles/tex/tikzlibrarysvg.attributes.code.tex`
+(copied to `tex/generic/mp-tikz-wasm/`, so it rides in `tex-plain`) gives TikZ
+`svg class`, `svg id` and `svg attributes`. Raw `dvisvgm:raw` specials would
+work but need balancing and misbehave under other drivers; instead the keys
+feed `\pgfsys@svg@rdf`, the string the SVG drivers write into the start tag of
+the id-scope `<g>` PGF opens for every scope, path and node (the RDFa hook of
+TikZ's `rdf` library). The library redefines `\tikz@clear@rdf@options` and
+`\tikz@do@rdf@pre@options` as a superset of what `rdf engine on` sets, so the
+two libraries coexist unless `rdf engine on` runs after it. A clip path gets
+no id scope (`\tikz@finish`), so its attributes are cleared rather than left in
+the global for the next element. Under pdfTeX `\pgfsys@svg@rdf` is undefined
+and the keys do nothing: a native pdflatex build is clean.
+
+`data-replace` swaps a custom element for its `<svg>` root(s) after a
+successful render, carrying `id`/`class`/`style`, and marks each root
+`data-figure` (what `forgetIfUnshown()` now looks for, on any element). The
+swap happens before the rendered event, so a listener sees the final DOM; the
+live state's observer is disconnected. Checked with reveal.js 5: fragments
+step without `Reveal.sync()`.
+
 ## 9. The PGF manual as a stress test
 
 The complete PGF/TikZ manual (`doc/generic/pgf/pgfmanual.tex`, 1181 pages in
