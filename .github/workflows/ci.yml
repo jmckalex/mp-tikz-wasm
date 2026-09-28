@@ -29,8 +29,19 @@ jobs:
         with: { node-version: 22 }
       - uses: mymindstorm/setup-emsdk@v14
         with: { version: 6.0.9 }
-      - name: TeX Live (oracle + texmf sources)
-        run: sudo apt-get update && sudo apt-get install -y texlive-metapost texlive-latex-base texlive-latex-recommended texlive-fonts-recommended texlive-pictures texlive-latex-extra texlive-luatex lmodern dvisvgm
+      # The texmf tree is copied from TeX Live 2025, the release the engines are
+      # built from, not from Ubuntu's TeX Live 2023: luaotfload only works with
+      # its own LuaTeX, and under the 2023 packages the opentype bundle could not
+      # be built or tested. The packages build-texmf copies come from the frozen
+      # historic tlnet-final (scripts/ci-install-texlive.sh); cached, as they
+      # never change.
+      - name: cached TeX Live 2025 packages
+        uses: actions/cache@v4
+        with:
+          path: ~/texlive-2025
+          key: texlive-2025-final-${{ hashFiles('scripts/ci-install-texlive.sh') }}
+      - name: TeX Live 2025 (texmf sources)
+        run: ./scripts/ci-install-texlive.sh ~/texlive-2025 && ls -d ~/texlive-2025/bin/* >> "$GITHUB_PATH"
       - name: cached TeX Live source tarball
         uses: actions/cache@v4
         with:
@@ -54,10 +65,14 @@ jobs:
         run: npx vitest run test/e2e
       # MetaPost golden output is reproducible from the pinned mplib and the
       # Computer Modern fonts, so it is checked here against the committed
-      # TeX Live 2025 expectations. The LaTeX/TikZ golden output tracks the
-      # system pgf and font versions (the runner's TeX Live is Ubuntu's 2023
-      # release, not 2025), so `node scripts/golden-tikz.mjs --check` is a dev
-      # gate run before committing expectations, not a CI gate. The e2e step
-      # above exercises the LaTeX/TikZ pipeline for behaviour.
+      # TeX Live 2025 expectations. The LaTeX/TikZ golden tracks exact package
+      # versions: its expectations come from the owner's TeX Live 2025 install
+      # (a May 2025 snapshot), while this runner gets the final 2025 packages, so
+      # it is a dev gate run before committing expectations. It runs below for
+      # information only. The e2e step above exercises the LaTeX/TikZ and
+      # OpenType pipelines for behaviour.
       - name: MetaPost golden corpus vs the committed TeX Live 2025 expectations
         run: node scripts/golden.mjs --check
+      - name: TikZ golden (informational; package versions differ from the dev machine's)
+        continue-on-error: true
+        run: node scripts/golden-tikz.mjs --check
