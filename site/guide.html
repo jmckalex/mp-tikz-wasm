@@ -313,7 +313,7 @@ details.source pre { margin: 0; border-radius: 0; max-height: 360px; }
   </g>
 </svg>
 </div>
-    <div class="eyebrow">mp-tikz-wasm · version 0.2.1 · MetaPost 2.11, pdfTeX 1.40, LuaTeX 1.21, dvisvgm 3.4.3</div>
+    <div class="eyebrow">mp-tikz-wasm · version 0.3.0 · MetaPost 2.11, pdfTeX 1.40, LuaTeX 1.21, dvisvgm 3.4.3</div>
   </div>
   <div class="thesis">
     <div>
@@ -335,7 +335,7 @@ details.source pre { margin: 0; border-radius: 0; max-height: 360px; }
 <p>Two ways. The prebuilt archive is what most people want: it contains the compiled engines, the JavaScript and the font, format and package bundles, and needs neither TeX Live nor Emscripten.</p>
 <h3>1. Prebuilt release</h3>
 <ol class="steps">
-  <li><span>Download <code>mp-tikz-wasm-0.2.1.tar.gz</code> (or <code>.zip</code>) from the <a href="https://github.com/jmckalex/mp-tikz-wasm/releases">releases page</a> and unpack it.</span></li>
+  <li><span>Download <code>mp-tikz-wasm-0.3.0.tar.gz</code> (or <code>.zip</code>) from the <a href="https://github.com/jmckalex/mp-tikz-wasm/releases">releases page</a> and unpack it.</span></li>
   <li><span>Host the <code>dist/</code> folder on any static web server (the files are plain; nothing needs special headers). To try it locally: <code>node serve.mjs 8080</code> inside the unpacked folder, then open <code>http://localhost:8080/site/</code>.</span></li>
   <li><span>Add one line to your page — see <a href="#tags">Drop-in tags</a> — or <code>import { MetaPost } from '/path/to/dist/index.js'</code>.</span></li>
 </ol>
@@ -477,7 +477,7 @@ npx mpost-wasm --prerender page.html                              # figures/figu
   <path d="M161.52 62.322C171.52 12.322,211.52 12.322,221.52 62.322" style="stroke:rgb(0%,0%,0%); stroke-width: 0.5;stroke-linecap: round;stroke-dasharray: 3 3 ;stroke-linejoin: round;stroke-miterlimit: 10;fill: none;"></path>
 </svg>
 </div>
-  <figcaption><b>Paths, tension and curl</b> — MetaPost's path syntax: <code>..</code> for smooth curves solved by Hobby's algorithm, <code>--</code> for straight lines, tension and curl control, explicit controls, cycles. <span class="ms">14 ms MetaPost</span></figcaption>
+  <figcaption><b>Paths, tension and curl</b> — MetaPost's path syntax: <code>..</code> for smooth curves solved by Hobby's algorithm, <code>--</code> for straight lines, tension and curl control, explicit controls, cycles. <span class="ms">15 ms MetaPost</span></figcaption>
   <details class="source"><summary>source (MetaPost)</summary><pre class="code"><code>beginfig(1);
   draw (0,0)..(30,40)..(60,0) withcolor (0.1,0.3,0.8);
   draw (0,50)..tension 2..(30,90)..(60,50);
@@ -572,7 +572,7 @@ endfig; end.</code></pre></details>
   <path d="M169.25 75.25L185.25 75.25L185.25 59.25L169.25 59.25Z" style="stroke:rgb(0%,0%,0%); stroke-width: 0.5;stroke-linecap: round;stroke-linejoin: round;stroke-miterlimit: 10;fill: none;"></path>
 </svg>
 </div>
-  <figcaption><b>Clipping and bounds</b> — Pictures are values: build one, clip it to a path, take its bounding box, and draw the result. <span class="ms">2 ms MetaPost</span></figcaption>
+  <figcaption><b>Clipping and bounds</b> — Pictures are values: build one, clip it to a path, take its bounding box, and draw the result. <span class="ms">1 ms MetaPost</span></figcaption>
   <details class="source"><summary>source (MetaPost)</summary><pre class="code"><code>beginfig(1);
   picture pic; pic := image(for i = -8 upto 8: draw (i*10,-70)--(i*10,70) withpen pencircle scaled 1.5 withcolor (0.5+i/16, 0.3, 0.8-i/16); endfor);
   clip pic to fullcircle scaled 130;
@@ -734,7 +734,7 @@ endfig; end.</code></pre></details>
   <path d="M82.427 69.919l0 0" style="stroke:rgb(0%,0%,0%); stroke-width: 3;stroke-linecap: round;stroke-linejoin: round;stroke-miterlimit: 10;fill: none;"></path>
 </svg>
 </div>
-  <figcaption><b>Text without TeX: Type 1 outlines</b> — A plain <code>label</code> needs no TeX at all: metrics come from the TFM file and the glyphs are Computer Modern Type 1 outlines converted to SVG paths by MetaPost's own backend (<code>prologues:=3</code>). No web fonts are involved. <span class="ms">3 ms MetaPost</span></figcaption>
+  <figcaption><b>Text without TeX: Type 1 outlines</b> — A plain <code>label</code> needs no TeX at all: metrics come from the TFM file and the glyphs are Computer Modern Type 1 outlines converted to SVG paths by MetaPost's own backend (<code>prologues:=3</code>). No web fonts are involved. <span class="ms">4 ms MetaPost</span></figcaption>
   <details class="source"><summary>source (MetaPost)</summary><pre class="code"><code>prologues := 3;
 beginfig(1);
   path p; p := fullcircle scaled 120;
@@ -848,7 +848,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>Labels typeset by plain TeX</b> — <code>btex … etex</code> blocks are typeset by a real pdfTeX (DVI mode) in one batched run per document, converted by MetaPost's own <code>dvitomp</code>, and cached by content hash. <span class="ms">3 ms MetaPost, 48 ms TeX</span></figcaption>
+  <figcaption><b>Labels typeset by plain TeX</b> — <code>btex … etex</code> blocks are typeset by a real pdfTeX (DVI mode) in one batched run per document, converted by MetaPost's own <code>dvitomp</code>, and cached by content hash. <span class="ms">3 ms MetaPost, 50 ms TeX</span></figcaption>
   <details class="source"><summary>source (MetaPost)</summary><pre class="code"><code>prologues := 3;
 beginfig(1);
   numeric a; a := 60;
@@ -1113,7 +1113,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>Labels typeset by LaTeX</b> — A <code>verbatimtex</code> preamble with <code>\documentclass</code> switches the label engine to LaTeX automatically. amsmath, amssymb, tabular, any package in the bundles. <span class="ms">2 ms MetaPost, 136 ms TeX</span></figcaption>
+  <figcaption><b>Labels typeset by LaTeX</b> — A <code>verbatimtex</code> preamble with <code>\documentclass</code> switches the label engine to LaTeX automatically. amsmath, amssymb, tabular, any package in the bundles. <span class="ms">2 ms MetaPost, 142 ms TeX</span></figcaption>
   <details class="source"><summary>source (MetaPost)</summary><pre class="code"><code>verbatimtex
 \documentclass{article}
 \usepackage{amsmath,amssymb}
@@ -1251,7 +1251,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>boxes.mp</b> — The standard macro packages ship in the core bundle: boxes, rboxes, graph, format, sarith, string, metaobj, featpost, metauml and more. <span class="ms">3 ms MetaPost, 50 ms TeX</span></figcaption>
+  <figcaption><b>boxes.mp</b> — The standard macro packages ship in the core bundle: boxes, rboxes, graph, format, sarith, string, metaobj, featpost, metauml and more. <span class="ms">3 ms MetaPost, 51 ms TeX</span></figcaption>
   <details class="source"><summary>source (MetaPost)</summary><pre class="code"><code>input boxes;
 prologues := 3;
 beginfig(1);
@@ -1424,7 +1424,7 @@ endfig; end.</code></pre></details>
   </g>
 </svg>
 </div>
-  <figcaption><b>graph.mp</b> — John Hobby's graph package with TeX-typeset tick labels; MetaPost chooses the ticks. <span class="ms">6 ms MetaPost, 49 ms TeX</span></figcaption>
+  <figcaption><b>graph.mp</b> — John Hobby's graph package with TeX-typeset tick labels; MetaPost chooses the ticks. <span class="ms">6 ms MetaPost, 50 ms TeX</span></figcaption>
   <details class="source"><summary>source (MetaPost)</summary><pre class="code"><code>input graph;
 prologues := 3;
 beginfig(1);
@@ -1547,7 +1547,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Shadings</b> — Axis, radial and ball shadings become SVG gradients, through PGF's own dvisvgm driver. This is where a JavaScript DVI reader gives up. <span class="ms">82 ms TeX, 28 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Shadings</b> — Axis, radial and ball shadings become SVG gradients, through PGF's own dvisvgm driver. This is where a JavaScript DVI reader gives up. <span class="ms">80 ms TeX, 30 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{shadings}
 \begin{document}
@@ -1622,7 +1622,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Patterns, opacity, clipping, decorations</b> — Fill patterns become SVG patterns; opacity, clipping scopes and path decorations all survive intact. <span class="ms">115 ms TeX, 25 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Patterns, opacity, clipping, decorations</b> — Fill patterns become SVG patterns; opacity, clipping scopes and path decorations all survive intact. <span class="ms">118 ms TeX, 27 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{patterns,decorations.pathmorphing,decorations.markings}
 \begin{document}
@@ -1781,7 +1781,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Nodes, shapes, arrows</b> — positioning, shapes.geometric and arrows.meta; bent and curved edges; every library that ships with PGF in TeX Live 2025 is available. <span class="ms">128 ms TeX, 33 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Nodes, shapes, arrows</b> — positioning, shapes.geometric and arrows.meta; bent and curved edges; every library that ships with PGF in TeX Live 2025 is available. <span class="ms">135 ms TeX, 36 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{positioning,shapes.geometric,arrows.meta}
 \begin{document}
@@ -1987,7 +1987,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Commutative diagrams (tikz-cd)</b> <span class="ms">145 ms TeX, 36 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Commutative diagrams (tikz-cd)</b> <span class="ms">144 ms TeX, 39 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[border=3pt]{standalone}
 \usepackage{tikz-cd,amssymb}
 \begin{document}
@@ -2302,7 +2302,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>pgfplots</b> — The real pgfplots package: axes, grids, legends, sampled functions, data coordinates, filled areas. <span class="ms">246 ms TeX, 43 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>pgfplots</b> — The real pgfplots package: axes, grids, legends, sampled functions, data coordinates, filled areas. <span class="ms">247 ms TeX, 46 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[border=3pt]{standalone}
 \usepackage{amsmath,pgfplots}
 \pgfplotsset{compat=1.18}
@@ -2461,7 +2461,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Latin Modern, T1 encoding, amsmath</b> — Text is glyph outlines in the SVG, so it renders identically everywhere; <code>fonts: 'woff2'</code> embeds web fonts instead if you prefer selectable text. <span class="ms">137 ms TeX, 63 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Latin Modern, T1 encoding, amsmath</b> — Text is glyph outlines in the SVG, so it renders identically everywhere; <code>fonts: 'woff2'</code> embeds web fonts instead if you prefer selectable text. <span class="ms">139 ms TeX, 69 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[tikz,border=3pt]{standalone}
 \usepackage{lmodern}
 \usepackage[T1]{fontenc}
@@ -2732,7 +2732,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Trees, matrices, decorations</b> <span class="ms">142 ms TeX, 38 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Trees, matrices, decorations</b> <span class="ms">147 ms TeX, 38 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{trees,decorations.pathreplacing}
 \begin{document}
@@ -3287,7 +3287,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Arrow tips</b> — The <code>arrows.meta</code> tips, filled and <code>open</code>, stacked, <code>round</code>, harpoons and <code>Bar</code>s, and the <code>bending</code> library's tips that follow a curved path. <span class="ms">170 ms TeX, 45 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Arrow tips</b> — The <code>arrows.meta</code> tips, filled and <code>open</code>, stacked, <code>round</code>, harpoons and <code>Bar</code>s, and the <code>bending</code> library's tips that follow a curved path. <span class="ms">178 ms TeX, 44 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[tikz,border=6pt]{standalone}
 \usetikzlibrary{arrows.meta,bending}
 \begin{document}
@@ -3685,7 +3685,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Decorations</b> — Path morphing, shapes and markings along a path, footprints, and <code>text along path</code>. <span class="ms">811 ms TeX, 51 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Decorations</b> — Path morphing, shapes and markings along a path, footprints, and <code>text along path</code>. <span class="ms">814 ms TeX, 52 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[tikz,border=6pt]{standalone}
 \usetikzlibrary{decorations.pathmorphing,decorations.pathreplacing,decorations.markings,decorations.text,decorations.shapes,decorations.footprints,shapes.geometric,arrows.meta}
 \begin{document}
@@ -4091,7 +4091,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Knots (spath3)</b> — spath3's <code>knots</code> library, bundled although pgf does not ship it: every crossing of a self-intersecting strand is found and the upper strand redrawn. <span class="ms">2925 ms TeX, 38 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Knots (spath3)</b> — spath3's <code>knots</code> library, bundled although pgf does not ship it: every crossing of a self-intersecting strand is found and the upper strand redrawn. <span class="ms">2946 ms TeX, 37 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[tikz,border=6pt]{standalone}
 \usetikzlibrary{knots}
 % one motif, turned three times: a single strand that crosses itself
@@ -4225,7 +4225,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Calligraphy (spath3)</b> — A broad nib, a copperplate nib, and the calligraphic brace and parentheses built on them. <span class="ms">332 ms TeX, 28 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Calligraphy (spath3)</b> — A broad nib, a copperplate nib, and the calligraphic brace and parentheses built on them. <span class="ms">336 ms TeX, 28 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[tikz,border=6pt]{standalone}
 \usetikzlibrary{decorations.pathreplacing,calligraphy}
 \begin{document}
@@ -4690,7 +4690,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Matrices</b> — A <code>matrix of math nodes</code> with delimiters and a highlighted diagonal on the background layer, and arrows between the cells of a second matrix. <span class="ms">169 ms TeX, 52 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Matrices</b> — A <code>matrix of math nodes</code> with delimiters and a highlighted diagonal on the background layer, and arrows between the cells of a second matrix. <span class="ms">168 ms TeX, 52 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[tikz,border=6pt]{standalone}
 \usetikzlibrary{matrix,fit,backgrounds,positioning,arrows.meta}
 \begin{document}
@@ -5186,7 +5186,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>A mind map</b> — The <code>mindmap</code> library, whose shaded connection bars become SVG gradients. <span class="ms">238 ms TeX, 42 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>A mind map</b> — The <code>mindmap</code> library, whose shaded connection bars become SVG gradients. <span class="ms">245 ms TeX, 44 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[tikz,border=6pt]{standalone}
 \usetikzlibrary{mindmap}
 \begin{document}
@@ -5358,7 +5358,7 @@ endfig; end.</code></pre></details>
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Plain TeX too</b> — <code>engine: 'plain'</code> runs plain TeX with e-TeX (TeX Live's <code>etex</code>), which is what PGF needs. <span class="ms">86 ms TeX, 54 ms dvisvgm</span></figcaption>
+  <figcaption><b>Plain TeX too</b> — <code>engine: 'plain'</code> runs plain TeX with e-TeX (TeX Live's <code>etex</code>), which is what PGF needs. <span class="ms">84 ms TeX, 58 ms dvisvgm</span></figcaption>
   <details class="source"><summary>source (plain TeX)</summary><pre class="code"><code>\input tikz
 \nopagenumbers
 \tikzpicture
@@ -6128,7 +6128,7 @@ endfig; end.</code></pre></details>
 <use x='384.839519' y='189.381889' xlink:href='#tz-parshape-circle-g9-46'/>
 </g>
 </svg></div>
-  <figcaption><b>A paragraph shaped by \parshape</b> — This is a whole LaTeX document, not just a picture: prose, inline and displayed amsmath, and three inline TikZ pictures, all set inside a circle. TeX's <code>\parshape</code> primitive takes one (indent, width) pair per line; a <code>\loop</code> computes twenty of them with pgfmath as chords of the circle drawn behind the text. Line breaking, hyphenation and the display equation all follow the shape. <span class="ms">165 ms TeX, 92 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>A paragraph shaped by \parshape</b> — This is a whole LaTeX document, not just a picture: prose, inline and displayed amsmath, and three inline TikZ pictures, all set inside a circle. TeX's <code>\parshape</code> primitive takes one (indent, width) pair per line; a <code>\loop</code> computes twenty of them with pgfmath as chords of the circle drawn behind the text. Line breaking, hyphenation and the display equation all follow the shape. <span class="ms">166 ms TeX, 96 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[border=8pt]{standalone}
 \usepackage{lmodern}
 \usepackage[T1]{fontenc}
@@ -7019,7 +7019,7 @@ endfig; end.</code></pre></details>
 <use x='112.076423' y='142.091136' xlink:href='#tz-parshape-wrap-g9-46'/>
 </g>
 </svg></div>
-  <figcaption><b>Text flowing around a figure</b> — The same primitive with nine narrow lines and then the full measure, the figure hung from the first baseline in a zero-width box: what wrapfig does, by hand. The figure is a TikZ plot of Fourier partial sums sampled by pgfmath; the paragraph carries integrals, limits and a display. <span class="ms">2162 ms TeX, 114 ms dvisvgm (snapshot)</span></figcaption>
+  <figcaption><b>Text flowing around a figure</b> — The same primitive with nine narrow lines and then the full measure, the figure hung from the first baseline in a zero-width box: what wrapfig does, by hand. The figure is a TikZ plot of Fourier partial sums sampled by pgfmath; the paragraph carries integrals, limits and a display. <span class="ms">2179 ms TeX, 118 ms dvisvgm (snapshot)</span></figcaption>
   <details class="source"><summary>source (LaTeX)</summary><pre class="code"><code>\documentclass[border=8pt]{standalone}
 \usepackage{lmodern}
 \usepackage[T1]{fontenc}
@@ -7641,7 +7641,7 @@ endfig; end.</code></pre></details>
 <use x='134.28294' y='259.028643' xlink:href='#tz-plain-parshape-g2-46'/>
 </g>
 </svg></div>
-  <figcaption><b>A diamond, in plain TeX</b> — No packages: a plain-TeX loop builds a 21-line <code>\parshape</code> and the line breaker pours the paragraph into it. <span class="ms">22 ms TeX, 121 ms dvisvgm</span></figcaption>
+  <figcaption><b>A diamond, in plain TeX</b> — No packages: a plain-TeX loop builds a 21-line <code>\parshape</code> and the line breaker pours the paragraph into it. <span class="ms">21 ms TeX, 125 ms dvisvgm</span></figcaption>
   <details class="source"><summary>source (plain TeX)</summary><pre class="code"><code>% plain TeX (pdfTeX): a paragraph set in a diamond with \parshape.
 % Line i of 2m+1 is indented by |i-m|*d and is 2|i-m|*d narrower than \hsize.
 \hsize=9cm \parindent=0pt \nopagenumbers \lefthyphenmin=2 \righthyphenmin=3
@@ -8265,7 +8265,7 @@ manual line break, in plain \TeX, with no packages.\par
 </g>
 </g>
 </svg></div>
-  <figcaption><b>Graph drawing (LuaTeX)</b> — The <code>graphdrawing</code> library computes layouts in Lua, so it needs LuaTeX. <code>engine: 'auto'</code> (and the tags) switch to <code>luatex.wasm</code> when a document uses it; layered, spring, tree, circular and phylogenetic layouts all run. This is the library tikzjax could never offer. <span class="ms">503 ms LuaTeX, 48 ms dvisvgm</span></figcaption>
+  <figcaption><b>Graph drawing (LuaTeX)</b> — The <code>graphdrawing</code> library computes layouts in Lua, so it needs LuaTeX. <code>engine: 'auto'</code> (and the tags) switch to <code>luatex.wasm</code> when a document uses it; layered, spring, tree, circular and phylogenetic layouts all run. This is the library tikzjax could never offer. <span class="ms">505 ms LuaTeX, 48 ms dvisvgm</span></figcaption>
   <details class="source"><summary>source (LuaLaTeX)</summary><pre class="code"><code>\documentclass[tikz,border=3pt]{standalone}
 \usetikzlibrary{graphs,graphs.standard,graphdrawing,quotes}
 \usegdlibrary{trees,layered,force,circular}
@@ -9006,7 +9006,7 @@ manual line break, in plain \TeX, with no packages.\par
 </g>
 </g>
 </svg></div>
-  <figcaption><b>More graph drawing</b> — A binary tree layout and a spring-electrical layout, both computed in Lua. <span class="ms">538 ms LuaTeX, 49 ms dvisvgm</span></figcaption>
+  <figcaption><b>More graph drawing</b> — A binary tree layout and a spring-electrical layout, both computed in Lua. <span class="ms">548 ms LuaTeX, 46 ms dvisvgm</span></figcaption>
   <details class="source"><summary>source (LuaLaTeX)</summary><pre class="code"><code>\documentclass[tikz,border=6pt]{standalone}
 \usetikzlibrary{graphs,graphdrawing,quotes}
 \usegdlibrary{trees,force}
@@ -9357,7 +9357,7 @@ manual line break, in plain \TeX, with no packages.\par
 <use x='92.701757' y='272.176041' xlink:href='#lua-plain-g7-56'/>
 </g>
 </svg></div>
-  <figcaption><b>Plain LuaTeX</b> — <code>engine: 'luatex'</code>: <code>\directlua</code> sieves the primes and hands the counts to TeX with <code>token.set_macro</code>; the bars are <code>\vrule</code>s and the table an <code>\halign</code>. <span class="ms">65 ms LuaTeX, 48 ms dvisvgm</span></figcaption>
+  <figcaption><b>Plain LuaTeX</b> — <code>engine: 'luatex'</code>: <code>\directlua</code> sieves the primes and hands the counts to TeX with <code>token.set_macro</code>; the bars are <code>\vrule</code>s and the table an <code>\halign</code>. <span class="ms">67 ms LuaTeX, 47 ms dvisvgm</span></figcaption>
   <details class="source"><summary>source (plain LuaTeX)</summary><pre class="code"><code>% plain LuaTeX: Lua does the arithmetic, TeX's primitives do the typesetting
 \hsize=11.5cm \parindent=0pt \nopagenumbers
 \font\big=cmbx12
@@ -9947,7 +9947,7 @@ x&amp;$\pi(x)$&amp;$x/\ln x$\cr\noalign{\hrule}
 <use x='145.686985' y='178.18944' xlink:href='#lua-latex-g9-46'/>
 </g>
 </svg></div>
-  <figcaption><b>LuaLaTeX</b> — <code>engine: 'lualatex'</code>: Lua writes one <code>\rule</code> per odd entry of Pascal's triangle into the paragraph, and amsmath sets the theorem. <span class="ms">214 ms LuaTeX, 70 ms dvisvgm</span></figcaption>
+  <figcaption><b>LuaLaTeX</b> — <code>engine: 'lualatex'</code>: Lua writes one <code>\rule</code> per odd entry of Pascal's triangle into the paragraph, and amsmath sets the theorem. <span class="ms">218 ms LuaTeX, 75 ms dvisvgm</span></figcaption>
   <details class="source"><summary>source (LuaLaTeX)</summary><pre class="code"><code>\documentclass[border=8pt,varwidth=12cm]{standalone}
 \usepackage{amsmath,xcolor}
 \begin{document}
@@ -10630,7 +10630,7 @@ Row $31$ is all ones: $\sum_{k}\binom{31}{k} = 2^{31} = \directlua{tex.sprint(st
 <use x='168.318821' y='74.676917' xlink:href='#otf-fontspec-g11-88'/>
 </g>
 </svg></div>
-  <figcaption><b>fontspec under LuaLaTeX</b> — With the <code>opentype</code> bundle: ligatures, kerning, Unicode input, letter-spacing, a small-caps face and optical sizes, all from Latin Modern's OpenType faces. <span class="ms">1202 ms LuaTeX, 58 ms dvisvgm</span></figcaption>
+  <figcaption><b>fontspec under LuaLaTeX</b> — With the <code>opentype</code> bundle: ligatures, kerning, Unicode input, letter-spacing, a small-caps face and optical sizes, all from Latin Modern's OpenType faces. <span class="ms">1221 ms LuaTeX, 61 ms dvisvgm</span></figcaption>
   <details class="source"><summary>source (LuaLaTeX, bundles +opentype)</summary><pre class="code"><code>\documentclass[border=8pt,varwidth=11cm]{standalone}
 \usepackage{fontspec,xcolor}
 \setmainfont{Latin Modern Roman}[SmallCapsFont=lmromancaps10-regular.otf]
@@ -11181,7 +11181,7 @@ is fetched only when a document asks for it.
 <use x='104.186289' y='128.942461' xlink:href='#otf-plain-g4-88'/>
 </g>
 </svg></div>
-  <figcaption><b>luaotfload in plain LuaTeX</b> — <code>\input luaotfload.sty</code> and a <code>\font</code> with a feature list; no LaTeX involved. <span class="ms">238 ms LuaTeX, 57 ms dvisvgm</span></figcaption>
+  <figcaption><b>luaotfload in plain LuaTeX</b> — <code>\input luaotfload.sty</code> and a <code>\font</code> with a feature list; no LaTeX involved. <span class="ms">317 ms LuaTeX, 51 ms dvisvgm</span></figcaption>
   <details class="source"><summary>source (plain LuaTeX, bundles +opentype)</summary><pre class="code"><code>% plain LuaTeX with OpenType: no fontspec, just luaotfload and \font
 \input luaotfload.sty
 \font\body="[lmroman10-regular.otf]:mode=node;+liga;+kern" at 11pt
@@ -11227,7 +11227,7 @@ text.otf-woff2-f3 {font-family:otf-woff2-nf3;font-size:9.96264px}
 <text class='otf-woff2-f3' x='139.337515' y='-26.178245'>:<tspan x='-64.029877' y='-14.223076'>it</tspan><tspan x='-54.067235'>can</tspan><tspan x='-35.805714'>b</tspan><tspan x='-29.987533'>e</tspan><tspan x='-22.24656'>selected,</tspan><tspan x='17.643853'>searc</tspan><tspan x='39.02368'>hed</tspan><tspan x='57.843108'>and</tspan><tspan x='77.220445'>copied,</tspan><tspan x='110.983834'>and</tspan><tspan x='130.361171'>the</tspan><tspan x='147.516839'>bro</tspan><tspan x='161.663789'>wser’s</tspan><tspan x='-64.029877' y='-2.267908'>o</tspan><tspan x='-59.32751'>wn</tspan><tspan x='-43.277695'>rasteriser</tspan><tspan x='.079717'>dra</tspan><tspan x='14.226667'>ws</tspan><tspan x='28.662534'>it</tspan><tspan x='38.625176'>—</tspan><tspan fill='#009' x='51.905377'>ﬁ</tspan><tspan fill='#009' x='60.762166'>ﬄ</tspan>,<tspan x='75.14822'>Dv</tspan><tspan x='87.740999'>ořák,</tspan><tspan x='112.956443'>Łó</tspan><tspan x='124.443365'>dź.</tspan></text>
 </g>
 </svg></div>
-  <figcaption><b>Web fonts, not outlines</b> — With <code>fonts: 'woff2'</code> the text in this figure is real <code>&lt;text&gt;</code> in an embedded subset of the face: select it. <span class="ms">803 ms LuaTeX, 72 ms dvisvgm</span></figcaption>
+  <figcaption><b>Web fonts, not outlines</b> — With <code>fonts: 'woff2'</code> the text in this figure is real <code>&lt;text&gt;</code> in an embedded subset of the face: select it. <span class="ms">803 ms LuaTeX, 69 ms dvisvgm</span></figcaption>
   <details class="source"><summary>source (LuaLaTeX, bundles +opentype, fonts: 'woff2')</summary><pre class="code"><code>\documentclass[border=8pt]{standalone}
 \usepackage{fontspec,xcolor}
 \setmainfont{Latin Modern Roman}
@@ -11474,7 +11474,7 @@ own rasteriser draws it — \textcolor{blue!60!black}{fi ffl}, Dvořák, Łódź
 <use x='238.58' y='-6.647071' xlink:href='#otf-math-g2-1435'/>
 </g>
 </svg></div>
-  <figcaption><b>unicode-math</b> — Unicode maths input in Latin Modern Math; needs the <code>otf-fonts</code> bundle as well. <span class="ms">1257 ms LuaTeX, 42 ms dvisvgm</span></figcaption>
+  <figcaption><b>unicode-math</b> — Unicode maths input in Latin Modern Math; needs the <code>otf-fonts</code> bundle as well. <span class="ms">1302 ms LuaTeX, 41 ms dvisvgm</span></figcaption>
   <details class="source"><summary>source (LuaLaTeX, bundles +opentype +otf-fonts)</summary><pre class="code"><code>\documentclass[border=8pt,varwidth=11cm]{standalone}
 \usepackage{unicode-math}
 \setmainfont{Latin Modern Roman}
@@ -11579,7 +11579,7 @@ Maths typed in Unicode, set in the OpenType maths font:
 <tr><td class="mono">npm run build:fontdb</td><td>luaotfload's font-name database, built by <code>luatex.wasm</code> against <code>build/texmf</code>, for the <code>opentype</code> bundle</td></tr>
 <tr><td class="mono">node scripts/build-bundles.mjs</td><td><code>dist/bundles/*</code>: manifests and files per bundle</td></tr>
 <tr><td class="mono">npm run build:hot</td><td><code>dist/bundles/hot.json</code>: the files a first run of each kind touches, prefetched in parallel (after any bundle rebuild, which deletes it)</td></tr>
-<tr><td class="mono">npm run package</td><td><code>release/mp-tikz-wasm-0.2.1.tar.gz</code> and <code>.zip</code>: the prebuilt distribution for a GitHub release</td></tr>
+<tr><td class="mono">npm run package</td><td><code>release/mp-tikz-wasm-0.3.0.tar.gz</code> and <code>.zip</code>: the prebuilt distribution for a GitHub release</td></tr>
 <tr><td class="mono">npm run build:guide, build:standalone</td><td>this page, and the single-file demo with everything inlined</td></tr>
 </tbody></table></div>
 <p>The design documents in <code>docs/</code> record every decision; <code>docs/14-implementation-notes.md</code> records what was learned building it, including the upstream defects.</p>
