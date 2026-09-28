@@ -287,9 +287,8 @@ function sourceOf(el: Element): string {
 /** Which kinds of run the page's diagrams will need, for the engine's parallel prefetch. */
 function prefetchKinds(): PrefetchKind[] {
   const kinds = new Set<PrefetchKind>();
-  for (const el of Array.from(document.querySelectorAll(SELECTOR))) {
-    const a = attrsOf(el), src = liveSource(el);
-    if (kindOf(el) === 'tikz') {
+  const add = (kind: FigureKind, a: Record<string, string>, src: string) => {
+    if (kind === 'tikz') {
       const engine = a.engine ?? 'auto';
       if (engine === 'plain') kinds.add('plain');
       else if (engine === 'lualatex' || engine === 'luatex' || a.gdlibraries || /graphdrawing|\\directlua|luacode/.test(src)) kinds.add('lualatex');
@@ -298,9 +297,16 @@ function prefetchKinds(): PrefetchKind[] {
       kinds.add('metapost');
       if (a.tex === 'latex' || /documentclass/.test(src)) kinds.add('latex');
     }
-  }
+  };
+  for (const el of Array.from(document.querySelectorAll(SELECTOR))) add(kindOf(el), attrsOf(el), liveSource(el));
+  // script tags are replaced by their figure as soon as they are seen, before the
+  // engine (and so this scan) exists: they are remembered in replacedScripts
+  for (const r of replacedScripts) add(r.kind, r.attrs, r.source);
   return [...kinds];
 }
+
+/** The requests of script tags already replaced by their figure, for prefetchKinds(). */
+const replacedScripts: FigureRequest[] = [];
 
 /** A figure host: the <figure> a rendered diagram lives in. */
 function makeHost(kind: FigureKind, attrs: Record<string, string>): HTMLElement {
@@ -490,6 +496,7 @@ export async function renderElement(el: Element): Promise<void> {
   if (pending.has(el)) return;
   pending.add(el);
   const kind = kindOf(el), attrs = attrsOf(el), source = sourceOf(el);
+  replacedScripts.push({ kind, attrs, source });
   const host = makeHost(kind, attrs);
   el.replaceWith(host);
   await typesetInto(host, kind, source, attrs, false);
