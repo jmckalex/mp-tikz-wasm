@@ -1148,7 +1148,10 @@ and sync the website (`make sync-all`) after a release.
     watchdog also counts engine output as progress. Node's default stays
     in-process. CI jobs and test steps have time limits, so a hang fails in
     minutes. Deliberately not done: making the CLI or `--prerender` use a
-    worker by default.
+    worker by default. Small, pre-existing: after the watchdog kills the
+    worker, the next call is not rejected at once but waits out its own
+    `timeoutMs` (the dead worker never answers); the gallery works round it by
+    creating a fresh engine. WorkerBackend could mark itself dead and reject.
 24. **The owner's TeX Live 2025 is a May 2025 snapshot**; CI installs the
     final 2025 packages (~190 files differ, chemfig and pgf among them).
     Releases are built from the owner's tree. The TikZ golden passed on both
