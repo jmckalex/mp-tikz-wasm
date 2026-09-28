@@ -51,7 +51,11 @@ const mp = await MetaPost.create({ texmfDir: TEXMF, logLevel: 'silent' });
 const doc = String.raw`\documentclass{article}\usepackage{fontspec}\begin{document}x\end{document}`;
 const r = await mp.latex(doc, { engine: 'lualatex' });
 mp.dispose();
-if (r.status !== 'ok') throw new Error(`make-fontdb: the LuaLaTeX run failed:\n${r.diagnostics.map((d) => d.message).join('\n')}`);
+if (r.status !== 'ok') {
+  // the diagnostics parser can come back empty-handed (no DVI, no recognised error): show the log's end
+  const tail = (r.texLog || r.log || '').trim().split('\n').slice(-40).join('\n');
+  throw new Error(`make-fontdb: the LuaLaTeX run failed:\n${r.diagnostics.map((d) => d.message).join('\n')}\n--- end of the TeX log ---\n${tail}`);
+}
 if (!written) throw new Error(`make-fontdb: luaotfload wrote no ${path.basename(NAMES)}`);
 
 let lua = zlib.gunzipSync(written).toString('utf8');

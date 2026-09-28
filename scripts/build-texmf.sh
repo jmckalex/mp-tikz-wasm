@@ -89,19 +89,20 @@ LUA
 # Faces are found through OPENTYPEFONTS/TTFONTS, so a host can drop a system
 # font into fonts/opentype (or fonts/truetype) and \setmainfont[Path=...] finds it.
 mkdir -p "$OUT/tex/luatex" "$OUT/fonts/opentype/public" "$OUT/fonts/truetype"
-for d in luaotfload lualibs luatexbase lua-uni-algos; do
-  [ -d "$TEXMF/tex/luatex/$d" ] && cp -R "$TEXMF/tex/luatex/$d" "$OUT/tex/luatex/$d"
-done
-for d in fontspec unicode-math; do
-  [ -d "$TEXMF/tex/latex/$d" ] && cp -R "$TEXMF/tex/latex/$d" "$OUT/tex/latex/$d"
-done
+# Searched in every TeX tree (distributions split packages across trees), and a
+# missing one is named: silently skipped, it surfaced only as a LuaLaTeX run with
+# no DVI in make-fontdb.
+otf_pkg() {   # otf_pkg tex/luatex luaotfload
+  local t; if t="$(tree_with "$1/$2")"; then cp -R "$t/$1/$2" "$OUT/$1/$2"
+  else echo "warning: $1/$2 not found in any TeX tree; OpenType fonts will not work" >&2; fi
+}
+for d in luaotfload lualibs luatexbase lua-uni-algos; do otf_pkg tex/luatex "$d"; done
+for d in fontspec unicode-math; do otf_pkg tex/latex "$d"; done
 # lualatex-math is unicode-math's LuaTeX half -- \usepackage{unicode-math} loads it
 # and stops dead without it. It sits under tex/lualatex, which TEXINPUTS.dvilualatex
 # searches first and nothing else in this tree uses.
 mkdir -p "$OUT/tex/lualatex"
-for d in lualatex-math; do
-  [ -d "$TEXMF/tex/lualatex/$d" ] && cp -R "$TEXMF/tex/lualatex/$d" "$OUT/tex/lualatex/$d"
-done
+for d in lualatex-math; do otf_pkg tex/lualatex "$d"; done
 # Latin Modern in OpenType, so fontspec and unicode-math work with no host fonts
 # at all (the text family rides with the machinery, the maths font on its own).
 # Searched in every configured TeX tree, not just TEXMFDIST: Ubuntu's
