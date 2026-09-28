@@ -55,4 +55,17 @@ for (const f of FORMATS) {
   }
 }
 fs.rmSync(WORK, { recursive: true, force: true });
+// The tree's ls-R, written by build-texmf.sh, predates these formats on a clean
+// build, and texmf.cnf marks TEXMFDIST with !! (ls-R only), so anything running
+// TeX against the tree itself -- make-fontdb, a mounted texmfDir -- found no
+// format ("I can't find the format file"). A rebuild never showed it: build-texmf
+// copies the previous formats in before writing ls-R. List web2c/ as it now is.
+{
+  const lsR = path.join(TEXMF, 'ls-R');
+  if (fs.existsSync(lsR)) {
+    const names = fs.readdirSync(path.join(TEXMF, 'web2c')).sort();
+    const text = fs.readFileSync(lsR, 'utf8').replace(/(\n\.\/web2c:\n)(?:[^\n]+\n)*/, (_m, head) => head + names.map((n) => n + '\n').join(''));
+    fs.writeFileSync(lsR, text);
+  }
+}
 process.exit(failed ? 1 : 0);
