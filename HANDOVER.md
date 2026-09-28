@@ -1092,13 +1092,10 @@ and sync the website (`make sync-all`) after a release.
     copies after the check, so a later `build:bundles` repacks the same
     bytes. A fix would sort the exceptions on dump or seed Lua
     deterministically; not worth a patch today.
-16. **`npm run build:bundles` deletes `dist/bundles/hot.json`** (session 10).
-    The script wipes `dist/bundles` before repacking, and only the full
-    `npm run build` regenerates the hot lists (`build:hot` runs last). The
-    two prefetch tests then *skip* instead of failing, so a suite can look
-    green with the prefetch path untested. After any bundle-only rebuild,
-    run `npm run build:hot`. Better: make `build:bundles` keep or regenerate
-    the file, or make the prefetch tests fail when it is absent.
+16. ~~**`npm run build:bundles` deletes `dist/bundles/hot.json`**~~ — **fixed
+    after the 0.3.0 release**: build-bundles keeps the file (dropping entries no
+    bundle carries any more), and CI now generates the hot lists, so its
+    prefetch tests run instead of skipping.
 17. ~~**luaotfload opens every bundled face on a fresh engine**~~ — **fixed
     in session 11** by the prebuilt name database (85fe86f; "What happened in
     session 11", item 1). A face looked up by a name the database does not
@@ -1117,12 +1114,11 @@ and sync the website (`make sync-all`) after a release.
     family is absent. Unverified on a runner until the branch is pushed;
     verified here to reproduce the same tree and bundles byte for byte.
 
-19. **Script-tag pages may get no parallel prefetch** (session 11, read in
-    the code, not verified in a browser). `prefetchKinds()` scans the page
-    when the engine is created, after the first cache miss; by then
-    `renderElement()` has already replaced every `<script type="text/…">`
-    with its figure, so a page using only the script forms would prefetch
-    nothing. The custom elements are fine (their source is kept now).
+19. ~~**Script-tag pages may get no parallel prefetch**~~ — **fixed after the
+    0.3.0 release**, confirmed in Chrome first: a page of one TikZ and one
+    MetaPost script tag prefetched only the MetaPost files. Script requests are
+    remembered as the tags are replaced; the page now prefetches both (287
+    files) and its TikZ figure typesets in 1.5 s instead of 2.2 s locally.
 20. ~~**`sanitizeSvg()` destroys shadings, patterns and woff2 text**~~ —
     **resolved in session 11 by deprecation** (the owner's decision). It is a
     regex allow-list, not a security boundary, and it dropped gradients,
@@ -1140,16 +1136,29 @@ and sync the website (`make sync-all`) after a release.
     a host-supplied face; `\setmainfont{Arial}` over an `addFiles()`d
     `Arial.ttf` worked in session 11 (luaotfload's rescan picks up
     `TEXMFDOTDIR`). Possibly `.ttc`-specific; check before telling Clew.
-23. **A LaTeX error cascade can hang LuaTeX instead of stopping** (session
-    11). The lua-uni-algos failure above produced errors that never reached
-    TeX's 100-error limit; in Node, in-process, there is no Worker to
-    terminate, so `timeoutMs` could not stop it and a test run sat for 15
-    minutes. Not investigated: the cascade itself, and whether the host should
-    enforce a hard limit in-process.
+23. **A document can loop forever** — resolved as far as it should be, after
+    the 0.3.0 release. Native LuaTeX hangs identically on the session-11
+    trigger (checked: TeX Live 2025 final, lua-uni-algos removed, killed at
+    30 s): TeX's 100-error limit counts only errors since the last paragraph,
+    and a silent loop is ordinary TeX behaviour. What was ours: in Node the
+    engines ran in-process, where a synchronous wasm loop cannot be stopped, so
+    `timeoutMs` did nothing there. **`worker: true` now works in Node** (a
+    `worker_threads` thread; bundles or `texmfDir`), and the watchdog stops it
+    (checked: the runaway killed at 5 s, the process exits cleanly). The
+    watchdog also counts engine output as progress. Node's default stays
+    in-process. CI jobs and test steps have time limits, so a hang fails in
+    minutes. Deliberately not done: making the CLI or `--prerender` use a
+    worker by default.
 24. **The owner's TeX Live 2025 is a May 2025 snapshot**; CI installs the
     final 2025 packages (~190 files differ, chemfig and pgf among them).
     Releases are built from the owner's tree. The TikZ golden passed on both
     in session 11, so it could become a real CI gate.
+
+**Triage after 0.3.0 (the owner agreed):** loose ends 13 (multi-figure
+MetaPost saved as one file), 15 (LuaTeX format dumps not reproducible), 21
+(`texmfDir` vs bundles rendering) and the `.ttc` / `woff2` defect (dvisvgm's;
+report it upstream, keep the one-file-per-face workaround) stay open until a
+real need arrives. None affects a documented feature.
 
 ## Where to look
 
