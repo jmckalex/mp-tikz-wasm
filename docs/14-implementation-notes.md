@@ -688,6 +688,16 @@ appears: 72 files and 7.2 MB. What is reached only by `unicode-math` stays in
 `otf-fonts` to keep a rescan no larger than it must be, and an application
 supplying its own faces at run time wants the machinery and none of the fonts.
 
+**`lua-uni-algos` moved to the `luatex` bundle (session 11).** CI's tree is
+TeX Live 2025's final packages, and there the L3 programming layer (2026-01)
+makes `expl3.lua` require `lua-uni-stage-tables` whenever LaTeX starts under
+LuaTeX. With `lua-uni-algos` in the opt-in `opentype` bundle, every LuaLaTeX
+run without it failed before `\begin{document}` -- and did not stop: the error
+cascade never reached TeX's 100-error limit, so the run hung (in Node there is
+no Worker to terminate). The owner's May 2025 install has the older kernel,
+which is why it showed only on CI. The package now rides in `luatex` (default;
+its files are fetched on demand, and the older kernel never reads them).
+
 ### The prebuilt name database
 
 `scripts/make-fontdb.mjs` (`npm run build:fontdb`, between `build:ts` and

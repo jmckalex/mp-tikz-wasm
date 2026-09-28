@@ -47,14 +47,18 @@ const RECIPES = [
   // and a LuaTeX document that never asks for fontspec -- graph drawing, say --
   // should not pay for it. Must precede `luatex` and `latex-extra`, which would
   // otherwise claim tex/luatex/ and tex/latex/ wholesale.
-  ['opentype',   (p) => /^tex\/luatex\/(luaotfload|lualibs|luatexbase|lua-uni-algos)\//.test(p) || /^tex\/latex\/(fontspec|unicode-math)\//.test(p) || p.startsWith('tex/lualatex/') || isUnicodeRuntime(p) || isDefaultFace(p) || isFontDb(p)],
+  ['opentype',   (p) => /^tex\/luatex\/(luaotfload|lualibs|luatexbase)\//.test(p) || /^tex\/latex\/(fontspec|unicode-math)\//.test(p) || p.startsWith('tex/lualatex/') || isUnicodeRuntime(p) || isDefaultFace(p) || isFontDb(p)],
   // everything else with an outline: latinmodern-math (what unicode-math needs) and
   // whatever else lands under fonts/opentype or fonts/truetype. Kept apart because
   // luaotfload scans every face on OPENTYPEFONTS to build its name index the first
   // time a face is looked up BY NAME (\setmainfont{Latin Modern Roman}), so each one
   // shipped is paid for on that render whether or not the document uses it.
   ['otf-fonts',  (p) => p.startsWith('fonts/opentype/') || p.startsWith('fonts/truetype/')],
-  // LuaTeX in DVI mode: its two formats (the Lua libraries it runs, e.g. graphdrawing, ship with pgf in latex-extra)
+  // LuaTeX in DVI mode: its two formats (the Lua libraries it runs, e.g. graphdrawing, ship with pgf in latex-extra).
+  // lua-uni-algos lands here, not in opentype: from the L3 programming layer of
+  // 2026-01 on, expl3.lua requires lua-uni-stage-tables whenever LaTeX starts under
+  // LuaTeX, so without it every LuaLaTeX run fails before \begin{document} --
+  // found on CI, whose tree is TeX Live 2025's final packages.
   ['luatex',     (p) => p === 'web2c/dviluatex.fmt' || p === 'web2c/dvilualatex.fmt' || p.startsWith('tex/luatex/')],
   ['tex-plain',  (p) => (p.startsWith('tex/plain/') && !p.startsWith('tex/plain/pgf')) || (p.startsWith('tex/generic/') && !/^tex\/generic\/(pgf|tikz-cd)/.test(p)) || p === 'web2c/plain.fmt' || p === 'web2c/etex.fmt'],
   ['latex-core', (p) => /^tex\/latex\/(base|l3kernel|l3backend|latexconfig|tex-ini-files)\//.test(p) || p === 'web2c/latex.fmt'],

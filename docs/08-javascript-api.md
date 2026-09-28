@@ -204,7 +204,7 @@ const r = await mp.latex(doc, { engine: 'lualatex' });
 
 | bundle | holds | when |
 | --- | --- | --- |
-| `opentype` | luaotfload, `lualibs`, `lua-uni-algos`, `fontspec`, `unicode-math`, `lualatex-math`, the Unicode tables, and the whole Latin Modern text family — all 72 faces, every optical size and shape the kernel's TU fd files can select | any `fontspec` document |
+| `opentype` | luaotfload, `lualibs`, `fontspec`, `unicode-math`, `lualatex-math`, the Unicode tables, and the whole Latin Modern text family — all 72 faces, every optical size and shape the kernel's TU fd files can select | any `fontspec` document |
 | `otf-fonts` | `latinmodern-math` | `unicode-math` |
 
 Every bundle file is fetched on demand, so a document costs only the faces it
