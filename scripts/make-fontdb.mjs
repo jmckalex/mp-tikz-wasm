@@ -42,13 +42,15 @@ if (!fs.existsSync(path.join(TEXMF, 'tex/luatex/luaotfload/luaotfload.sty'))) {
 fs.rmSync(path.dirname(OUT), { recursive: true, force: true });
 
 // the font cache lives in a private field of MetaPostCore; catch it on its way out
-let written;
+let cache = new Map();
 const collect = MetaPostCore.prototype.collectTexmfVar;
 if (typeof collect !== 'function') throw new Error('make-fontdb: MetaPostCore.collectTexmfVar has gone; update this script');
-MetaPostCore.prototype.collectTexmfVar = function (FS) { collect.call(this, FS); written = this.texmfVar.get(NAMES); };
+MetaPostCore.prototype.collectTexmfVar = function (FS) { collect.call(this, FS); cache = this.texmfVar; };
 
 const mp = await MetaPost.create({ texmfDir: TEXMF, logLevel: 'silent' });
-const doc = String.raw`\documentclass{article}\usepackage{fontspec}\begin{document}x\end{document}`;
+// A lookup BY NAME: TeX Live 2025's luaotfload builds the database on any font
+// request, but older ones (Ubuntu's 2023, on CI) only when a name has to be resolved.
+const doc = String.raw`\documentclass{article}\usepackage{fontspec}\setmainfont{Latin Modern Roman}\begin{document}x\end{document}`;
 const r = await mp.latex(doc, { engine: 'lualatex' });
 mp.dispose();
 if (r.status !== 'ok') {
@@ -56,9 +58,13 @@ if (r.status !== 'ok') {
   const tail = (r.texLog || r.log || '').trim().split('\n').slice(-40).join('\n');
   throw new Error(`make-fontdb: the LuaLaTeX run failed:\n${r.diagnostics.map((d) => d.message).join('\n')}\n--- end of the TeX log ---\n${tail}`);
 }
-if (!written) throw new Error(`make-fontdb: luaotfload wrote no ${path.basename(NAMES)}`);
+// where this luaotfload put it: normally NAMES, but take any luaotfload-names.lua[.gz]
+const found = cache.has(NAMES) ? NAMES : [...cache.keys()].find((k) => /\/luaotfload-names\.lua(\.gz)?$/.test(k));
+if (!found) throw new Error(`make-fontdb: luaotfload wrote no ${path.basename(NAMES)}; it wrote:\n${[...cache.keys()].join('\n') || '(nothing)'}`);
+if (found !== NAMES) console.warn(`  fontdb: warning: this luaotfload keeps its database at ${found}, not ${NAMES}; the engine seeds ${NAMES}, so it will not be used`);
+const written = cache.get(found);
 
-let lua = zlib.gunzipSync(written).toString('utf8');
+let lua = (found.endsWith('.gz') ? zlib.gunzipSync(written) : Buffer.from(written)).toString('utf8');
 const before = lua;
 lua = lua
   .replace(/(\["(?:created|modified)"\]=)"[^"]*"/g, '$1"1970-01-01 00:00:00"')
