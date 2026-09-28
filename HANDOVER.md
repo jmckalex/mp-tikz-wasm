@@ -2,30 +2,27 @@
 
 Written 2026-09-13 (third session), revised 2026-09-15 (fourth and fifth
 sessions), 2026-09-16 (sixth), 2026-09-17 (seventh, eighth and ninth),
-2026-09-18 (tenth, consolidated) and 2026-09-26 (eleventh). This file lives at the repository root; until session 5 it was
+2026-09-18 (tenth, consolidated) and 2026-09-26 to 2026-09-28 (eleventh:
+the 0.3.0 release). This file lives at the repository root; until session 5 it was
 `docs/15-handover.md`. Everything below is verified unless marked otherwise.
 Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State now (end of session 11, 2026-09-26):** the working tree is clean and
-**HEAD is still the branch `opentype-fonts`, not `main`**: sessions 9–11,
-none of it merged, pushed or released, and **CI has never built it**. Session
-11 added the commits from 85fe86f to the latest handover commit: the prebuilt
-luaotfload name database (the release blocker session 10 named), live
-`<tikz-diagram>`/`<metapost-diagram>` elements that typeset again when they
-change, restyled demo pages with examples of every feature, chemfig /
-simplekv / circuitikz / tikz-3dplot in the bundles (for Folio), and three
-small fixes, deprecated `sanitizeSvg()` for DOMPurify, and added the
-`svg.attributes` TikZ library and `data-replace` (reveal.js fragments inside
-diagrams). 262 tests pass;
-TikZ golden 12/12, MetaPost golden 15/15. **Nothing blocks a 0.3.0 release
-from the branch now** except pushing it and seeing CI go green. The local staging copy
-`~/Sites/jmckalex/software/mp-tikz-wasm` holds **this unreleased branch**
-(staged in session 11 so the owner could view the pages): do not `make sync`
-from it before the release, or restage from `main` first. `main` is
-unchanged since session 8: v0.2.1, released, CI green, site synced, Clew
-pinned to it.
+**State now (end of session 11, 2026-09-28):** **v0.3.0 is released**
+(<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.3.0>, tag on
+67c437c; `mp-tikz-wasm-0.3.0.tar.gz`, 44,229,933 bytes, sha256
+4a3a61b3760042d191dbf23d2169a776981be1caad9ec1d2b05cd6729c4d141b; the
+downloaded asset was checked against the local file). `main` was
+fast-forwarded to the `opentype-fonts` branch, so the two are the same
+commit; **CI is green** on it (run 36488882483), now building the texmf tree
+from TeX Live 2025's final packages. 262 tests; TikZ golden 12/12 (locally
+and, informationally, on CI), MetaPost golden 15/15. The website is synced:
+**jmckalex.org and eschatolog.ist are both the DigitalOcean droplet** (Bluehost
+is discontinued; the site Makefile's `make sync` target still points at it
+and fails harmlessly). Clew-app, Clew-iOS and Folio were sent the release
+numbers; the Clew manifests are theirs to re-pin. `dist/` on this machine is
+the released build (identical apart from `.js.map` files).
 
 ## Where things stand, in one paragraph
 
@@ -759,7 +756,30 @@ replacing its tikzjax with this library).
 9. **Hot lists skip the OpenType guide examples (6adfde4)**: they need the
    opt-in bundles and failed on the default engine ("! otf-math: error").
    The lists are unchanged.
-10. **Found, not fixed** — loose ends 19, 21 and 22 below.
+10. **The 0.3.0 release (2026-09-28)**, owner-approved, requested by
+    Clew-iOS. CI had never built the branch and failed five times before
+    going green; every failure was real:
+    - `dvisvgm.wasm` came out 48 KB larger than 0.2.1's: the build script
+      defaulted to `-O2`, while releases were linked `-Oz` by hand. Default
+      is `-Oz` now (36339c0); relinking reproduces 0.2.1's file byte for byte.
+    - `build-texmf.sh` writes `ls-R` before `make-formats` builds the formats,
+      and TEXMFDIST is `!!` (ls-R only), so on a clean tree a mounted-`texmfDir`
+      run found no format. `make-formats` now rewrites ls-R's `web2c/` section.
+      Local rebuilds never showed it (build-texmf carries old formats in).
+    - CI copied the texmf tree from Ubuntu's TeX Live 2023; its luaotfload
+      scanned no faces under LuaTeX 1.21. `scripts/ci-install-texlive.sh` now
+      installs the 109 packages build-texmf copies from (found by mapping
+      build/texmf to texlive.tlpdb) from TeX Live 2025's frozen tlnet-final,
+      cached. The native job keeps Ubuntu's TeX Live as its oracle.
+    - Under tlnet-final's newer LaTeX kernel (L3 2026-01) `expl3.lua` requires
+      `lua-uni-stage-tables`, and `lua-uni-algos` was in the opt-in `opentype`
+      bundle, so every non-OpenType LuaLaTeX run failed at start-up and the
+      error cascade **hung** the e2e tests instead of failing them (loose end
+      23). `lua-uni-algos` now rides in the default `luatex` bundle (67c437c).
+    - `make-fontdb` names a missing OpenType package, prints the TeX log's end
+      on failure, forces a by-name lookup and finds the database under any
+      name — all diagnostics added on the way.
+11. **Found, not fixed** — loose ends 19, 21, 22, 23 and 24 below.
 
 ## CI — green as of 2026-09-17 (session 8; first green in session 4)
 
@@ -947,19 +967,18 @@ downloaded tarball's sha256 equals the local build's. The notes cover the
 LuaTeX rule fix, the kept border and spath3. Clew re-pinned to it
 (confirmed in session 10).
 
-**The next release is 0.3.0, from the `opentype-fonts` branch** once it is
-merged: do the prebuilt luaotfload name database first ("Suggested next
-steps"), push and let CI build it (see "CI"), bump `version`, run the full
-build (`npm run build` — the texmf patch and the family bundle come with it,
-and `build:hot` runs last), both goldens, then the steps above. Notes should
-cover: OpenType fonts under `lualatex` (`fontspec`, `unicode-math`,
-host-supplied faces, `fonts: 'woff2'`) and under plain `luatex`
-(`\input luaotfload.sty`; the `luaotfload.sty` patch and why stock TeX Live
-needs it), the two opt-in bundles and their cost, `+name` in
-`data-bundles`, `mpTikzWasm.addFiles()`, the `woff2` namespacing fix, the
-`.ttc` caveat. Both Clew apps then re-pin: Clew-app's
-`src/shared/mptikz-manifest.json` takes the tar.gz's sha256 and byte count,
-and Clew-iOS's CI build follows that pin.
+**v0.3.0 is released** (2026-09-28, session 11):
+<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.3.0>, tag `v0.3.0`
+on 67c437c (`main`), `mp-tikz-wasm-0.3.0.tar.gz` (44,229,933 bytes, sha256
+4a3a61b3760042d191dbf23d2169a776981be1caad9ec1d2b05cd6729c4d141b) and `.zip`
+(46,164,345 bytes). Verified: the downloaded tarball's sha256 equals the local
+build's; Clew's `tar xzf … --strip-components=2 mp-tikz-wasm-0.3.0/dist` gives
+the same `dist/` as this machine's apart from `.js.map`; a clean extraction
+renders MetaPost, fontspec, plain luaotfload, chemfig with `svg.attributes`,
+and LuaLaTeX on the default bundles. Notes: `release/notes-0.3.0.md`. For the
+next release: the full `npm run build` takes about an hour here (the native
+LuaTeX build); after it, check the engines against the previous release (the
+`-Oz` lesson), and push before tagging so CI builds the exact commit.
 
 **v0.2.0 is released** (2026-09-16, session 6):
 <https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.2.0>, tag `v0.2.0`
@@ -1121,6 +1140,16 @@ and sync the website (`make sync-all`) after a release.
     a host-supplied face; `\setmainfont{Arial}` over an `addFiles()`d
     `Arial.ttf` worked in session 11 (luaotfload's rescan picks up
     `TEXMFDOTDIR`). Possibly `.ttc`-specific; check before telling Clew.
+23. **A LaTeX error cascade can hang LuaTeX instead of stopping** (session
+    11). The lua-uni-algos failure above produced errors that never reached
+    TeX's 100-error limit; in Node, in-process, there is no Worker to
+    terminate, so `timeoutMs` could not stop it and a test run sat for 15
+    minutes. Not investigated: the cascade itself, and whether the host should
+    enforce a hard limit in-process.
+24. **The owner's TeX Live 2025 is a May 2025 snapshot**; CI installs the
+    final 2025 packages (~190 files differ, chemfig and pgf among them).
+    Releases are built from the owner's tree. The TikZ golden passed on both
+    in session 11, so it could become a real CI gate.
 
 ## Where to look
 
@@ -1191,15 +1220,14 @@ same branch, verified by both Clew apps. Done in session 11: the prebuilt
 name database, live custom elements, the restyled pages, four more packages.
 Still open, in the order they are worth doing:
 
-- **Push, then merge and release the `opentype-fonts` branch as 0.3.0**
-  (sessions 9–11). It is complete and tested — 261 tests, both goldens
-  including two byte-identical OpenType cases (LaTeX and plain), both Clew
-  apps verified end to end — but it has not been reviewed, merged, pushed or
-  released, CI has never built it (loose end 18 was the known red and is
-  fixed; the texmf patch applying to Ubuntu's luaotfload is the remaining
-  unknown). The pages now cover OpenType (session 11) but the live site
-  does not have them yet; restage and sync after the release. "Publishing a release" has the 0.3.0 checklist; both Clew
-  apps re-pin to it.
+- **Make `auto.js` load the library lazily** (proposed and agreed for 0.3.1):
+  import `index.js` dynamically where the engine is created, so a page whose
+  figures are all saved loads ~14 KB of JavaScript in three modules instead
+  of ~55 KB in nineteen. `LOG_LEVELS` and `DEFAULT_BUNDLES` come from their
+  own modules. The engines are already lazy.
+- **Make the TikZ golden a CI gate** (loose end 24) and fix the handful of
+  small things listed in session 11: script-tag prefetch (19), `hot.json`
+  deleted by `build:bundles` (16), a DOM test library for the live elements.
 - **Put the manifest's per-file `sha` into bundle file URLs** (`?v=<sha>`,
   `src/ts/vfs/bundle.ts`, one line where `url` is built — mind the Node
   I/O path, which reads files by path). Both sides asked for it in session
