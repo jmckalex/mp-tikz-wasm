@@ -73,6 +73,11 @@ if (fs.existsSync(path.join(TEXMF, 'tex/luatex/luaotfload')) && !fs.existsSync(p
   console.warn('  warning: no prebuilt luaotfload name database; run `npm run build:fontdb` (a fresh engine will scan every face)');
 const all = walk(TEXMF).map((p) => path.relative(TEXMF, p).split(path.sep).join('/')).filter((p) => p !== 'ls-R').sort();
 
+// hot.json (make-hotlists.mjs, run after build:ts) lives in dist/bundles too; a
+// bundle-only rebuild used to delete it, and the prefetch tests then skipped
+// silently. Keep it, minus any file no bundle carries any more.
+const HOT = path.join(OUT, 'hot.json');
+const keptHot = fs.existsSync(HOT) ? JSON.parse(fs.readFileSync(HOT, 'utf8')) : null;
 fs.rmSync(OUT, { recursive: true, force: true });
 const summary = [];
 const merged = new Map();
@@ -96,5 +101,18 @@ for (const [name, preds] of merged) {
   fs.writeFileSync(path.join(OUT, name, 'manifest.json'), JSON.stringify(manifest));
   summary.push({ name, files: new Set(Object.keys(files)), total });
   console.log(`  ${name.padEnd(12)} ${Object.keys(files).length.toString().padStart(5)} files ${(total / 1024).toFixed(0).padStart(7)} KB`);
+}
+if (keptHot?.kinds) {
+  const shipped = new Set(summary.flatMap((b) => [...b.files]));
+  let dropped = 0;
+  for (const k of Object.keys(keptHot.kinds)) {
+    const before = keptHot.kinds[k].length;
+    keptHot.kinds[k] = keptHot.kinds[k].filter((p) => shipped.has(p));
+    dropped += before - keptHot.kinds[k].length;
+  }
+  fs.writeFileSync(HOT, JSON.stringify(keptHot));
+  console.log(`  hot.json kept${dropped ? ` (${dropped} entries no longer in any bundle dropped)` : ''}; \`npm run build:hot\` refreshes it`);
+} else {
+  console.log('  no hot.json: run `npm run build:hot` (after build:ts) or the prefetch tests skip');
 }
 fs.writeFileSync(path.join(OUT, 'index.json'), JSON.stringify({ version: VERSION, bundles: summary.map((s) => ({ name: s.name, files: s.files.size, bytes: s.total })) }, null, 2));

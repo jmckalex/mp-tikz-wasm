@@ -59,8 +59,8 @@ jobs:
         run: ./scripts/native-luatex.sh && ./scripts/build-luatex-wasm.sh
       # the TypeScript comes before the bundles: make-fontdb runs the wasm LuaTeX
       # through dist/ to prebuild luaotfload's name database for the opentype bundle
-      - name: texmf, formats, TypeScript, font database, bundles
-        run: ./scripts/build-texmf.sh && node scripts/make-formats.mjs && npm ci && npm run build:ts && node scripts/make-fontdb.mjs && node scripts/build-bundles.mjs
+      - name: texmf, formats, TypeScript, font database, bundles, hot lists
+        run: ./scripts/build-texmf.sh && node scripts/make-formats.mjs && npm ci && npm run build:ts && node scripts/make-fontdb.mjs && node scripts/build-bundles.mjs && node scripts/make-hotlists.mjs
       - name: end-to-end tests (API, memory, prefetch)
         run: npx vitest run test/e2e
       # MetaPost golden output is reproducible from the pinned mplib and the
