@@ -16,7 +16,10 @@ TEXOUT="$REPO/build/tex"
 DIST="$REPO/dist"
 EMCC="${EMCC:-emcc}"; EMXX="${EMXX:-em++}"
 JOBS="${JOBS:-8}"
-OPT="${DVISVGM_OPT:--O2}"
+# -Oz, as every release has been linked (0.1.0-0.3.0) and as the guide documents;
+# the default here used to say -O2, which links 48 KB larger with readable import
+# names, so a plain source build did not reproduce the released engine.
+OPT="${DVISVGM_OPT:--Oz}"
 
 [ -f "$NB/texk/dvisvgm/config.h" ] || { echo "error: configure texk/dvisvgm natively first (vendor/native-build/texk/dvisvgm/config.h)" >&2; exit 1; }
 ls "$TEXOUT"/obj/kpathsea-*.o >/dev/null 2>&1 || { echo "error: run scripts/build-tex-wasm.sh first (kpathsea objects are shared)" >&2; exit 1; }
