@@ -91,30 +91,61 @@ class InProcessBackend implements Backend {
   dispose() { /* nothing to terminate */ }
 }
 
+/** What WorkerBackend needs of a worker: a Web Worker, or a Node worker_threads one behind the same four calls. */
+interface WorkerPort {
+  postMessage(m: unknown): void;
+  terminate(): void;
+  /** Node: keep the process alive only while a call is pending (a Web Worker never holds a page open). */
+  busy(on: boolean): void;
+}
+
 class WorkerBackend implements Backend {
-  private worker: Worker;
+  private worker!: WorkerPort;
   private pending = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
   private nextId = 1;
-  constructor(private options: MetaPostOptions, private emit: (ev: string, data: unknown) => void) {
-    this.worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
-    this.worker.onmessage = (ev: MessageEvent<WorkerResponse | WorkerEvent>) => {
-      const m = ev.data as any;
-      if ('event' in m) { this.emit(m.event, m.data); return; }
-      const p = this.pending.get(m.id);
-      if (!p) return;
-      this.pending.delete(m.id);
-      if (m.ok) p.resolve(m.result); else p.reject(new Error(m.error));
-    };
-    this.worker.onerror = (e) => { for (const p of this.pending.values()) p.reject(new Error(String(e.message ?? e))); this.pending.clear(); };
+  constructor(private options: MetaPostOptions, private emit: (ev: string, data: unknown) => void) {}
+
+  private onMessage(m: any): void {
+    if ('event' in m) { this.emit(m.event, m.data); return; }
+    const p = this.pending.get(m.id);
+    if (!p) return;
+    this.pending.delete(m.id);
+    if (!this.pending.size) this.worker.busy(false);
+    if (m.ok) p.resolve(m.result); else p.reject(new Error(m.error));
+  }
+  private onError(message: string): void {
+    for (const p of this.pending.values()) p.reject(new Error(message));
+    this.pending.clear();
+    this.worker.busy(false);
+  }
+  /** Start the worker: a Web Worker in a browser, a worker_threads Worker in Node. */
+  private async start(): Promise<void> {
+    const url = new URL('./worker.js', import.meta.url);
+    if (isNode) {
+      const { Worker: NodeWorker } = await import('node:worker_threads');
+      const w = new NodeWorker(url);
+      w.on('message', (m) => this.onMessage(m));
+      w.on('error', (e) => this.onError(String(e?.message ?? e)));
+      w.on('exit', (code) => { if (this.pending.size) this.onError(`mp-tikz-wasm: worker exited (${code})`); });
+      w.unref();
+      this.worker = { postMessage: (m) => w.postMessage(m), terminate: () => { void w.terminate(); }, busy: (on) => (on ? w.ref() : w.unref()) };
+    } else {
+      const w = new Worker(url, { type: 'module' });
+      w.onmessage = (ev: MessageEvent<WorkerResponse | WorkerEvent>) => this.onMessage(ev.data);
+      w.onerror = (e) => this.onError(String(e.message ?? e));
+      this.worker = { postMessage: (m) => w.postMessage(m), terminate: () => w.terminate(), busy: () => {} };
+    }
   }
   private call<T>(op: string, payload: Record<string, unknown> = {}): Promise<T> {
     const id = this.nextId++;
     return new Promise<T>((resolve, reject) => {
+      if (!this.pending.size) this.worker.busy(true);
       this.pending.set(id, { resolve, reject });
       this.worker.postMessage({ id, op, ...payload });
     });
   }
-  init() {
+  async init() {
+    await this.start();
     const { runScript, makeText, onFindFile, log, logger, ...cloneable } = this.options;
     return this.call<{ version: any }>('init', { options: cloneable, baseUrl: import.meta.url });
   }
@@ -146,6 +177,8 @@ export class MetaPost {
     if (options.snapshot === undefined) options.snapshot = isNode ? 'auto' : 'none';
     if (options.logLevel !== undefined && !isLogLevel(options.logLevel)) throw new Error(`mp-tikz-wasm: unknown logLevel "${options.logLevel}" (silent, error, warn, info, debug, trace)`);
     const hasCallbacks = !!(options.runScript || options.makeText || options.onFindFile || options.modules || options.bundleIO);
+    // In Node the default is in-process; `worker: true` runs the engines in a worker_threads
+    // thread, which is what lets the stall watchdog (timeoutMs) stop a runaway document.
     const useWorker = options.worker ?? (!isNode && typeof Worker !== 'undefined' && !hasCallbacks);
     if (!isNode && (options.runScript || options.makeText || options.onFindFile) && options.worker === undefined && typeof console !== 'undefined') {
       console.warn('mp-tikz-wasm: runScript/makeText/onFindFile callbacks require in-process mode; running on the main thread');
@@ -162,8 +195,9 @@ export class MetaPost {
 
   /**
    * The stall watchdog (worker only): the run is killed when `timeoutMs` pass without a progress
-   * event. Every engine phase and every on-demand file fetch is one, so a first run on a slow host
-   * that spends a minute fetching files one after another is left alone; a hung engine is not.
+   * event or a line of engine output. Every engine phase and every on-demand file fetch is progress,
+   * so a first run on a slow host that spends a minute fetching files one after another is left
+   * alone, and so is a long TeX run that is still printing; a silent, hung engine is not.
    */
   private watchdog<T>(p: Promise<T>, what: string, signal?: AbortSignal): Promise<T> {
     const timeout = this.options.timeoutMs ?? 20_000;
@@ -171,7 +205,8 @@ export class MetaPost {
     return new Promise<T>((resolve, reject) => {
       let t: ReturnType<typeof setTimeout> | undefined;
       const off = this.on('progress', () => arm());
-      const done = () => { if (t) clearTimeout(t); off(); };
+      const offLog = this.on('log', () => arm());
+      const done = () => { if (t) clearTimeout(t); off(); offLog(); };
       const kill = (why: string) => { done(); this.backend.dispose(); reject(new Error(why)); };
       const arm = () => { if (t) clearTimeout(t); t = setTimeout(() => kill(`mp-tikz-wasm: ${what} made no progress for ${timeout} ms; worker terminated`), timeout); };
       arm();

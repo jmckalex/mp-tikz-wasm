@@ -159,6 +159,21 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     expect(bad.diagnostics.some((d: any) => /unbalanced double quotes/.test(d.message))).toBe(true);
   }, 60_000);
 
+  it('runs in a worker_threads worker in Node with worker: true, bundles or texmfDir', async () => {
+    // the only way in Node to stop a runaway engine: the stall watchdog terminates the worker
+    const { MetaPost } = await import(path.join(REPO, 'dist/index.js'));
+    const w = await MetaPost.create({ worker: true, logLevel: 'silent' });
+    try {
+      expect((await w.run('beginfig(1); draw fullcircle scaled 20; label(btex $x$ etex, origin); endfig; end.', { format: 'svg' })).status).toBe('ok');
+      expect((await w.latex('\\documentclass[tikz]{standalone}\\begin{document}\\tikz\\draw (0,0) circle (1);\\end{document}')).status).toBe('ok');
+    } finally { w.dispose(); }
+    const texmf = path.join(REPO, 'build/texmf');
+    if (fs.existsSync(path.join(texmf, 'web2c/latex.fmt'))) {
+      const t = await MetaPost.create({ worker: true, logLevel: 'silent', texmfDir: texmf });
+      try { expect((await t.latex('\\documentclass{article}\\begin{document}x\\end{document}')).status).toBe('ok'); } finally { t.dispose(); }
+    }
+  }, 120_000);
+
   it('produces one SVG per page and maps errors to lines', async () => {
     const r = await mp.latex(`\\documentclass{article}\\pagestyle{empty}\\begin{document}one\\newpage two \\undefinedmacro\\end{document}`);
     expect(r.pages).toHaveLength(2);

@@ -4,6 +4,7 @@ jobs:
   native:
     # L0: tangle, native build, contract harness; needs a TeX Live for plain.mp and fonts
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,7 +23,11 @@ jobs:
       - name: unit tests (scanner vs the C mpto oracle; the e2e tests need the wasm job's build)
         run: npm ci && npx vitest run test/unit
   wasm:
+    # About 9 minutes warm. The step limits below matter more: a TeX run stuck in a
+    # synchronous wasm loop blocks vitest's own timers too, so without them a hung
+    # test waits for GitHub's six-hour default (session 11 lost 15 minutes to one).
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -62,6 +67,7 @@ jobs:
       - name: texmf, formats, TypeScript, font database, bundles, hot lists
         run: ./scripts/build-texmf.sh && node scripts/make-formats.mjs && npm ci && npm run build:ts && node scripts/make-fontdb.mjs && node scripts/build-bundles.mjs && node scripts/make-hotlists.mjs
       - name: end-to-end tests (API, memory, prefetch)
+        timeout-minutes: 10
         run: npx vitest run test/e2e
       # MetaPost golden output is reproducible from the pinned mplib and the
       # Computer Modern fonts, so it is checked here against the committed
@@ -72,7 +78,9 @@ jobs:
       # information only. The e2e step above exercises the LaTeX/TikZ and
       # OpenType pipelines for behaviour.
       - name: MetaPost golden corpus vs the committed TeX Live 2025 expectations
+        timeout-minutes: 5
         run: node scripts/golden.mjs --check
       - name: TikZ golden (informational; package versions differ from the dev machine's)
         continue-on-error: true
+        timeout-minutes: 5
         run: node scripts/golden-tikz.mjs --check

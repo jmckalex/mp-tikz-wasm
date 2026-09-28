@@ -278,8 +278,13 @@ Options and result types are documented in [`src/ts/types.ts`](src/ts/types.ts)
 and [docs/08](docs/08-javascript-api.md). Two worth knowing: `prefetch:
 ['latex']` fetches the files a first LaTeX run needs in parallel before it
 (the tags do this by themselves), and `timeoutMs` is a stall limit, not a
-total: a run is killed only when nothing happens for that long, so a slow
-first load is never cut short. `MetaPostPool` runs batch work across several
+total: a run is killed only when nothing happens for that long (no progress
+event, no line of engine output), so a slow first load is never cut short. The
+watchdog needs a worker it can terminate: browsers use a Web Worker by default;
+**in Node, pass `worker: true`** (a `worker_threads` thread), otherwise the
+engines run in-process and a document that loops forever — native TeX loops the
+same way — cannot be stopped. `runScript`, `makeText` and `onFindFile` need
+in-process mode. `MetaPostPool` runs batch work across several
 workers.
 
 **Untrusted sources.** Output is only as trustworthy as its source. MetaPost's
