@@ -2,59 +2,56 @@
 
 Written 2026-09-13 (third session), revised 2026-09-15 (fourth and fifth
 sessions), 2026-09-16 (sixth), 2026-09-17 (seventh, eighth and ninth),
-2026-09-18 (tenth, consolidated) and 2026-09-26 to 2026-09-28 (eleventh:
-the 0.3.0 release). This file lives at the repository root; until session 5 it was
+2026-09-18 (tenth, consolidated) and 2026-09-24 to 2026-09-29 (eleventh:
+the 0.3.0 release and what followed). This file lives at the repository root; until session 5 it was
 `docs/15-handover.md`. Everything below is verified unless marked otherwise.
 Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State now (end of session 11, 2026-09-28):** **v0.3.0 is released**
+**State now (end of session 11, 2026-09-29):** **v0.3.0 is released**
 (<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.3.0>, tag on
 67c437c; `mp-tikz-wasm-0.3.0.tar.gz`, 44,229,933 bytes, sha256
 4a3a61b3760042d191dbf23d2169a776981be1caad9ec1d2b05cd6729c4d141b; the
-downloaded asset was checked against the local file). `main` was
-fast-forwarded to the `opentype-fonts` branch, so the two are the same
-commit; **CI is green** on it (run 36488882483), now building the texmf tree
-from TeX Live 2025's final packages. 262 tests; TikZ golden 12/12 (locally
-and, informationally, on CI), MetaPost golden 15/15. The website is synced:
-**jmckalex.org and eschatolog.ist are both the DigitalOcean droplet** (Bluehost
-is discontinued; the site Makefile's `make sync` target still points at it
-and fails harmlessly). Clew-app, Clew-iOS and Folio were sent the release
-numbers; the Clew manifests are theirs to re-pin. `dist/` on this machine is
-the released build (identical apart from `.js.map` files).
+downloaded asset was checked against the local file). `main` is at 53b1ad8
+(the release plus a handover commit). **The branch `opentype-fonts` is ahead of
+`main` with unreleased work** — three fixes made after the release, all
+tested and green on CI (run 36495402034), plus handover commits
+(`git log --oneline origin/main..opentype-fonts`): 5f6dc02 (`hot.json` kept
+across bundle rebuilds; CI generates the hot lists), 32e9467 (script-tag
+pages prefetch again), 8b6d145 (`worker: true` in Node; CI time limits). They are 0.3.1 material, with the `auto.js` lazy loading
+("Suggested next steps"). The working tree is clean; local `main` tracks
+`origin/main`. 263 tests; TikZ golden 12/12 (locally, and informationally on
+CI), MetaPost golden 15/15, native contract 48/48. The website is synced at
+0.3.0: **jmckalex.org and eschatolog.ist are both the DigitalOcean droplet**;
+Bluehost is discontinued. Clew-app, Clew-iOS and Folio have the release
+numbers; re-pinning the Clew manifests is theirs. `dist/` here is the 0.3.0
+build (identical to the release apart from `.js.map` files); the branch's
+fixes change only the JavaScript and the build scripts, so `npm run build:ts`
+(plus `build:bundles` for the hot lists) brings `dist/` level with it.
 
 ## Where things stand, in one paragraph
 
-The port is complete and released as a tree: four engines (MetaPost 2.11,
-pdfTeX 1.40 and LuaTeX 1.21 in DVI mode, dvisvgm 3.4.3) compiled to
-WebAssembly behind one TypeScript library, a Web Worker, the `mpost-wasm`
-CLI, drop-in HTML tags, ten lazily fetched texmf bundles (twelve on the
-`opentype-fonts` branch), five demo pages and a feature guide. Output is
-byte-identical to TeX Live 2025 on both golden corpora and the 1181-page PGF
-manual. 261 tests pass on the branch (245 on `main`), the 48-check native
-contract harness passes, there is no per-instance memory leak. Session 5
-added levelled logging to the console (`logLevel`, six levels, MetaPost's
-terminal streamed live; see "What happened in session 5"). Session 6 added
-saved figures: a page can carry its diagrams as `figures/figure-HASH.svg`
-files, written by `mpost-wasm --prerender` or `mpTikzWasm.saveFigures()`,
-and the tags load them instead of starting the engines (see "What happened
-in session 6"). Session 7 bundled spath3 (`calligraphy`, `knots`) and made a
-wrapped TikZ figure keep its standalone border, so classic arrow tips survive.
-Session 8 fixed every rule trapping under LuaTeX in DVI mode (a wasm-only
-call-arity defect; `docs/14` §14). Sessions 9 and 10 added OpenType fonts
-under LuaTeX on the branch `opentype-fonts`, not yet merged: `fontspec`
-under `lualatex`, `\input luaotfload.sty` under plain `luatex`, faces the
-host supplies at run time, and `fonts: 'woff2'` so the SVG carries the
-page's own font file (`docs/14` §15). The demos are live on the fast
-DigitalOcean droplet at <https://eschatolog.ist/software/mp-tikz-wasm/> and
-mirrored (more slowly) on Bluehost at
-<https://jmckalex.org/software/mp-tikz-wasm/>. **CI is green** and **v0.2.1 is
-released** (v0.1.0 on 2026-09-13, v0.2.0 on 2026-09-16, v0.2.1 on
-2026-09-17). Session 4 also added five MetaPost gallery figures, an
-in-browser page-by-page viewer for the whole PGF manual, and fixed the
-upside-down brace in the guide's tree
-figure (see "What happened in session 4").
+The port is complete and released: four engines (MetaPost 2.11, pdfTeX 1.40
+and LuaTeX 1.21 in DVI mode, dvisvgm 3.4.3) compiled to WebAssembly behind one
+TypeScript library, a Web Worker (a `worker_threads` worker in Node on
+request), the `mpost-wasm` CLI, drop-in HTML tags, twelve lazily fetched texmf
+bundles (two of them opt-in, for OpenType), demo pages and a feature guide.
+Output is byte-identical to TeX Live 2025 on both golden corpora and the
+1181-page PGF manual. 263 tests pass, the 48-check native contract harness
+passes, there is no per-instance memory leak. Session 5 added levelled
+logging; session 6 saved figures (`figures/figure-HASH.svg`, written by
+`mpost-wasm --prerender` or `mpTikzWasm.saveFigures()`); session 7 spath3 and
+the kept border; session 8 the LuaTeX rule fix; sessions 9 and 10 OpenType
+fonts under LuaTeX (`fontspec`, plain `luaotfload`, host faces, `fonts:
+'woff2'`); session 11 the prebuilt font database, live custom elements,
+`data-replace`, the `svg.attributes` TikZ library, chemfig / circuitikz /
+tikz-3dplot, restyled demo pages, and the 0.3.0 release. The demos are live at
+<https://eschatolog.ist/software/mp-tikz-wasm/> and
+<https://jmckalex.org/software/mp-tikz-wasm/> (the same DigitalOcean droplet).
+**CI is green** and builds everything from a clean checkout, the texmf tree
+from TeX Live 2025's final packages. Releases: v0.1.0 (2026-09-13), v0.2.0
+(09-16), v0.2.1 (09-17), **v0.3.0 (09-28)**.
 
 ## What happened in session 3 (2026-09-13)
 
@@ -686,7 +683,7 @@ Everything below is verified unless marked otherwise.
     report). luaotfload's font cache is still per instance. The manifest's
     per-file `sha` is not yet in bundle file URLs (next steps).
 
-## What happened in session 11 (2026-09-24 to 2026-09-26, on `opentype-fonts`)
+## What happened in session 11 (2026-09-24 to 2026-09-29, on `opentype-fonts`, released as 0.3.0)
 
 Commits 85fe86f → the latest handover commit. Several of them (the pages,
 the packages, the chemfig fix) came out of requests from elsewhere: the
@@ -779,35 +776,39 @@ replacing its tikzjax with this library).
     - `make-fontdb` names a missing OpenType package, prints the TeX log's end
       on failure, forces a by-name lookup and finds the database under any
       name — all diagnostics added on the way.
-11. **Found, not fixed** — loose ends 19, 21, 22, 23 and 24 below.
+11. **After the release (unreleased, on the branch; see "State now").** The
+    owner asked for every open bug fixed, then agreed to triage instead of
+    fixing all: `hot.json` survives bundle rebuilds and CI runs the prefetch
+    tests (loose end 16), script-tag pages prefetch again (19, confirmed in
+    Chrome before the fix), `worker: true` works in Node so a runaway document
+    can be stopped (23: native LuaTeX loops identically; the problem was only
+    that Node could not interrupt it), CI has time limits. The rest was left
+    as loose ends on purpose. Verified: 263 tests, both goldens, the contract,
+    the tags page live in Chrome, the watchdog on a Web Worker and a Node
+    worker, CI green.
+12. **Found, not fixed** — loose ends 21, 22, 24, the triage list, and the
+    killed-worker wait under 23.
 
-## CI — green as of 2026-09-17 (session 8; first green in session 4)
+## CI — green as of 2026-09-29 (first green in session 4)
 
-`.github/workflows/ci.yml` runs two jobs on every push, both green:
+`.github/workflows/ci.yml` runs two jobs on every push, both green, with time
+limits (jobs 30 and 45 minutes; the e2e step 10, each golden 5 — a TeX run
+stuck in wasm blocks vitest's own timers, so only GitHub's limits can stop it):
 
-- **native** (ubuntu-latest): apt TeX Live as the oracle, the pinned vendor
-  tree, `make contract` (the 48-check harness since session 5), and the unit
-  tests (`npx vitest run test/unit`).
-- **wasm** (ubuntu-latest, Emscripten 6.0.9): builds all four engines
-  (`mplib`, `tex`, `dvisvgm`, `luatex`), the texmf tree, formats and
-  bundles, the TypeScript, then the e2e tests (`test/e2e`: API, memory,
-  prefetch, logging, prerender) and the **MetaPost** golden `--check`.
+- **native** (ubuntu-latest): Ubuntu's TeX Live as the oracle, the pinned
+  vendor tree, `make contract` (48 checks), and the unit tests.
+- **wasm** (ubuntu-latest, Emscripten 6.0.9): builds all four engines, then
+  the texmf tree **from TeX Live 2025's frozen tlnet-final**, installed by
+  `scripts/ci-install-texlive.sh` (the 109 packages build-texmf copies from,
+  ~170 MB, cached on the script's hash), formats, TypeScript, the font
+  database, bundles and hot lists; then the e2e tests (44, none skipped), the
+  MetaPost golden `--check`, and the TikZ golden `--check` for information
+  (`continue-on-error`; it has passed 12/12 there since session 11).
 
-Latest green run: <https://github.com/jmckalex/mp-tikz-wasm/actions/runs/35225322767>
-(ff8a98b, after the 0.2.1 release; the release commit ff0271a ran three
-times, for the branch push and the tag, all green — the wasm job builds
-`luatex.wasm` from source with `patches/luatex/0001` and runs the rule guard).
-First green run: 34769341698 (commit c24dbb3, session 4). The README badge
-is green.
-
-**The branch `opentype-fonts` has never been pushed, so CI has never built
-it** (sessions 9 and 10). What its first run will exercise: the texmf patch
-applying to Ubuntu's older luaotfload (the hunk sits on the file's stable
-tail), the Latin Modern OpenType faces being found in `/usr/share/texmf`
-(loose end 18, fixed in session 10 before any push: `build-texmf.sh` now
-searches every TeX tree for them, as it already did for the Type 1 faces),
-and the OpenType e2e tests, which skip unless both `opentype` and
-`otf-fonts` manifests exist.
+Latest green runs: 36495402034 (803e800, the branch) and 36488882483
+(67c437c, the 0.3.0 release; its tag ran green too). First green run:
+34769341698 (c24dbb3, session 4). The branch's first CI builds (session 11)
+failed five times, each on a real defect: see session 11, item 10.
 
 What was wrong and what fixed it (session 4, five commits f822ff3 →
 c24dbb3, all pushed):
@@ -845,16 +846,14 @@ c24dbb3, all pushed):
    searches every configured TeX tree (`kpsewhich -expand-path '$TEXMF'`)
    and tolerates absent optional fonts.
 
-**The TikZ/LaTeX golden (`node scripts/golden-tikz.mjs --check`) is a dev
-gate, not on CI.** Its SVG output tracks the system pgf and font versions,
-and the runner's `texlive-pictures` is Ubuntu's 2023 pgf, not TeX Live
-2025's; `03-shading-clip` differed by a fraction of a point in its bounding
-box for that reason (the MetaPost golden, reproducible from the pinned mplib
-and Computer Modern, passes on the runner). Run `npm run test:golden:tikz`
-(no `--check`) on a TeX Live 2025 machine to regenerate `tikz-expected/`
-before committing, then `--check` locally (the two LuaTeX cases need TeX
-Live's `dviluatex` and `dvilualatex` as oracles). The CI e2e step exercises
-the LaTeX/TikZ pipeline for behaviour, LuaTeX rules included.
+**The TikZ/LaTeX golden is still a dev gate, run on CI for information.**
+Its expectations are regenerated with `npm run test:golden:tikz` (no
+`--check`) on a TeX Live 2025 machine, which runs the native oracle
+(`pdflatex`, `dvilualatex`, `dviluatex`, `dvisvgm`); `--check` compares
+against the committed files and needs no native TeX. The owner's TeX Live
+2025 is a May 2025 snapshot and CI's is the final one (~190 files differ), yet
+all 12 cases match on both, so making it a real gate is a one-line change
+(loose end 24).
 
 To watch a run:
 
@@ -867,7 +866,11 @@ grep -n -i "error" /tmp/job.log | tail -30
 
 ## The website
 
-The demos are served from **two** hosts, both from the local staging copy
+The demos are served from one host, the DigitalOcean droplet `jmck-web`
+(139.59.191.156), under **both** <https://eschatolog.ist/software/mp-tikz-wasm/>
+and <https://jmckalex.org/software/mp-tikz-wasm/> — jmckalex.org's DNS points at
+the droplet. **Bluehost is discontinued** (the owner, 2026-09-28); its
+`public_html/software` no longer exists. Deploy from the local staging copy
 `~/Sites/jmckalex/software/mp-tikz-wasm/` (generated by `stage-site.sh`, never
 edited by hand except its `Makefile` and `exclude`):
 
@@ -875,27 +878,21 @@ edited by hand except its `Makefile` and `exclude`):
 cd ~/Source/mp-tikz-wasm && npm run build:standalone   # if site/examples.js changed
 scripts/stage-site.sh ~/Sites/jmckalex/software/mp-tikz-wasm   # or `make stage` there
 cd ~/Sites/jmckalex/software/mp-tikz-wasm
-make sync-eschatolog ARGS=-n && make sync-eschatolog   # droplet (fast); dry-run first
-make sync           ARGS=-n && make sync               # Bluehost (slow)
-make sync-all                                          # both
+make sync-eschatolog ARGS=-n && make sync-eschatolog   # dry run first; it uses --delete
 ```
 
-- **eschatolog.ist (fast, ~50 ms)** is the DigitalOcean droplet `jmck-web`
-  (139.59.191.156; ssh alias `jmck-web`, root, key `~/.ssh/digitalocean_trocp`).
-  Its nginx server block shares the webroot `/var/www/jmckalex` with the
-  default block; content lands in `/var/www/jmckalex/software/mp-tikz-wasm`.
-  **No nginx change was needed:** the config already types `.wasm`
-  (`application/wasm`) and `.mjs` (`text/javascript`) and caches assets 30 d,
-  denies `Makefile`/dotfiles, and its basic auth is currently commented out so
-  `/software/` is public. Sync needs `--chown=web:web --chmod=D755,F644` (the
-  `sync-eschatolog` target does this). nginx ignores `.htaccess`.
-- **jmckalex.org (slow, ~570 ms TTFB)** is Bluehost, the original host, kept as
-  a mirror. `stage-site.sh` writes its `.htaccess` (MIME + gzip + cache).
-  Bluehost occasionally refuses SSH after a burst ("Connection closed by
-  162.241.218.115"); it recovers within minutes — retry.
+Do **not** use `make sync` or `make sync-all` there: they still target
+Bluehost and fail at the first mkdir (harmless, but noise). The Makefile and
+`~/Sites/jmckalex/CLAUDE.md` (which still calls the migration "in progress")
+are the owner's to update.
 
-`~/Sites/jmckalex/CLAUDE.md` is the authoritative deployment reference (the
-two droplets, the migration, what never to upload).
+- The droplet's nginx types `.wasm` (`application/wasm`) and `.mjs`
+  (`text/javascript`), caches assets 30 d, denies `Makefile`/dotfiles; its
+  basic auth is commented out so `/software/` is public. Sync needs
+  `--chown=web:web --chmod=D755,F644` (the `sync-eschatolog` target does this).
+  Content lands in `/var/www/jmckalex/software/mp-tikz-wasm`; ssh alias
+  `jmck-web`, root, key `~/.ssh/digitalocean_trocp`. Both domains answer in
+  ~60 ms.
 
 **Cache caveat (seen after the 0.2.0 sync):** the droplet serves `dist/*.js`
 with `Cache-Control: max-age=2592000, public` (30 days, no `immutable`) and
@@ -918,18 +915,20 @@ render; `git status` shows what is new).
 `npm run pages` (`scripts/publish-pages.sh`) is a GitHub Pages alternative,
 tested against a throwaway repository only.
 
-Cold-load cost on Bluehost (measured): a first TikZ figure waits ~12 s for the
-three engines, and graph drawing (adds `luatex.wasm` 1.7 MB + `dvilualatex.fmt`
-6.5 MB, does not compress) ~55 s; second visits render from the IndexedDB
-result cache in ~1.5 s. On the droplet these are a few seconds — the
-slow-server problem is why the droplet deployment happened.
+Historical: on Bluehost (~570 ms per request) a first TikZ figure waited
+~12 s and graph drawing ~55 s; on the droplet these are a few seconds — why the
+droplet deployment happened.
 
 ## Build and test, from scratch
 
 Prerequisites are in the README ("Building from source"): C/C++17 toolchain,
 Node ≥ 20, Emscripten 6.0.9 (`.emsdk-version`; on this machine at
 `~/emsdk` — see "Loose ends"), a full TeX Live 2025 (the oracle and the
-source of the bundled files; here `/usr/local/texlive/2025`).
+source of the bundled files; here `/usr/local/texlive/2025`, a May 2025
+snapshot — CI uses the final 2025 packages via `scripts/ci-install-texlive.sh`,
+which also works locally: `scripts/ci-install-texlive.sh DIR` and put
+`DIR/bin/*` first on PATH). A full `npm run build` takes about an hour here,
+most of it the native LuaTeX build.
 
 ```sh
 export PATH=$HOME/emsdk/upstream/emscripten:$PATH
@@ -938,7 +937,7 @@ make contract                    # native mplib + 48 checks
 scripts/native-texlive.sh        # once: web2c pass for pdfTeX
 scripts/native-dvisvgm.sh        # once: dvisvgm config
 scripts/native-luatex.sh         # once: native LuaTeX build, compile commands recorded
-npm run build                    # all wasm, texmf, formats, bundles, TypeScript, hot lists
+npm run build                    # all wasm, texmf, formats, TypeScript, font database, bundles, hot lists
 npm test && npm run test:golden && npm run test:golden:tikz
 npm run build:guide; npm run build:pages; npm run build:standalone
 node dist/cli.js --prerender site/tags.html   # site/figures/ (committed; only if the tags page changed)
@@ -946,7 +945,10 @@ npm run package
 ```
 
 `make contract` and `make wasm` now work on a clean tree (the Makefile lists
-every generated header and no longer relies on a vpath).
+every generated header and no longer relies on a vpath). After a partial
+rebuild: `build:texmf` wipes the font database (run `build:fontdb` before
+`build:bundles`; build-bundles warns), and `build:bundles` now keeps
+`hot.json`. `dvisvgm.wasm` links with `-Oz` by default, as every release has.
 
 ## Publishing a release
 
@@ -1004,7 +1006,7 @@ npm run build:pages && npm run build:standalone && npm run package`, `git tag
 v<version> && git push origin v<version>`, and `gh release create`. `dist/` is
 not committed, so a source clone still has to build. `package.json` is
 `private: true`: nothing is on npm; remove that line to publish there. Restage
-and sync the website (`make sync-all`) after a release.
+and sync the website (`make sync-eschatolog`, dry run first) after a release.
 
 ## Loose ends, honestly
 
@@ -1019,7 +1021,8 @@ and sync the website (`make sync-all`) after a release.
 4. ~~**No GitHub release yet**~~ — v0.1.0, v0.2.0 and v0.2.1 released; see
    "Publishing a release".
 5. ~~**Bluehost is slow**~~ — deployed to the fast droplet (eschatolog.ist);
-   Bluehost kept as a mirror. See "The website".
+   Bluehost has since been discontinued and jmckalex.org points at the
+   droplet too. See "The website".
 6. **One unexplained hang**: one of five API runs of the 1181-page manual
    hung at 0 % CPU after the TeX phase (Node, in-process). Never reproduced.
 7. ~~**Fresh-machine build untested since LuaTeX**~~ — resolved: CI now
@@ -1229,17 +1232,27 @@ built. Done in session 8: the LuaTeX rule fix, 0.2.1 released (by the owner)
 and the site synced. Done in session 9: OpenType under LuaLaTeX, on a branch.
 Done in session 10: OpenType under plain LuaTeX and at every class size,
 same branch, verified by both Clew apps. Done in session 11: the prebuilt
-name database, live custom elements, the restyled pages, four more packages.
-Still open, in the order they are worth doing:
+name database, live custom elements, `data-replace`, `svg.attributes`, the
+restyled pages, four more packages, CI on TeX Live 2025, **the 0.3.0 release**,
+and three post-release fixes on the branch. Still open, in the order they are
+worth doing:
+
+- **Check the Clew re-pins.** Clew-app and Clew-iOS were sent the 0.3.0
+  numbers (tag, URL, 44,229,933 bytes, sha256 4a3a61b3…); the manifests are
+  theirs to update. Nothing to do here unless they report a problem.
 
 - **Make `auto.js` load the library lazily** (proposed and agreed for 0.3.1):
   import `index.js` dynamically where the engine is created, so a page whose
   figures are all saved loads ~14 KB of JavaScript in three modules instead
   of ~55 KB in nineteen. `LOG_LEVELS` and `DEFAULT_BUNDLES` come from their
   own modules. The engines are already lazy.
-- **Make the TikZ golden a CI gate** (loose end 24) and fix the handful of
-  small things listed in session 11: script-tag prefetch (19), `hot.json`
-  deleted by `build:bundles` (16), a DOM test library for the live elements.
+- **Release 0.3.1** with the lazy loading and the branch's three fixes:
+  fast-forward `main`, bump, full build, goldens, package, tag, publish, sync
+  ("Publishing a release"); tell Clew and Folio.
+- **Small hardening:** make the TikZ golden a CI gate (drop
+  `continue-on-error`; loose end 24); a DOM test library (happy-dom) so the
+  live elements and `data-replace` are tested automatically; WorkerBackend
+  rejecting calls at once after a watchdog kill (loose end 23).
 - **Put the manifest's per-file `sha` into bundle file URLs** (`?v=<sha>`,
   `src/ts/vfs/bundle.ts`, one line where `url` is built — mind the Node
   I/O path, which reads files by path). Both sides asked for it in session
@@ -1275,8 +1288,8 @@ Still open, in the order they are worth doing:
   `docs/14` §15 the write-up.
 - Smaller: PDF export through pdfTeX's PDF backend (compiled in; two style
   files and an option); `luamplib` for MetaPost inside LuaLaTeX; more packages
-  (beamer, babel, siunitx, circuitikz, chemfig: one recipe line each in
-  `scripts/build-texmf.sh`); persisting luaotfload's font cache across
+  (beamer, babel, siunitx and xstring — the last two are what circuitikz's
+  `siunitx` option needs: one recipe line each in `scripts/build-texmf.sh`); persisting luaotfload's font cache across
   sessions (NODEFS in Node, IndexedDB in the browser); `mp.preload()` on the
   tags' `window.mpTikzWasm`; `~/emsdk` (loose end 3).
 
