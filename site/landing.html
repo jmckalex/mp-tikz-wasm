@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- The landing page of the hosted demos, in the Fishhook Software style.
+     scripts/stage-site.sh copies this to index.html at the top of the staged
+     site, replacing @VERSION@ with package.json's version, so paths here are
+     relative to that top level (site/…, dist/…). The four figures in the hero
+     are saved figures of site/tags.html; their names are content hashes, so if
+     the tags page's diagrams change, pick new ones from site/figures/ —
+     stage-site.sh fails when one is missing. -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mp-tikz-wasm — MetaPost and TikZ in the browser</title>
+<meta name="description" content="MetaPost, pdfTeX, LuaTeX and dvisvgm from TeX Live, compiled to WebAssembly: MetaPost figures and whole LaTeX/TikZ documents rendered to SVG in the browser and in Node, byte-identical to TeX Live.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 36' fill='none' stroke='%23b8570c' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='18.5' cy='6' r='3.4'/%3E%3Cpath d='M18.5 9.4 V21.5 C18.5 27.8 13 29.6 9.2 25.8 C5.7 22.4 7.2 18.4 11 18.9'/%3E%3Cpath d='M11 18.9 L8.4 21.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://kit.fontawesome.com/3c5dfa7541.js" crossorigin="anonymous"></script>
+<style>
+  /* The Fishhook Software palette and type: see fishhooksoftware.com. */
+  :root {
+    --bg: #faf8f5;
+    --bg-card: #ffffff;
+    --bg-code: #f3f0eb;
+    --bg-nav: #f3f0eb;
+    --bg-nav-active: #e8e4dd;
+    --text: #2c2418;
+    --text-secondary: #6b5d4d;
+    --text-tertiary: #9a8c7c;
+    --accent: #b8570c;
+    --accent-dark: #a44d0a;
+    --accent-light: #f0dcc8;
+    --accent-glow: rgba(184, 87, 12, 0.08);
+    --border: #e0dbd4;
+    --border-light: #ece8e2;
+    --shadow-sm: 0 1px 3px rgba(44,36,24,0.04);
+    --shadow-md: 0 4px 16px rgba(44,36,24,0.06);
+    --radius: 10px;
+    --radius-sm: 6px;
+    --font-serif: 'Instrument Serif', Georgia, serif;
+    --font-sans: 'DM Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', Menlo, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page-wrapper { display: flex; min-height: 100vh; }
+
+  /* ─── Sidebar ─── */
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--bg-nav);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 32px 0 32px;
+    display: flex;
+    flex-direction: column;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .sidebar-logo {
+    padding: 0 24px 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+
+  .sidebar-logo a { color: inherit; text-decoration: none; }
+
+  .sidebar-logo h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-serif);
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+
+  .sidebar-logo h1 i { color: var(--accent); font-size: 21px; }
+
+  .sidebar-logo .subtitle {
+    font-size: 12.5px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+  }
+
+  .nav-section { padding: 0 16px; margin-bottom: 8px; }
+
+  .nav-section-title {
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    padding: 16px 8px 6px;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 450;
+    transition: all 0.15s ease;
+  }
+
+  .nav-link:hover { background: var(--bg-nav-active); color: var(--text); }
+  .nav-link.active { background: var(--accent-glow); color: var(--accent); font-weight: 550; }
+  .nav-link i { width: 18px; text-align: center; font-size: 13px; opacity: 0.7; }
+  .nav-link.active i { opacity: 1; }
+  .nav-link .nav-external { width: auto; font-size: 9.5px; margin-left: auto; opacity: 0.45; }
+
+  .sidebar-foot {
+    margin-top: auto;
+    padding: 24px 24px 0;
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+
+  .sidebar-foot a {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: 550;
+  }
+
+  .sidebar-foot a:hover { color: var(--accent); }
+  .sidebar-foot svg { width: 12px; height: 16px; }
+
+  /* ─── Phone-width bar (the sidebar is hidden there) ─── */
+  .mobile-bar { display: none; }
+
+  /* ─── Main ─── */
+  .main-content {
+    flex: 1;
+    min-width: 0;
+    padding: 48px 64px 120px;
+    max-width: 920px;
+  }
+
+  .hero {
+    margin-bottom: 56px;
+    padding-bottom: 44px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 12px;
+    background: var(--accent-light);
+    color: var(--accent);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-bottom: 20px;
+  }
+
+  .hero h1 {
+    font-family: var(--font-serif);
+    font-size: 56px;
+    font-weight: 400;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    margin-bottom: 18px;
+  }
+
+  .hero h1 em { font-style: italic; color: var(--accent); }
+
+  .hero p {
+    font-size: 17px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    max-width: 660px;
+  }
+
+  .hero p + p { margin-top: 14px; }
+
+  .hero p a, .doc-section p a, .doc-section li a, figcaption a {
+    color: var(--accent);
+    text-decoration-color: var(--accent-light);
+    text-underline-offset: 3px;
+  }
+
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+
+  /* ─── Sections ─── */
+  .doc-section { margin-bottom: 56px; }
+
+  .doc-section h2 {
+    font-family: var(--font-serif);
+    font-size: 34px;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    margin-bottom: 18px;
+  }
+
+  .doc-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 30px 0 10px;
+    letter-spacing: -0.01em;
+  }
+
+  .doc-section p { margin-bottom: 14px; color: var(--text-secondary); line-height: 1.75; }
+
+  .doc-section .lede {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 21px;
+    line-height: 1.5;
+    color: var(--text);
+    margin-bottom: 18px;
+  }
+
+  .doc-section ul { margin: 0 0 14px 1.4em; color: var(--text-secondary); line-height: 1.7; }
+  .doc-section ul li { margin-bottom: 9px; }
+
+  .doc-section strong, .hero strong { color: var(--text); font-weight: 600; }
+
+  /* ─── Media ─── */
+  .media {
+    margin: 30px 0 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+  }
+
+  .media video, .media img { display: block; width: 100%; height: auto; }
+
+  .media-caption {
+    margin-top: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-tertiary);
+    font-style: italic;
+  }
+
+  .doc-section .media { margin-top: 20px; }
+
+  /* ─── Cards ─── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 22px 0;
+  }
+
+  .feature-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+  }
+
+  .feature-card:hover { box-shadow: var(--shadow-md); border-color: var(--border); }
+
+  .card-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  .card-icon.orange { background: #fef0e0; color: #c6700a; }
+  .card-icon.blue   { background: #e4eef9; color: #3a6fb8; }
+  .card-icon.green  { background: #e2f3e4; color: #3a8c42; }
+  .card-icon.purple { background: #eee4f6; color: #7c3ab8; }
+  .card-icon.rose   { background: #fce4e8; color: #b83a5c; }
+  .card-icon.teal   { background: #dff0ef; color: #2a8a84; }
+
+  .feature-card h4 { font-size: 14.5px; font-weight: 600; margin-bottom: 6px; }
+  .feature-card p { font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); margin: 0; }
+
+  /* ─── Buttons ─── */
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 17px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.15s ease;
+  }
+
+  .btn:hover { background: var(--accent-dark); border-color: var(--accent-dark); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  .btn.btn-ghost { background: var(--bg-card); color: var(--accent); border-color: var(--border); }
+  .btn.btn-ghost:hover { background: var(--accent-glow); border-color: var(--accent-light); }
+
+  /* ─── Code ─── */
+  code {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    background: var(--bg-code);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--accent);
+  }
+
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 18px 20px;
+    overflow-x: auto;
+    margin: 16px 0;
+    line-height: 1.6;
+  }
+
+  pre code { background: none; padding: 0; color: var(--text); font-size: 13px; }
+
+  /* ─── Callout ─── */
+  .callout {
+    display: flex;
+    gap: 14px;
+    padding: 18px 20px;
+    border-radius: var(--radius);
+    margin: 20px 0;
+    font-size: 14px;
+    line-height: 1.65;
+    background: #e4eef9;
+    border: 1px solid #c0d5ee;
+    color: #2a4a6e;
+  }
+
+  .callout p { margin: 0; color: inherit; }
+  .callout strong { color: inherit; }
+
+  .callout-icon {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    margin-top: 1px;
+    background: #3a6fb8;
+    color: #fff;
+  }
+
+  /* ─── Footer ─── */
+  .doc-footer {
+    margin-top: 80px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-tertiary);
+  }
+
+  .doc-footer a { color: var(--text-secondary); text-underline-offset: 3px; }
+
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .mobile-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 12px 16px;
+      background: var(--bg-nav);
+      border-bottom: 1px solid var(--border);
+      font-size: 13.5px;
+    }
+    .mobile-bar .mobile-logo { font-family: var(--font-serif); font-size: 21px; color: var(--text); text-decoration: none; margin-right: auto; }
+    .mobile-bar .mobile-logo i { color: var(--accent); font-size: 16px; margin-right: 6px; }
+    .mobile-bar a.mobile-link { color: var(--accent); text-decoration: none; font-weight: 550; }
+    html { scroll-padding-top: 64px; }
+    .main-content { padding: 32px 16px 80px; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 40px; }
+    td:nth-child(2) { white-space: normal; }
+  }
+
+  /* ─── Figure strip: figures typeset by the library itself ─── */
+  .figure-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-top: 30px;
+  }
+
+  .figure-strip .fig {
+    aspect-ratio: 4 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .figure-strip img { max-width: 100%; max-height: 100%; }
+
+  /* ─── Linked cards ─── */
+  a.feature-card { display: block; text-decoration: none; color: inherit; }
+  a.feature-card:hover { transform: translateY(-1px); }
+
+  .card-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .card-cta i { transition: transform 0.15s ease; }
+  a.feature-card:hover .card-cta i { transform: translateX(3px); }
+
+  @media (max-width: 900px) {
+    .figure-strip { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="mobile-bar">
+  <a class="mobile-logo" href="#top"><i class="fa-solid fa-bezier-curve"></i>mp-tikz-wasm</a>
+  <a class="mobile-link" href="site/guide.html">Guide</a>
+  <a class="mobile-link" href="https://github.com/jmckalex/mp-tikz-wasm">GitHub</a>
+</header>
+
+<div class="page-wrapper">
+
+  <!-- ─── Sidebar ─── -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <a href="#top"><h1><i class="fa-solid fa-bezier-curve"></i> mp-tikz-wasm</h1></a>
+      <div class="subtitle">MetaPost and TikZ in the browser</div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">On this page</div>
+      <a class="nav-link" href="#top"><i class="fa-solid fa-house"></i> Introduction</a>
+      <a class="nav-link" href="#what"><i class="fa-solid fa-gears"></i> What it does</a>
+      <a class="nav-link" href="#use"><i class="fa-solid fa-code"></i> Using it</a>
+      <a class="nav-link" href="#demos"><i class="fa-solid fa-play"></i> Demos</a>
+      <a class="nav-link" href="#get"><i class="fa-solid fa-download"></i> Get it</a>
+      <a class="nav-link" href="#licences"><i class="fa-solid fa-scale-balanced"></i> Licences</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Documentation</div>
+      <a class="nav-link" href="site/guide.html"><i class="fa-solid fa-compass"></i> Feature guide</a>
+      <a class="nav-link" href="https://github.com/jmckalex/mp-tikz-wasm/blob/main/docs/08-javascript-api.md"><i class="fa-solid fa-terminal"></i> JavaScript API<i class="fa-solid fa-arrow-up-right-from-square nav-external"></i></a>
+      <a class="nav-link" href="https://github.com/jmckalex/mp-tikz-wasm"><i class="fa-brands fa-github"></i> Source code<i class="fa-solid fa-arrow-up-right-from-square nav-external"></i></a>
+      <a class="nav-link" href="https://github.com/jmckalex/mp-tikz-wasm/releases"><i class="fa-solid fa-box-archive"></i> Releases<i class="fa-solid fa-arrow-up-right-from-square nav-external"></i></a>
+    </div>
+
+    <div class="sidebar-foot">
+      <a href="https://fishhooksoftware.com/#mp-tikz-wasm"><svg viewBox="0 0 28 36" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18.5" cy="6" r="3.4"/><path d="M18.5 9.4 V21.5 C18.5 27.8 13 29.6 9.2 25.8 C5.7 22.4 7.2 18.4 11 18.9"/><path d="M11 18.9 L8.4 21.6"/></svg> Fishhook Software</a>
+    </div>
+  </nav>
+
+  <!-- ─── Main ─── -->
+  <main class="main-content">
+
+    <header class="hero" id="top">
+      <div class="hero-badge"><i class="fa-solid fa-code-branch"></i> Version @VERSION@ · LGPL-3.0</div>
+      <h1>MetaPost and TikZ,<br><em>with real LaTeX</em></h1>
+      <p>MetaPost 2.11, pdfTeX 1.40, LuaTeX 1.21 and dvisvgm 3.4 from TeX Live 2025, compiled to WebAssembly and wrapped in one small TypeScript library. MetaPost source goes in and SVG with real glyph outlines comes out; so do whole LaTeX documents, with TikZ, pgfplots and tikz-cd, one SVG per page. It runs in a web page, in a Web Worker or in Node. Nothing runs on a server.</p>
+      <p>The output is <strong>byte-identical to native TeX Live</strong>: the same C code produces it, and every deviation from upstream is a numbered, explained patch. The complete 1181-page PGF/TikZ manual typesets through the library page for page identical to <code>latex</code> + <code>dvisvgm</code>.</p>
+      <div class="hero-actions">
+        <a class="btn" href="site/guide.html"><i class="fa-solid fa-compass"></i> Read the feature guide</a>
+        <a class="btn btn-ghost" href="site/index.html"><i class="fa-solid fa-pen-to-square"></i> Try the editor</a>
+        <a class="btn btn-ghost" href="https://github.com/jmckalex/mp-tikz-wasm"><i class="fa-brands fa-github"></i> GitHub</a>
+      </div>
+      <figure>
+        <div class="figure-strip">
+          <div class="fig"><img src="site/figures/figure-s4u6qj.svg" alt="A pgfplots axis with two plotted functions and a legend"></div>
+          <div class="fig"><img src="site/figures/figure-ctaepo.svg" alt="A tree of labelled nodes laid out by TikZ's graph-drawing library"></div>
+          <div class="fig"><img src="site/figures/figure-to41m2.svg" alt="A circle of coloured rays beneath the residue theorem"></div>
+          <div class="fig"><img src="site/figures/figure-o8wicl.svg" alt="A shaded ball, a colour gradient and a crosshatch pattern"></div>
+        </div>
+        <figcaption class="media-caption">Four figures from the <a href="site/tags.html">drop-in tags demo</a>, typeset by the library itself and saved as SVG.</figcaption>
+      </figure>
+    </header>
+
+    <!-- ─── What it does ─── -->
+    <section class="doc-section" id="what">
+      <h2>What it does</h2>
+      <p class="lede">Not a reimplementation of either language, but the real programs.</p>
+      <p>The engines are the programs from TeX Live 2025, compiled to WebAssembly, so anything that typesets on a TeX installation typesets here, and the output is the same to the byte.</p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="card-icon orange"><i class="fa-solid fa-bezier-curve"></i></div>
+          <h4>All of MetaPost</h4>
+          <p>Every number system, <code>boxes.mp</code> and <code>graph.mp</code>, and <code>btex … etex</code> labels typeset by plain TeX or LaTeX — collected into a single TeX run and cached by content. Out comes SVG, the EPS <code>mpost</code> writes, or a JSON model of the figure.</p>
+        </div>
+        <div class="feature-card">
+          <div class="card-icon blue"><i class="fa-solid fa-file-lines"></i></div>
+          <h4>Whole LaTeX documents</h4>
+          <p><code>\documentclass</code>, <code>\usepackage</code>, every PGF/TikZ library in TeX Live, pgfplots, tikz-cd, amsmath and Latin Modern. Shadings become gradients, patterns stay patterns, and opacity and clipping survive.</p>
+        </div>
+        <div class="feature-card">
+          <div class="card-icon purple"><i class="fa-solid fa-moon"></i></div>
+          <h4>LuaTeX when it's needed</h4>
+          <p>Graph drawing, <code>\directlua</code> and <code>luacode</code> switch to a second engine, LuaTeX, which is downloaded only when a document asks for it — and brings OpenType fonts with it.</p>
+        </div>
+        <div class="feature-card">
+          <div class="card-icon green"><i class="fa-solid fa-tags"></i></div>
+          <h4>A tikzjax replacement</h4>
+          <p>One script tag finds <code>&lt;script type="text/tikz"&gt;</code>, <code>text/metapost</code>, <code>&lt;tikz-diagram&gt;</code> and <code>&lt;metapost-diagram&gt;</code> elements, renders each in place, and keeps the results in IndexedDB for the next visit.</p>
+        </div>
+        <div class="feature-card">
+          <div class="card-icon teal"><i class="fa-solid fa-cloud-arrow-down"></i></div>
+          <h4>Fetched as it's needed</h4>
+          <p>Fonts, macros and formats are plain static files, fetched through the real kpathsea as the engines ask for them: about 4.7&nbsp;MB for a first TikZ figure, 2.3&nbsp;MB for a first MetaPost one, then the browser cache.</p>
+        </div>
+        <div class="feature-card">
+          <div class="card-icon rose"><i class="fa-solid fa-terminal"></i></div>
+          <h4>A command line too</h4>
+          <p><code>mpost-wasm</code> accepts <code>mpost</code>'s options and writes <code>mpost</code>'s output files, takes <code>--latex</code> for documents, and <code>--prerender</code> saves a page's figures beside it, sparing first visits the engines.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Using it ─── -->
+    <section class="doc-section" id="use">
+      <h2>Using it</h2>
+      <p>On a web page, a single script tag is enough. Diagrams are written straight into the HTML, and each is replaced by its SVG:</p>
+      <pre><code>&lt;script type="module" src="/path/to/dist/auto.js"&gt;&lt;/script&gt;
+
+&lt;script type="text/tikz" data-libraries="arrows.meta"&gt;
+  \begin{tikzpicture} \draw[-&gt;,thick] (0,0) -- (2,1) node[right] {$x^2$}; \end{tikzpicture}
+&lt;/script&gt;
+&lt;script type="text/metapost"&gt;draw fullcircle scaled 50; label.top(btex $\int_0^1 x\,dx$ etex, (0,25));&lt;/script&gt;</code></pre>
+      <p>From JavaScript, the API returns the figures and pages directly:</p>
+      <pre><code>import { MetaPost } from './dist/index.js';
+const mp  = await MetaPost.create();
+const fig = await mp.run('beginfig(1); draw fullcircle scaled 100; endfig; end.');
+const doc = await mp.latex(String.raw`\documentclass[tikz]{standalone}
+  \begin{document}\tikz\shade[ball color=blue!60] (0,0) circle (1);\end{document}`);
+document.body.innerHTML = fig.figures[0].svg + doc.pages[0];</code></pre>
+      <p>The <a href="site/guide.html">feature guide</a> covers every option, rendered by the engines themselves — among its examples a paragraph set inside a circle by TeX's <code>\parshape</code>, with inline TikZ pictures and displayed mathematics, which is the kind of thing a real TeX can do and a picture-only engine cannot.</p>
+    </section>
+
+    <!-- ─── Demos ─── -->
+    <section class="doc-section" id="demos">
+      <h2>Demos</h2>
+      <p>Everything on these pages is rendered in your browser by the WebAssembly engines.</p>
+      <div class="feature-grid">
+        <a class="feature-card" href="site/guide.html">
+          <div class="card-icon orange"><i class="fa-solid fa-compass"></i></div>
+          <h4>Feature guide</h4>
+          <p>The complete documentation, with every feature rendered by the engines: installation, the drop-in tags, the API, the command line, how it works, fidelity and limits.</p>
+          <span class="card-cta">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+        <a class="feature-card" href="site/index.html">
+          <div class="card-icon blue"><i class="fa-solid fa-pen-to-square"></i></div>
+          <h4>Editor demo</h4>
+          <p>Galleries of MetaPost and TikZ examples with a live editor.</p>
+          <span class="card-cta">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+        <a class="feature-card" href="site/tags.html">
+          <div class="card-icon green"><i class="fa-solid fa-tags"></i></div>
+          <h4>Drop-in tags</h4>
+          <p>A page whose diagrams are just <code>&lt;script type="text/tikz"&gt;</code> elements.</p>
+          <span class="card-cta">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+        <a class="feature-card" href="site/live.html">
+          <div class="card-icon purple"><i class="fa-solid fa-sliders"></i></div>
+          <h4>Real-time graphics</h4>
+          <p>Six animations and interactive plots regenerated by MetaPost and LaTeX as you move the controls.</p>
+          <span class="card-cta">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+        <a class="feature-card" href="site/minimal.html">
+          <div class="card-icon teal"><i class="fa-solid fa-table-columns"></i></div>
+          <h4>Two editors</h4>
+          <p>A MetaPost editor and a TikZ editor side by side with their output.</p>
+          <span class="card-cta">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+        <a class="feature-card" href="site/standalone.html">
+          <div class="card-icon rose"><i class="fa-solid fa-file-zipper"></i></div>
+          <h4>Single-file playground</h4>
+          <p>The same in one 11&nbsp;MB file with everything inlined, for saving and using offline.</p>
+          <span class="card-cta">Open <i class="fa-solid fa-arrow-right"></i></span>
+        </a>
+      </div>
+    </section>
+
+    <!-- ─── Get it ─── -->
+    <section class="doc-section" id="get">
+      <h2>Get it</h2>
+      <p>The <strong>prebuilt release</strong> is what most people want. Download <code>mp-tikz-wasm-@VERSION@.tar.gz</code> or <code>.zip</code> from the releases page and unpack it: it holds the compiled engines, the JavaScript, the bundles and these demo pages, and needs neither TeX Live nor Emscripten.</p>
+      <pre><code>tar xzf mp-tikz-wasm-@VERSION@.tar.gz &amp;&amp; cd mp-tikz-wasm-@VERSION@
+node serve.mjs 8080        # then open http://localhost:8080/site/</code></pre>
+      <p>Host the <code>dist/</code> folder on any static server — plain files, no special headers — and add the one script line to your page, or import <code>dist/index.js</code>. Building from source, with the twelve upstream patches each explained, is described in the repository.</p>
+      <div class="btn-row">
+        <a class="btn" href="https://github.com/jmckalex/mp-tikz-wasm/releases"><i class="fa-solid fa-download"></i> Download a release</a>
+        <a class="btn btn-ghost" href="https://github.com/jmckalex/mp-tikz-wasm"><i class="fa-brands fa-github"></i> Source code</a>
+      </div>
+    </section>
+
+    <!-- ─── Licences ─── -->
+    <section class="doc-section" id="licences">
+      <h2>Licences</h2>
+      <p>mp-tikz-wasm's own code is under the <a href="LICENSE">LGPL-3.0</a>. Each upstream program it builds keeps its own licence — the TeX engines and dvisvgm are distributed under the <a href="licenses/GPL-3.0.txt">GPL</a> — and <a href="NOTICE.md">NOTICE.md</a> sets out what applies to what.</p>
+    </section>
+
+    <footer class="doc-footer">
+      <p>mp-tikz-wasm @VERSION@ is part of <a href="https://fishhooksoftware.com/">Fishhook Software</a> — hand-made tools, built to last.</p>
+    </footer>
+  </main>
+</div>
+
+<script>
+  // Highlight the nav link for the section in view.
+  const links = Array.from(document.querySelectorAll('.sidebar .nav-link[href^="#"]'));
+  const targets = links.map(link => ({ link, el: document.getElementById(link.getAttribute('href').slice(1)) })).filter(t => t.el);
+
+  function updateActive() {
+    let active = targets[0];
+    for (const t of targets) if (t.el.getBoundingClientRect().top < 100) active = t;
+    links.forEach(l => l.classList.remove('active'));
+    if (active) active.link.classList.add('active');
+  }
+
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+</script>
+
+</body>
+</html>
