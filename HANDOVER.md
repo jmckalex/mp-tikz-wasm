@@ -878,13 +878,22 @@ edited by hand except its `Makefile` and `exclude`):
 cd ~/Source/mp-tikz-wasm && npm run build:standalone   # if site/examples.js changed
 scripts/stage-site.sh ~/Sites/jmckalex/software/mp-tikz-wasm   # or `make stage` there
 cd ~/Sites/jmckalex/software/mp-tikz-wasm
-make sync-eschatolog ARGS=-n && make sync-eschatolog   # dry run first; it uses --delete
+make check && make sync   # dry run first; sync uses --delete
+make verify               # the landing page, the guide and an engine answer 200
 ```
 
-Do **not** use `make sync` or `make sync-all` there: they still target
-Bluehost and fail at the first mkdir (harmless, but noise). The Makefile and
-`~/Sites/jmckalex/CLAUDE.md` (which still calls the migration "in progress")
-are the owner's to update.
+`make sync` targets the droplet only (rewritten 2026-10-02; the Bluehost
+targets are gone, and `sync-eschatolog` remains as an alias). Staging copies
+the working tree's `site/` and `dist/`, so stage from the released state: on a
+branch with unreleased fixes, `rsync -anc` against the droplet shows which
+files would change.
+
+- **The landing page** (`index.html` at the top of the site) is
+  `site/landing.html` with `@VERSION@` filled in, in the Fishhook Software
+  style shared with fishhooksoftware.com (2026-10-02). Its hero shows four
+  saved figures of the tags page by their content-hash names
+  (`site/figures/figure-*.svg`); `stage-site.sh` fails if one is gone, in
+  which case pick replacements from `site/figures/`.
 
 - The droplet's nginx types `.wasm` (`application/wasm`) and `.mjs`
   (`text/javascript`), caches assets 30 d, denies `Makefile`/dotfiles; its
