@@ -1330,8 +1330,12 @@ worth doing:
   numbers (tag, URL, 44,229,933 bytes, sha256 4a3a61b3…); the manifests are
   theirs to update. Nothing to do here unless they report a problem.
 
-- **Send Folio the 0.3.1 numbers** (it was not running at release), and check
-  that Palimpsest switches to the release. **Clew stays on 0.3.0 for now:**
+- **Send Folio the 0.3.1 numbers** (it was not running at release).
+  Palimpsest (PDFViewer) is pinned to v0.3.1 from the release asset (its
+  commit 56f1546, branch m2; size and sha256 checked, provenance in its
+  `vendor/mp-tikz-wasm/VERSION`); its LaTeX-note smoke test makes a native
+  pdfTeX PDF with extractable text on the iPad simulator. It passes
+  `engine: 'latex'` and ships without the `luatex` bundle. **Clew stays on 0.3.0 for now:**
   Clew-app is packaging dev.5 on the 0.3.0 pin (Clew-boss's plan, approved by
   the owner); Clew-boss decides when to re-pin, which needs its own figure
   checks. Clew-iOS follows Clew-app's manifest, so nothing moves there first.
