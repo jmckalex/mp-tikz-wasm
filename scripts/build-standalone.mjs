@@ -100,7 +100,7 @@ const glue = (name, global) => {
 };
 const mplibGlue = glue('mplib.mjs', '__createMplib');
 const texGlue = glue('tex.mjs', '__createTex');
-const lib = execFileSync(path.join(REPO, 'node_modules/.bin/esbuild'), ['src/ts/index.ts', '--bundle', '--format=esm', '--target=es2022', '--platform=browser', '--external:node:fs', '--log-level=error'], { cwd: REPO, encoding: 'utf8', maxBuffer: 64 << 20 });
+const lib = execFileSync(path.join(REPO, 'node_modules/.bin/esbuild'), ['src/ts/index.ts', '--bundle', '--format=esm', '--target=es2022', '--platform=browser', '--external:node:fs', '--external:node:worker_threads', '--log-level=error'], { cwd: REPO, encoding: 'utf8', maxBuffer: 64 << 20 });
 const dvisvgmGlue = glue('dvisvgm.mjs', '__createDvisvgm');
 const wasm = { mplib: gz(fs.readFileSync(path.join(DIST, 'mplib.wasm'))), tex: gz(fs.readFileSync(path.join(DIST, 'tex.wasm'))), dvisvgm: gz(fs.readFileSync(path.join(DIST, 'dvisvgm.wasm'))) };
 

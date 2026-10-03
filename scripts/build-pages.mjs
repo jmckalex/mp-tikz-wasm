@@ -45,7 +45,7 @@ const safe = (s) => s.replace(/<\/script/gi, '<\\/script');
 const gz = (data) => zlib.gzipSync(data, { level: 9 }).toString('base64');
 const glue = (name, global) => { let s = fs.readFileSync(path.join(DIST, name), 'utf8'); const m = /export default (\w+);\s*$/.exec(s); if (!m) throw new Error(`${name}: no default export`); return s.replace(/export default (\w+);\s*$/, `globalThis.${global} = ${m[1]};\n`); };
 let libText;
-const lib = () => libText ??= execFileSync(path.join(REPO, 'node_modules/.bin/esbuild'), ['src/ts/index.ts', '--bundle', '--format=esm', '--target=es2022', '--platform=browser', '--external:node:fs', '--log-level=error'], { cwd: REPO, encoding: 'utf8', maxBuffer: 64 << 20 });
+const lib = () => libText ??= execFileSync(path.join(REPO, 'node_modules/.bin/esbuild'), ['src/ts/index.ts', '--bundle', '--format=esm', '--target=es2022', '--platform=browser', '--external:node:fs', '--external:node:worker_threads', '--log-level=error'], { cwd: REPO, encoding: 'utf8', maxBuffer: 64 << 20 });
 const fromBundle = (rel) => { for (const b of fs.readdirSync(BUNDLES)) { const p = path.join(BUNDLES, b, 'files', rel); if (fs.existsSync(p)) return p; } return null; };
 
 async function recordAssets(warm, extras = true) {
