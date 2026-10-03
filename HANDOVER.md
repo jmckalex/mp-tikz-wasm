@@ -826,7 +826,9 @@ replacing its tikzjax with this library).
    which the first `-recorder` scan never exercised. A second scan with
    option-heavy packages (epstopdf, graphicx[final], xcolor[dvipsnames],
    hyperref[colorlinks], lmodern/T1, tikz-cd, circuitikz, chemfig) found
-   nothing else missing; e2e case added (268 tests).
+   nothing else missing; e2e case added (268 tests). Palimpsest's own failing
+   document (standalone with varwidth, lmodern, T1, TikZ) is golden case 05,
+   byte-identical to native like the other four.
 
 ## CI — green as of 2026-09-29 (first green in session 4)
 
