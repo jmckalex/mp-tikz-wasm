@@ -2,14 +2,14 @@
 
 Written 2026-09-13 (third session), revised 2026-09-15 (fourth and fifth
 sessions), 2026-09-16 (sixth), 2026-09-17 (seventh, eighth and ninth),
-2026-09-18 (tenth, consolidated) and 2026-09-24 to 2026-09-29 (eleventh:
-the 0.3.0 release and what followed). This file lives at the repository root; until session 5 it was
+2026-09-18 (tenth, consolidated), 2026-09-24 to 2026-09-29 (eleventh: the
+0.3.0 release and what followed) and 2026-10-03 (twelfth: PDF output). This file lives at the repository root; until session 5 it was
 `docs/15-handover.md`. Everything below is verified unless marked otherwise.
 Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State now (end of session 11, 2026-09-29):** **v0.3.0 is released**
+**State now (session 12, 2026-10-03):** **v0.3.0 is released**
 (<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.3.0>, tag on
 67c437c; `mp-tikz-wasm-0.3.0.tar.gz`, 44,229,933 bytes, sha256
 4a3a61b3760042d191dbf23d2169a776981be1caad9ec1d2b05cd6729c4d141b; the
@@ -19,16 +19,21 @@ downloaded asset was checked against the local file). `main` is at 53b1ad8
 tested and green on CI (run 36495402034), plus handover commits
 (`git log --oneline origin/main..opentype-fonts`): 5f6dc02 (`hot.json` kept
 across bundle rebuilds; CI generates the hot lists), 32e9467 (script-tag
-pages prefetch again), 8b6d145 (`worker: true` in Node; CI time limits). They are 0.3.1 material, with the `auto.js` lazy loading
+pages prefetch again), 8b6d145 (`worker: true` in Node; CI time limits) —
+**and, from session 12, optional PDF output** (266d919: `mp.latex(doc, {
+output: 'pdf' })`, `mpost-wasm --latex --pdf`; see "What happened in session
+12"). They are 0.3.1 material, with the `auto.js` lazy loading
 ("Suggested next steps"). The working tree is clean; local `main` tracks
-`origin/main`. 263 tests; TikZ golden 12/12 (locally, and informationally on
-CI), MetaPost golden 15/15, native contract 48/48. The website is synced at
+`origin/main`. 267 tests; TikZ golden 12/12 (locally, and informationally on
+CI), MetaPost golden 15/15, PDF golden 4/4, native contract 48/48. The website is synced at
 0.3.0: **jmckalex.org and eschatolog.ist are both the DigitalOcean droplet**;
 Bluehost is discontinued. Clew-app, Clew-iOS and Folio have the release
 numbers; re-pinning the Clew manifests is theirs. `dist/` here is the 0.3.0
 build (identical to the release apart from `.js.map` files); the branch's
-fixes change only the JavaScript and the build scripts, so `npm run build:ts`
-(plus `build:bundles` for the hot lists) brings `dist/` level with it.
+fixes change the JavaScript, the build scripts and (for PDF output) two TeX
+files in `latex-extra`, so `npm run build:texmf && npm run build:fontdb &&
+npm run build:ts && npm run build:bundles` brings `dist/` level with it — the
+local `dist/` already is.
 
 ## Where things stand, in one paragraph
 
@@ -789,6 +794,34 @@ replacing its tikzjax with this library).
 12. **Found, not fixed** — loose ends 21, 22, 24, the triage list, and the
     killed-worker wait under 23.
 
+## What happened in session 12 (2026-10-03, on `opentype-fonts`, unreleased)
+
+1. **Palimpsest** (the owner's iOS PDF app, `~/Source/PDFViewer`, session
+   "PDFViewer") asked how to turn LaTeX notes into PDFs with this library. It
+   was told: SVG only (at the time); vendor the pinned v0.3.0 dist; the API;
+   module Worker, no threads, no network, a scheme handler answering fetch and
+   sync XHR (as Clew-iOS does); the GPL engines and the App Store (the owner's
+   call). It chose SVG pages + WKWebView `createPDF`, without the `luatex` and
+   `tikz-snapshot` bundles (so `engine: 'latex'` explicitly).
+2. **Optional PDF output** (266d919), at the owner's request, "without breaking
+   anything". `LatexRunOptions.output: 'svg' | 'pdf'` (default `'svg'`):
+   pdfTeX / LuaTeX run with `-output-format=pdf` (same formats, source
+   untouched), PGF's pdftex/luatex driver, no snapshot, no dvisvgm;
+   `LatexResult.pdf: Uint8Array`, `pages` empty. CLI `--pdf`. PNG/JPEG images
+   are included; PDF images are not (no PDF parser in `tex.wasm`). One pass per
+   call — hand `artifacts` back as `files` for cross-references and outlines;
+   automatic reruns are not built. Two TeX files were missing for PDF mode
+   (found by a native `-recorder` run): `epstopdf-base.sty` and ConTeXt's
+   `supp-pdf.mkii`; both now in `latex-extra`, their packages in CI's install.
+   **Fidelity:** `scripts/golden-pdf.mjs` (`npm run test:golden:pdf`; four
+   cases in `test/golden/pdf/`, native expectations in `pdf-expected/`) is
+   byte-identical to TeX Live's `latex`/`etex -output-format=pdf` apart from
+   the pdfTeX version (1.40.27 vs the owner's updated 1.40.28). LuaTeX's PDFs
+   match native in size and content, differing in version (1.21.0 vs 1.22.0)
+   and `/ID`; e2e tests check them. CI runs the PDF golden for information.
+   SVG output unchanged (267 tests, all goldens, contract); checked in Chrome
+   through a Web Worker (the PDF renders in Chrome's viewer).
+
 ## CI — green as of 2026-09-29 (first green in session 4)
 
 `.github/workflows/ci.yml` runs two jobs on every push, both green, with time
@@ -1255,7 +1288,9 @@ worth doing:
   figures are all saved loads ~14 KB of JavaScript in three modules instead
   of ~55 KB in nineteen. `LOG_LEVELS` and `DEFAULT_BUNDLES` come from their
   own modules. The engines are already lazy.
-- **Release 0.3.1** with the lazy loading and the branch's three fixes:
+- **Tell Palimpsest PDF output exists** once it is released (it may prefer
+  it to `createPDF`), and **release 0.3.1** with PDF output, the lazy loading
+  and the branch's three fixes:
   fast-forward `main`, bump, full build, goldens, package, tag, publish, sync
   ("Publishing a release"); tell Clew and Folio.
 - **Small hardening:** make the TikZ golden a CI gate (drop
@@ -1295,8 +1330,8 @@ worth doing:
   `luaotfload.sty` advertises plain-TeX support but its DVI module needs a
   callback only LaTeX creates; `patches/texmf/0001` is the report and
   `docs/14` §15 the write-up.
-- Smaller: PDF export through pdfTeX's PDF backend (compiled in; two style
-  files and an option); `luamplib` for MetaPost inside LuaLaTeX; more packages
+- Smaller: automatic reruns for PDF output (cross-references, outlines;
+  latexmk-style, driven by the "Rerun" warnings); `luamplib` for MetaPost inside LuaLaTeX; more packages
   (beamer, babel, siunitx and xstring — the last two are what circuitikz's
   `siunitx` option needs: one recipe line each in `scripts/build-texmf.sh`); persisting luaotfload's font cache across
   sessions (NODEFS in Node, IndexedDB in the browser); `mp.preload()` on the

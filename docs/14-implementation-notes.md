@@ -935,3 +935,24 @@ their own engine so the opt-in bundles cannot disturb the other ten. The blanket
 filter in `core.ts` was narrowed to the probe-failure lines — with luaotfload
 actually present it was swallowing real errors, including a missing face.
 
+## 16. PDF output (session 12)
+
+`mp.latex(doc, { output: 'pdf' })` uses the engines' own PDF back ends, which
+were compiled in from the start. The switch is the command-line
+`-output-format=pdf`, which pdfTeX and LuaTeX apply after loading the format,
+so `latex.fmt` (built from TeX Live's `latex.ini`, which reads
+`pdftexconfig.tex`: PDF 1.7, object streams, compression) and the LuaTeX
+formats serve both outputs, and the document is not edited. PGF's driver is
+switched to `pgfsys-pdftex.def` / `pgfsys-luatex.def` on the same first line
+as before; the TikZ snapshot is skipped because its PGF has the dvisvgm driver
+dumped in. A native `latex -output-format=pdf -recorder` run over a broad
+document listed every file PDF mode reads; only `epstopdf-base.sty` (loaded by
+graphics' `pdftex.def`) and `supp-pdf.mkii` (ConTeXt's MetaPost-to-PDF
+converter, which `pdftex.def` also loads) were missing. PNG and JPEG work
+(`tex.wasm` links libpng; `writejpg` needs no library); PDF images do not,
+because `tex.wasm` is built with `PDF_PARSER_ONLY` and a stubbed
+`pdftoepdf`. With the fixed `SOURCE_DATE_EPOCH`/`FORCE_SOURCE_DATE`, pdfTeX's
+PDF — `/ID` included — equals TeX Live's byte for byte except for the version
+digits in `/Producer` and `/PTEX.Fullbanner` (golden-pdf masks exactly
+those).
+
