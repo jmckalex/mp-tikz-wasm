@@ -52,9 +52,13 @@
  * window.mpTikzWasm: render(), setLogLevel(), figures(), saveFigures(), addFiles(),
  * figureHash(), figureName(), autoRender(), wrapTikz(), wrapMetaPost().
  */
-import { MetaPost, LOG_LEVELS, DEFAULT_BUNDLES } from './index.js';
+// The library proper (index.js and the dozen modules behind it) is imported only when an
+// engine is needed: a page whose figures all come from saved files or the result cache
+// loads auto.js, figures.js, logger.js and bundles-config.js, and nothing else.
+import type { MetaPost } from './index.js';
 import type { MetaPostOptions, PrefetchKind, LogLevel } from './types.js';
-import { Logger, consoleSink, DEFAULT_LOG_LEVEL, plural } from './logger.js';
+import { Logger, consoleSink, DEFAULT_LOG_LEVEL, LOG_LEVELS, plural } from './logger.js';
+import { DEFAULT_BUNDLES } from './bundles-config.js';
 import { figureHash, figureName, renderFigure, isSvg, makeZip, wrapTikz, wrapMetaPost } from './figures.js';
 import type { FigureKind, FigureRequest, FigureResult, SavedFigure } from './figures.js';
 
@@ -160,7 +164,7 @@ export class AutoRenderer {
       // the progress listener goes on first so the placeholders show it happening
       const { prefetch, cacheResults: _c, figuresBaseUrl: _f, ...rest } = this.options;
       const kinds = prefetch ?? (typeof document !== 'undefined' ? prefetchKinds() : []);
-      this.engine = MetaPost.create(rest).then(async (m) => {
+      this.engine = import('./index.js').then(({ MetaPost }) => MetaPost.create(rest)).then(async (m) => {
         m.on('progress', (e) => {
           const text = e.phase === 'fetching'
             ? (e.total ? `fetching files (${e.current} of ${e.total})…` : `fetching ${e.detail ?? ''}…`)
