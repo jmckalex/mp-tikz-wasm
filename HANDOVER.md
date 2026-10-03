@@ -9,20 +9,21 @@ Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State now (session 12, 2026-10-03): 0.3.1 is prepared, not published.**
-The branch `opentype-fonts` is at the release commit 8e67c16 ("Release 0.3.1"),
-pushed, **CI green** on it. `release/mp-tikz-wasm-0.3.1.tar.gz` is built from
-it: **44,239,255 bytes, sha256
-24b0cd291a18ead46c8c09f78bedbf82fd965acb87cc5f1fb447fd38f353c152** (and `.zip`);
-notes in `release/notes-0.3.1.md`; a clean extraction was smoke-tested
-(MetaPost, fontspec, PDF from pdfTeX and LuaLaTeX, PDF through a Node worker,
-lazy `auto.js`). **Do not run `npm run package` again before uploading** — the
-tar records mtimes, so the digest would change. The engines are byte-identical
-to 0.3.0's. What is left is the owner's go-ahead and the publishing steps:
-fast-forward `main` to the branch, **tag `v0.3.1`** on the branch head, `gh release create` with both archives and
-the notes, download and check the asset, restage and `make sync-eschatolog`,
-and send the numbers to Clew-app, Clew-iOS, Folio and Palimpsest (PDFViewer).
-269 tests; TikZ golden 12/12, MetaPost 15/15, PDF 5/5; contract 48/48.
+**State now (session 12, 2026-10-04): v0.3.1 is released**
+(<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.3.1>, tag on
+52b7bbc, which is `main` and the branch head at release; `mp-tikz-wasm-0.3.1.tar.gz`,
+**44,239,255 bytes, sha256
+24b0cd291a18ead46c8c09f78bedbf82fd965acb87cc5f1fb447fd38f353c152**, and `.zip`;
+notes in `release/notes-0.3.1.md`). The downloaded asset was checked against the
+local file, and its `dist/` equals the local one apart from `.js.map`. CI green.
+The website is synced at 0.3.1 (`make check` showed no deletions, `make sync`,
+`make verify` all 200; both domains serve 0.3.1 and the lazy `auto.js`).
+Clew-app, Clew-iOS and Palimpsest (PDFViewer) were sent the numbers;
+**Folio was not running — send it the 0.3.1 numbers when it is.** 0.3.1 = PDF
+output, the lazy `auto.js`, script-tag prefetch, `worker: true` in Node,
+`hot.json` kept; engines byte-identical to 0.3.0. 269 tests; TikZ golden 12/12,
+MetaPost 15/15, PDF 5/5; contract 48/48. `main` and `opentype-fonts` point at
+the same commit (plus this handover commit).
 
 **Before that (0.3.0):** **v0.3.0 is released**
 (<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.3.0>, tag on
@@ -1052,8 +1053,10 @@ downloaded tarball's sha256 equals the local build's. The notes cover the
 LuaTeX rule fix, the kept border and spath3. Clew re-pinned to it
 (confirmed in session 10).
 
-**v0.3.1 is prepared** (2026-10-03, session 12) — see "State now" for the
-archive's numbers and the remaining steps, which are the v0.3.0 steps below.
+**v0.3.1 is released** (2026-10-04, session 12): tag on 52b7bbc, tarball
+44,239,255 bytes, sha256 24b0cd29…c152 (full numbers in "State now"); same
+procedure as v0.3.0 below, with the website's `make check` / `make sync` /
+`make verify`.
 
 **v0.3.0 is released** (2026-09-28, session 11):
 <https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.3.0>, tag `v0.3.0`
@@ -1327,11 +1330,8 @@ worth doing:
   numbers (tag, URL, 44,229,933 bytes, sha256 4a3a61b3…); the manifests are
   theirs to update. Nothing to do here unless they report a problem.
 
-- **Publish 0.3.1** once the owner says so (everything is built and checked;
-  "State now" has the steps), then tell Clew-app, Clew-iOS, Folio and
-  Palimpsest — Palimpsest may prefer the new PDF output to WKWebView's
-  `createPDF`, and its notes must pass `engine: 'latex'` explicitly (it ships
-  without the `luatex` bundle).
+- **Send Folio the 0.3.1 numbers** (it was not running at release), and check
+  that Clew-app / Clew-iOS re-pin and that Palimpsest switches to the release.
 - **Small hardening:** make the TikZ golden a CI gate (drop
   `continue-on-error`; loose end 24); a DOM test library (happy-dom) so the
   live elements and `data-replace` are tested automatically; WorkerBackend
