@@ -55,7 +55,7 @@ for d in base tex-ini-files l3kernel l3backend l3packages amsmath amsfonts amscl
          xcolor pgf tikz-cd pgfplots spath3 psnfss kvoptions etoolbox xkeyval geometry booktabs mathtools \
          ec standalone varwidth preview currfile filehook fontenc \
          hyperref hycolor kvsetkeys refcount rerunfilecheck atveryend letltxmacro auxhook url listings fp imakeidx todonotes firstaid \
-         circuitikz tikz-3dplot epstopdf-pkg; do
+         circuitikz tikz-3dplot epstopdf-pkg grfext; do
   [ -d "$TEXMF/tex/latex/$d" ] && cp -R "$TEXMF/tex/latex/$d" "$OUT/tex/latex/$d"
 done
 # circuitikz keeps every earlier release for LaTeX's rollback (\usepackage{circuitikz}[=v0.9.3],

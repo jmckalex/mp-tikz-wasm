@@ -205,6 +205,13 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
       expect(r.diagnostics.some((d: any) => /Shell escape/.test(d.message))).toBe(false);
     }, 60_000);
 
+    it('loads epstopdf with options (which pulls in grfext) in PDF mode', async () => {
+      // epstopdf-base loads grfext only when it is given options; \\usepackage{epstopdf} gives some
+      const r = await mp.latex('\\documentclass{article}\\usepackage{tikz,epstopdf}\\begin{document}\\tikz\\draw (0,0) circle (1);\\end{document}', { output: 'pdf' });
+      expect(r.status).toBe('ok');
+      expect(isPdf(r.pdf)).toBe(true);
+    }, 60_000);
+
     it('writes a PDF from plain TeX and from LuaLaTeX', async () => {
       const p = await mp.latex('Plain $x^2$.\\bye', { engine: 'plain', output: 'pdf' });
       expect(p.status).toBe('ok');

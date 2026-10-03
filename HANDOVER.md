@@ -821,6 +821,12 @@ replacing its tikzjax with this library).
    and `/ID`; e2e tests check them. CI runs the PDF golden for information.
    SVG output unchanged (267 tests, all goldens, contract); checked in Chrome
    through a Web Worker (the PDF renders in Chrome's viewer).
+3. **`grfext` bundled** (found by Palimpsest within the hour): `epstopdf-base`
+   loads it only when it is given options — `\usepackage{epstopdf}`, for one —
+   which the first `-recorder` scan never exercised. A second scan with
+   option-heavy packages (epstopdf, graphicx[final], xcolor[dvipsnames],
+   hyperref[colorlinks], lmodern/T1, tikz-cd, circuitikz, chemfig) found
+   nothing else missing; e2e case added (268 tests).
 
 ## CI — green as of 2026-09-29 (first green in session 4)
 
