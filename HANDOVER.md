@@ -1331,7 +1331,10 @@ worth doing:
   theirs to update. Nothing to do here unless they report a problem.
 
 - **Send Folio the 0.3.1 numbers** (it was not running at release), and check
-  that Clew-app / Clew-iOS re-pin and that Palimpsest switches to the release.
+  that Palimpsest switches to the release. **Clew stays on 0.3.0 for now:**
+  Clew-app is packaging dev.5 on the 0.3.0 pin (Clew-boss's plan, approved by
+  the owner); Clew-boss decides when to re-pin, which needs its own figure
+  checks. Clew-iOS follows Clew-app's manifest, so nothing moves there first.
 - **Small hardening:** make the TikZ golden a CI gate (drop
   `continue-on-error`; loose end 24); a DOM test library (happy-dom) so the
   live elements and `data-replace` are tested automatically; WorkerBackend
