@@ -536,6 +536,18 @@ only thing that starts the engines there, and `?live` removes the attribute
 before the loader runs (module scripts are deferred, so an inline classic
 script can still edit the tag) to typeset everything in the tab.
 
+**The library loads lazily (session 12, 0.3.1).** Saved figures removed the
+engines from a fully saved page but not the library: `auto.js` imported
+`index.js` statically, 19 modules and 55 KB gzipped, fetched one import level
+at a time (on a slow host that chain was seconds before the first saved figure
+appeared). `auto.ts` now takes `LOG_LEVELS` from `logger.js` and
+`DEFAULT_BUNDLES` from `bundles-config.js`, uses `MetaPost` as a type only, and
+does `import('./index.js')` where `AutoRenderer` creates its engine. A saved
+page loads `auto.js`, `figures.js` (hash, wrapping), `tex/cache-key.js` (its
+SHA-256), `logger.js` and `bundles-config.js`: 5 modules, 17 KB gzipped
+(checked in Chrome: no `index.js`, no wasm). The first miss pays one more round
+of module requests before the engines start, small beside the wasm.
+
 ## 14. LuaTeX rules trapped in DVI mode (session 8)
 
 Every rule shipped by `luatex.wasm` — `\hrule`, `\vrule`, leaders, and in

@@ -218,6 +218,19 @@ action from Clew, but the first two change behaviour.
   `woff2` faces. If Clew sanitises figure SVG, use DOMPurify as in the README
   ("Untrusted sources"); Clew's own notes are trusted input and need none.
 
+## In 0.3.1
+
+- **PDF output, on request:** `mp.latex(doc, { output: 'pdf' })` returns
+  `result.pdf` (a `Uint8Array`) from pdfTeX's or LuaTeX's own PDF back end;
+  SVG stays the default. Fonts embedded, PNG/JPEG images included,
+  byte-identical to TeX Live's `latex -output-format=pdf` apart from the
+  version string. Nothing changes for Clew unless it asks for it.
+- **`auto.js` loads the library lazily:** a note whose figures all come from
+  the result cache loads five small modules instead of the whole library. No
+  API change.
+- **Pages of script tags prefetch again**, and **`worker: true` works in
+  Node** (so `timeoutMs` can stop a runaway document there).
+
 ## Also worth telling the owner
 
 Clew's re-pin to the published 0.2.1 (the LuaTeX rule fix) is **already done** —

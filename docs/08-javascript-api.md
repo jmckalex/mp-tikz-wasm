@@ -322,7 +322,11 @@ function.
 In the browser, with `data-figures="figures/"` on the loader, `render()`
 looks in IndexedDB, then fetches `figures/figure-HASH.svg` (a 404, or a
 server that answers every path with its index page, is a miss), and only then
-starts an engine — so a page whose figures are all saved loads no wasm at all.
+starts an engine — so a page whose figures are all saved loads no wasm, no
+bundle manifest, and (since 0.3.1) only five small modules: `auto.js`,
+`figures.js`, `logger.js`, `bundles-config.js` and `tex/cache-key.js`, about
+17 KB gzipped. `auto.js` imports `index.js`, and with it the rest of the
+library, only where it creates the engine.
 `mpTikzWasm.saveFigures()` waits for renders in flight and writes every
 successful figure into a folder chosen with the File System Access API
 (Chrome, Edge; call it from the console or a click) or, elsewhere or with
