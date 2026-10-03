@@ -9,7 +9,22 @@ Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State now (session 12, 2026-10-03):** **v0.3.0 is released**
+**State now (session 12, 2026-10-03): 0.3.1 is prepared, not published.**
+The branch `opentype-fonts` is at the release commit 8e67c16 ("Release 0.3.1"),
+pushed, **CI green** on it. `release/mp-tikz-wasm-0.3.1.tar.gz` is built from
+it: **44,239,255 bytes, sha256
+24b0cd291a18ead46c8c09f78bedbf82fd965acb87cc5f1fb447fd38f353c152** (and `.zip`);
+notes in `release/notes-0.3.1.md`; a clean extraction was smoke-tested
+(MetaPost, fontspec, PDF from pdfTeX and LuaLaTeX, PDF through a Node worker,
+lazy `auto.js`). **Do not run `npm run package` again before uploading** — the
+tar records mtimes, so the digest would change. The engines are byte-identical
+to 0.3.0's. What is left is the owner's go-ahead and the publishing steps:
+fast-forward `main` to the branch, **tag `v0.3.1`** on the branch head, `gh release create` with both archives and
+the notes, download and check the asset, restage and `make sync-eschatolog`,
+and send the numbers to Clew-app, Clew-iOS, Folio and Palimpsest (PDFViewer).
+269 tests; TikZ golden 12/12, MetaPost 15/15, PDF 5/5; contract 48/48.
+
+**Before that (0.3.0):** **v0.3.0 is released**
 (<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.3.0>, tag on
 67c437c; `mp-tikz-wasm-0.3.0.tar.gz`, 44,229,933 bytes, sha256
 4a3a61b3760042d191dbf23d2169a776981be1caad9ec1d2b05cd6729c4d141b; the
@@ -830,6 +845,24 @@ replacing its tikzjax with this library).
    document (standalone with varwidth, lmodern, T1, TikZ) is golden case 05,
    byte-identical to native like the other four.
 
+4. **`auto.js` loads the library lazily** (e64ebcc, agreed for 0.3.1): a page
+   whose figures are all saved or cached loads 5 modules / 17 KB gzipped
+   instead of 19 / 55 KB (checked in Chrome: no `index.js`, no wasm; `?live`
+   renders all 13 figures). `docs/14` §13.
+5. **0.3.1 prepared** (the owner asked: "prepare that release and update any
+   documentation files"): version bump, full `npm run build` (engines
+   byte-identical to 0.3.0), all goldens, contract, package, clean-extraction
+   smoke test, CI green; docs updated (README, guide, `docs/08`, `docs/14`,
+   `docs/16` "In 0.3.1"); notes in `release/notes-0.3.1.md`. Not published —
+   see "State now".
+6. **A regression the full build caught** (e573515): the single-file demo
+   pages failed to build since the Node worker change (8b6d145) — esbuild
+   could not resolve `node:worker_threads` for the browser bundle; those
+   builds had been run with their output discarded. Marked external like
+   `node:fs`; `test/unit/browser-bundle.test.ts` bundles `index.ts` with the
+   builders' own externals (checked to fail without the fix). Lesson: never
+   silence a build step's output.
+
 ## CI — green as of 2026-09-29 (first green in session 4)
 
 `.github/workflows/ci.yml` runs two jobs on every push, both green, with time
@@ -1018,6 +1051,9 @@ on ff0271a, with `mp-tikz-wasm-0.2.1.tar.gz` (37,205,263 bytes, sha256
 downloaded tarball's sha256 equals the local build's. The notes cover the
 LuaTeX rule fix, the kept border and spath3. Clew re-pinned to it
 (confirmed in session 10).
+
+**v0.3.1 is prepared** (2026-10-03, session 12) — see "State now" for the
+archive's numbers and the remaining steps, which are the v0.3.0 steps below.
 
 **v0.3.0 is released** (2026-09-28, session 11):
 <https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.3.0>, tag `v0.3.0`
@@ -1291,16 +1327,11 @@ worth doing:
   numbers (tag, URL, 44,229,933 bytes, sha256 4a3a61b3…); the manifests are
   theirs to update. Nothing to do here unless they report a problem.
 
-- **Make `auto.js` load the library lazily** (proposed and agreed for 0.3.1):
-  import `index.js` dynamically where the engine is created, so a page whose
-  figures are all saved loads ~14 KB of JavaScript in three modules instead
-  of ~55 KB in nineteen. `LOG_LEVELS` and `DEFAULT_BUNDLES` come from their
-  own modules. The engines are already lazy.
-- **Tell Palimpsest PDF output exists** once it is released (it may prefer
-  it to `createPDF`), and **release 0.3.1** with PDF output, the lazy loading
-  and the branch's three fixes:
-  fast-forward `main`, bump, full build, goldens, package, tag, publish, sync
-  ("Publishing a release"); tell Clew and Folio.
+- **Publish 0.3.1** once the owner says so (everything is built and checked;
+  "State now" has the steps), then tell Clew-app, Clew-iOS, Folio and
+  Palimpsest — Palimpsest may prefer the new PDF output to WKWebView's
+  `createPDF`, and its notes must pass `engine: 'latex'` explicitly (it ships
+  without the `luatex` bundle).
 - **Small hardening:** make the TikZ golden a CI gate (drop
   `continue-on-error`; loose end 24); a DOM test library (happy-dom) so the
   live elements and `data-replace` are tested automatically; WorkerBackend
