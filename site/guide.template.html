@@ -192,6 +192,7 @@ const t = await mp.latex(String.raw`
   \end{tikzpicture}\end{document}`);
 t.pages[0]          // SVG
 t.diagnostics       // TeX errors with document line numbers, package warnings
+(await mp.latex(doc, { output: 'pdf' })).pdf   // or a PDF (Uint8Array), from the engine's own PDF back end
 t.stats             // texMs, dvisvgmMs, format ('latex', 'tikz', 'dvilualatex' …)
 
 // TikZ graph drawing needs LuaTeX: engine 'auto' switches to luatex.wasm by itself
@@ -211,6 +212,7 @@ const g = await mp.latex(String.raw`
 <tr><td class="mono">logLevel, logger</td><td>create</td><td>what each run writes to the console: <code>silent</code>, <code>error</code>, <code>warn</code> (default: errors and warnings, a MetaPost error with its help text), <code>info</code> (one line per run and per engine pass, with timings), <code>debug</code> (the engines' own terminal output, live) or <code>trace</code> (every file looked up or fetched); <code>mp.logLevel</code> changes it at any time; <code>logger</code> receives the records instead of the console, <code>mp.on('record')</code> as well</td></tr>
 <tr><td class="mono">format, prologues, internals, files, jobName</td><td>run</td><td>outputs; <code>prologues</code> (3 for SVG outlines); <code>-s name=value</code> internals; extra files placed next to the job</td></tr>
 <tr><td class="mono">engine, fonts, pages, bbox, dvisvgmArgs, snapshot, files</td><td>latex</td><td><code>latex</code> | <code>lualatex</code> | <code>luatex</code> | <code>plain</code> | <code>tex</code> | <code>auto</code>; outlines or woff2; page selection; dvisvgm's bbox; extra arguments; the pre-warmed format</td></tr>
+<tr><td class="mono">output</td><td>latex</td><td><code>svg</code> (default) or <code>pdf</code>: pdfTeX's or LuaTeX's own PDF back end, returned as <code>result.pdf</code> (a <code>Uint8Array</code>); fonts embedded, PNG and JPEG images included; byte-identical to TeX Live's <code>latex -output-format=pdf</code> apart from the version string. One pass per call: hand <code>artifacts</code> back as <code>files</code> for cross-references</td></tr>
 </tbody></table></div>
 <p>Also exported: <code>MetaPostPool</code> for batch work across several workers, <code>postProcessSvg</code> (numeric compaction, id namespacing), <code>scanTexBlocks</code>, <code>splitMpx</code>, <code>parseMetaPostLog</code>.</p>
 <p><strong>Untrusted sources.</strong> MetaPost's <code>special</code> and dvisvgm's <code>raw</code> specials put arbitrary markup into the SVG, so a diagram written by someone else can carry <code>&lt;script&gt;</code> or event handlers. The tags insert SVG as is, which is right for a page's own diagrams. For anyone else's, sanitise with DOMPurify (<code>USE_PROFILES: { svg: true, svgFilters: true }</code>, <code>ADD_TAGS: ['use']</code>, then drop any <code>&lt;use&gt;</code> whose <code>href</code> is not <code>#…</code>); the README has the function. The old <code>sanitizeSvg</code> export is deprecated: it strips shadings, patterns and web fonts.</p>
@@ -284,7 +286,7 @@ __FIG:otf-math__
 <thead><tr><th>Module</th><th>Size</th><th>What it is</th></tr></thead>
 <tbody>
 <tr><td class="mono">mplib.wasm</td><td class="n">__MPLIB_MB__ MB</td><td>MetaPost 2.11: interpreter, PostScript and SVG backends, Type 1 font machinery, TFM reader, scaled/double/decimal arithmetic, <code>mpto</code> and <code>dvitomp</code></td></tr>
-<tr><td class="mono">tex.wasm</td><td class="n">__TEX_MB__ MB</td><td>pdfTeX 1.40.27 in DVI mode (= <code>tex</code>, <code>etex</code>, <code>latex</code>) with kpathsea, zlib, libpng</td></tr>
+<tr><td class="mono">tex.wasm</td><td class="n">__TEX_MB__ MB</td><td>pdfTeX 1.40.27 in DVI mode, or PDF mode on request (= <code>tex</code>, <code>etex</code>, <code>latex</code>) with kpathsea, zlib, libpng</td></tr>
 <tr><td class="mono">dvisvgm.wasm</td><td class="n">__DVISVGM_MB__ MB</td><td>dvisvgm 3.4.3 with FreeType, potrace, clipper, woff2/brotli; PostScript specials (Ghostscript) compiled out</td></tr>
 <tr><td class="mono">luatex.wasm</td><td class="n">__LUATEX_MB__ MB</td><td>LuaTeX 1.21 with Lua 5.3, pplib, zziplib, the fontforge-derived font loader, kpathsea and our patched mplib; loaded on demand for graphdrawing and Lua documents</td></tr>
 </tbody></table></div>
@@ -342,7 +344,7 @@ __FIG:otf-math__
 
 <h2 id="limits">Limits</h2>
 <ul>
-  <li>No Ghostscript, so raw PostScript specials (pstricks, or PGF forced onto its dvips driver) are ignored; no external image inclusion.</li>
+  <li>No Ghostscript, so raw PostScript specials (pstricks, or PGF forced onto its dvips driver) are ignored; no external image inclusion in SVG output (PDF output includes PNG and JPEG, not PDF images).</li>
   <li>OpenType is opt-in and LuaTeX-only: there is no XeTeX, and shaping is luaotfload's Lua <code>mode=node</code>, not HarfBuzz (this is <code>luatex</code>, not <code>luahbtex</code>), so <code>mode=harf</code> and Graphite features are out. The bundled faces are Latin Modern; other faces are supplied by the host with <code>addFiles()</code>. TrueType Collections do not work with <code>fonts: 'woff2'</code>.</li>
   <li>No PNG output and no <code>binary</code>/<code>interval</code> number systems (they need cairo and GMP/MPFR, which are not built).</li>
   <li>Worker mode cannot forward the <code>runScript</code>, <code>makeText</code> and <code>onFindFile</code> callbacks; providing one selects in-process mode.</li>

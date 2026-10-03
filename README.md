@@ -62,6 +62,20 @@ Plain TeX documents are accepted too. When a document uses TikZ's
 graph-drawing library, `\directlua` or `luacode`, the library switches to a
 second engine, LuaTeX, which is downloaded only when it is needed.
 
+**PDF output, on request.** `mp.latex(doc, { output: 'pdf' })` runs pdfTeX (or
+LuaTeX) with its own PDF back end instead and returns the document as
+`result.pdf`, a `Uint8Array`; `pages` is then empty and the SVG options do not
+apply. PGF and hyperref use their PDF drivers, the Type 1 fonts (or, under
+LuaLaTeX with the `opentype` bundle, the OpenType faces) are embedded, and PNG
+and JPEG images included with `\includegraphics` (pass them in `files`) go into
+the PDF — something DVI-to-SVG cannot do. Including another PDF as an image is
+not supported. pdfTeX's PDFs are byte-identical to TeX Live's
+`latex -output-format=pdf` apart from the version number in the producer string
+(`npm run test:golden:pdf`). Each call is one TeX pass: for cross-references, a
+table of contents or hyperref's outlines, run twice, handing the first run's
+`artifacts` (the `.aux`, `.out`, `.toc` files) back as `files`. SVG remains the
+default, and nothing about it changed.
+
 For web pages, a single script tag is enough. It finds
 `<script type="text/tikz">`, `<script type="text/metapost">`, `<tikz-diagram>`
 and `<metapost-diagram>` elements, replaces each with its rendered SVG,
@@ -272,6 +286,9 @@ r.diagnostics       // [{ severity, source, message, help[], file, line }]
 const t = await mp.latex(document, { engine: 'auto' });   // 'latex' | 'lualatex' | 'luatex' | 'plain'
 t.pages[0]          // one SVG string per page
 t.diagnostics       // TeX errors with document line numbers, package warnings
+
+const p = await mp.latex(document, { output: 'pdf' });     // or PDF, from pdfTeX's / LuaTeX's own back end
+p.pdf               // Uint8Array
 ```
 
 Options and result types are documented in [`src/ts/types.ts`](src/ts/types.ts)
@@ -347,6 +364,7 @@ npx mpost-wasm figure.mp                                  # figure.1, figure.2 �
 npx mpost-wasm -s 'outputformat="svg"' -s prologues=3 figure.mp
 npx mpost-wasm -tex=latex -numbersystem=double figure.mp
 npx mpost-wasm --latex figure.tex                         # figure-1.svg, figure-2.svg …
+npx mpost-wasm --latex --pdf paper.tex                    # paper.pdf (with --stdout, the PDF on stdout)
 npx mpost-wasm --latex --engine=lualatex graph.tex        # --engine=auto (default) picks LuaTeX when needed
 npx mpost-wasm -vv figure.mp                              # the engines' output on stderr as it runs (-v timings, -vvv every file, -q silence)
 npx mpost-wasm --prerender page.html                      # figures/figure-HASH.svg for every diagram tag on the page (see "Saved figures")

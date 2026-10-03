@@ -166,6 +166,9 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     try {
       expect((await w.run('beginfig(1); draw fullcircle scaled 20; label(btex $x$ etex, origin); endfig; end.', { format: 'svg' })).status).toBe('ok');
       expect((await w.latex('\\documentclass[tikz]{standalone}\\begin{document}\\tikz\\draw (0,0) circle (1);\\end{document}')).status).toBe('ok');
+      const pdf = await w.latex('\\documentclass{article}\\begin{document}x\\end{document}', { output: 'pdf' });   // bytes across the worker boundary
+      expect(pdf.status).toBe('ok');
+      expect(Buffer.from(pdf.pdf!.slice(0, 5)).toString()).toBe('%PDF-');
     } finally { w.dispose(); }
     const texmf = path.join(REPO, 'build/texmf');
     if (fs.existsSync(path.join(texmf, 'web2c/latex.fmt'))) {
@@ -173,6 +176,55 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
       try { expect((await t.latex('\\documentclass{article}\\begin{document}x\\end{document}')).status).toBe('ok'); } finally { t.dispose(); }
     }
   }, 120_000);
+
+  describe('PDF output', () => {
+    // everything in a PDF, compressed streams inflated, as latin1 text: enough to find pages and fonts
+    const pdfText = async (pdf: Uint8Array) => {
+      const zlib = await import('node:zlib');
+      const raw = Buffer.from(pdf).toString('latin1');
+      let out = raw;
+      for (const m of raw.matchAll(/stream\r?\n/g)) {
+        const start = m.index! + m[0].length, end = raw.indexOf('endstream', start);
+        try { out += zlib.inflateSync(Buffer.from(raw.slice(start, end), 'latin1')).toString('latin1'); } catch { /* not Flate */ }
+      }
+      return out;
+    };
+    const isPdf = (pdf?: Uint8Array) => !!pdf && Buffer.from(pdf.slice(0, 5)).toString() === '%PDF-' && /%%EOF\s*$/.test(Buffer.from(pdf.slice(-16)).toString('latin1'));
+    const pageCount = (t: string) => (t.match(/\/Type\s*\/Page(?![s\w])/g) ?? []).length;
+
+    it('writes a PDF with pdfTeX, fonts embedded, TikZ and hyperref included, SVG options untouched', async () => {
+      const r = await mp.latex('\\documentclass{article}\\usepackage{amsmath,tikz,hyperref}\\begin{document}\\section{A}$\\int_0^1 x^2\\,dx$ \\href{https://example.com}{link} \\tikz\\shade[ball color=red] (0,0) circle (1);\\newpage B\\end{document}', { output: 'pdf' });
+      expect(r.status).toBe('ok');
+      expect(isPdf(r.pdf)).toBe(true);
+      expect(r.pages).toEqual([]);
+      expect(r.format).toBe('latex');   // never the dvisvgm snapshot
+      const t = await pdfText(r.pdf!);
+      expect(pageCount(t)).toBe(2);
+      expect(t).toMatch(/\/FontFile\b/);
+      expect(t).toContain('https://example.com');
+      expect(r.diagnostics.some((d: any) => /Shell escape/.test(d.message))).toBe(false);
+    }, 60_000);
+
+    it('writes a PDF from plain TeX and from LuaLaTeX', async () => {
+      const p = await mp.latex('Plain $x^2$.\\bye', { engine: 'plain', output: 'pdf' });
+      expect(p.status).toBe('ok');
+      expect(isPdf(p.pdf)).toBe(true);
+      const l = await mp.latex('\\documentclass{article}\\usepackage{tikz}\\begin{document}Lua $x$ \\tikz\\draw (0,0) circle (1);\\end{document}', { engine: 'lualatex', output: 'pdf' });
+      expect(l.status).toBe('ok');
+      expect(isPdf(l.pdf)).toBe(true);
+      expect(pageCount(await pdfText(l.pdf!))).toBe(1);
+    }, 60_000);
+
+    it('reports a failed document without a PDF, and leaves SVG output as it was', async () => {
+      const bad = await mp.latex('\\documentclass{article}\\usepackage{nosuchpackage}\\begin{document}x\\end{document}', { output: 'pdf' });
+      expect(bad.status).not.toBe('ok');
+      expect(bad.diagnostics.some((d: any) => d.severity === 'error')).toBe(true);
+      const svg = await mp.latex('\\documentclass{article}\\begin{document}x\\end{document}');
+      expect(svg.status).toBe('ok');
+      expect(svg.pages).toHaveLength(1);
+      expect(svg.pdf).toBeUndefined();
+    }, 60_000);
+  });
 
   it('produces one SVG per page and maps errors to lines', async () => {
     const r = await mp.latex(`\\documentclass{article}\\pagestyle{empty}\\begin{document}one\\newpage two \\undefinedmacro\\end{document}`);

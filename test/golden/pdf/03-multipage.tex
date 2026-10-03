@@ -1,0 +1,10 @@
+\documentclass{article}
+\usepackage{xcolor,hyperref}
+\begin{document}
+\tableofcontents
+\section{First}\label{first}
+Some \textcolor{red}{red} text and a footnote.\footnote{Here it is.} See section~\ref{second}.
+\newpage
+\section{Second}\label{second}
+Back to section~\ref{first}, on page~\pageref{first}.
+\end{document}

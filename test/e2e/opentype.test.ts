@@ -134,6 +134,21 @@ describe.skipIf(!built)('OpenType fonts (luaotfload)', () => {
     expect(faces.size).toBeLessThan(10);
   }, 180_000);
 
+  it('writes a PDF with the OpenType faces embedded', async () => {
+    const mp = await create(['opentype']);
+    const r = await mp.latex(`${preamble}${body}`, { engine: 'lualatex', output: 'pdf' });
+    expect(r.status).toBe('ok');
+    const zlib = await import('node:zlib');
+    const raw = Buffer.from(r.pdf!).toString('latin1');
+    let text = raw;
+    for (const m of raw.matchAll(/stream\r?\n/g)) {
+      const start = m.index! + m[0].length;
+      try { text += zlib.inflateSync(Buffer.from(raw.slice(start, raw.indexOf('endstream', start)), 'latin1')).toString('latin1'); } catch { /* not Flate */ }
+    }
+    expect(text).toMatch(/\/BaseFont\s*\/[A-Z]{6}\+LMRoman10-Regular/);
+    expect(text).toMatch(/\/FontFile3\b/);   // the face itself (CFF), not a reference
+  }, 120_000);
+
   it('runs unicode-math with the wider font bundle', async () => {
     const mp = await create(['opentype', 'otf-fonts']);
     const r = await mp.latex(String.raw`\documentclass{article}\pagestyle{empty}

@@ -55,7 +55,7 @@ for d in base tex-ini-files l3kernel l3backend l3packages amsmath amsfonts amscl
          xcolor pgf tikz-cd pgfplots spath3 psnfss kvoptions etoolbox xkeyval geometry booktabs mathtools \
          ec standalone varwidth preview currfile filehook fontenc \
          hyperref hycolor kvsetkeys refcount rerunfilecheck atveryend letltxmacro auxhook url listings fp imakeidx todonotes firstaid \
-         circuitikz tikz-3dplot; do
+         circuitikz tikz-3dplot epstopdf-pkg; do
   [ -d "$TEXMF/tex/latex/$d" ] && cp -R "$TEXMF/tex/latex/$d" "$OUT/tex/latex/$d"
 done
 # circuitikz keeps every earlier release for LaTeX's rollback (\usepackage{circuitikz}[=v0.9.3],
@@ -63,6 +63,12 @@ done
 # would add. The current release is circuitikz.sty plus the generic pgfcirc*.tex
 # files, so the old ones stay behind and asking for one fails as "not found".
 rm -f "$OUT"/tex/latex/circuitikz/circuitikz-*.sty "$OUT"/tex/latex/circuitikz/circuitikz-*-body.tex
+# PDF output (mp.latex(..., { output: 'pdf' })): graphics' pdftex.def needs
+# epstopdf-base (above) and ConTeXt's supp-pdf.mkii, its MetaPost-to-PDF converter,
+# which the tex// search finds at its TeX Live path.
+t="$(tree_with tex/context/base/mkii/supp-pdf.mkii || true)"
+if [ -n "$t" ]; then mkdir -p "$OUT/tex/context/base/mkii" && cp "$t/tex/context/base/mkii/supp-pdf.mkii" "$OUT/tex/context/base/mkii/"
+else echo "warning: supp-pdf.mkii not found in any TeX tree; LaTeX PDF output will stop" >&2; fi
 # this project's own TeX files (bundles/tex): the svg.attributes TikZ library.
 # tex/generic, so plain TeX finds it too; it rides in the tex-plain bundle.
 mkdir -p "$OUT/tex/generic/mp-tikz-wasm"

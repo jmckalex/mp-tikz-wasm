@@ -231,13 +231,19 @@ export interface LatexRunOptions {
    *  with real OTF/TTF faces. 'auto' picks 'lualatex' when the source uses
    *  graphdrawing, \directlua or luacode, 'plain' for a \bye document, 'latex' otherwise. */
   engine?: 'latex' | 'plain' | 'etex' | 'tex' | 'lualatex' | 'luatex' | 'auto';
+  /** What the run produces: 'svg' (default; DVI, then one SVG per page through dvisvgm) or 'pdf'
+   *  (pdfTeX's or LuaTeX's own PDF back end: `pdf` in the result holds the document, `pages` is
+   *  empty, and the SVG options -- fonts, bbox, dvisvgmArgs, svg, pages -- do not apply). */
+  output?: 'svg' | 'pdf';
   /** PGF system driver. 'dvisvgm' (default) prepends \def\pgfsysdriver{pgfsys-dvisvgm.def} so TikZ
-   *  draws with SVG specials; 'auto' leaves PGF's own choice (dvips, whose PostScript specials need
-   *  Ghostscript and are ignored here). */
+   *  draws with SVG specials -- with output 'pdf', the driver that matches it instead
+   *  (pgfsys-pdftex.def or pgfsys-luatex.def); 'auto' leaves PGF's own choice (in DVI mode dvips,
+   *  whose PostScript specials need Ghostscript and are ignored here). */
   pgfDriver?: 'dvisvgm' | 'auto';
   /** The pre-warmed format: 'auto' (default) runs documents that load tikz, pgfplots or tikz-cd with
    *  tikz.fmt (LaTeX with PGF, its common libraries and pgfplots already loaded);
-   *  'tikz' forces it, 'none' always uses plain latex.fmt. Requires the tikz-snapshot bundle. */
+   *  'tikz' forces it, 'none' always uses plain latex.fmt. Requires the tikz-snapshot bundle.
+   *  Never used with output 'pdf': the snapshot has PGF's dvisvgm driver built in. */
   snapshot?: 'auto' | 'tikz' | 'none';
   /** Files to place next to the document (images, .sty, .tex inputs). */
   files?: Record<string, string | Uint8Array>;
@@ -256,8 +262,10 @@ export interface LatexRunOptions {
 
 export interface LatexResult {
   status: Status;
-  /** One SVG per DVI page. */
+  /** One SVG per DVI page (empty with output 'pdf'). */
   pages: string[];
+  /** The PDF, with output 'pdf' (absent when TeX wrote none). */
+  pdf?: Uint8Array;
   log: string;             // TeX terminal transcript
   texLog: string;          // the .log file
   dvisvgmLog: string;

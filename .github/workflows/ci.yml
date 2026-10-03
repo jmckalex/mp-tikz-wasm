@@ -84,3 +84,7 @@ jobs:
         continue-on-error: true
         timeout-minutes: 5
         run: node scripts/golden-tikz.mjs --check
+      - name: PDF golden (informational; expectations from the dev machine's TeX Live)
+        continue-on-error: true
+        timeout-minutes: 5
+        run: node scripts/golden-pdf.mjs --check

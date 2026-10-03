@@ -24,13 +24,13 @@ MIRRORS=(
 )
 PACKAGES="kpathsea texlive-scripts
   amscls amsfonts amsmath atbegshi atveryend auxhook avantgar babel bigintcalc bitset
-  bookman booktabs chemfig circuitikz cm cmarrows courier currfile dvips ec etex etexcmds
+  bookman booktabs chemfig circuitikz cm cmarrows courier currfile dvips ec epstopdf-pkg etex etexcmds
   etoolbox featpost filehook firstaid fontname fontspec fp geometry gettitlestring graphics
   graphics-cfg graphics-def helvetic hycolor hyperref hyph-utf8 hyphen-ancientgreek
   hyphen-base hyphen-greek iftex imakeidx infwarerr intcalc knuth-lib kvdefinekeys
   kvoptions kvsetkeys l3backend l3kernel l3packages latex latex-fonts latexconfig
   letltxmacro listings lm lm-math ltxcmds lua-uni-algos lualatex-math lualibs luaotfload
-  luatex85 luatexbase mathtools mcf2graph metaobj metapost metauml mpcolornames ncntrsbk
+  luatex85 luatexbase mathtools mcf2graph metaobj metapost metauml mpcolornames mptopdf ncntrsbk
   palatino pdfescape pdftex pdftexcmds pgf pgfplots plain preview psnfss refcount
   rerunfilecheck roundrect shapes simplekv spath3 splines standalone stringenc symbol
   tex-ini-files tikz-3dplot tikz-cd times todonotes tools unicode-data unicode-math

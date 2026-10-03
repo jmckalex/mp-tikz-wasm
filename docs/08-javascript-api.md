@@ -121,6 +121,27 @@ interface Diagnostic {
 `figures` is empty when the source never calls `beginfig`/`shipout` — that is
 not an error.
 
+### 3.0 LaTeX results, and PDF output
+
+`mp.latex(source, options)` returns a `LatexResult`: `status` (`ok` | `error` |
+`fatal`), `pages` (one SVG per page), `pdf` (with `output: 'pdf'`), `log`,
+`texLog`, `dvisvgmLog`, `diagnostics`, `stats`, `format` and `artifacts` (every
+other file the run wrote: `.aux`, `.out`, `.toc`, …).
+
+`output: 'pdf'` (default `'svg'`) runs the engine with `-output-format=pdf`, so
+pdfTeX (`\pdfoutput`) or LuaTeX (`\outputmode`) writes the PDF itself after
+loading the same formats; the source is not touched, so line numbers in
+diagnostics are unchanged. PGF gets `pgfsys-pdftex.def` or `pgfsys-luatex.def`
+instead of the dvisvgm driver, the TikZ snapshot format (which has the dvisvgm
+driver built in) is never used, dvisvgm does not run, and `fonts`, `bbox`,
+`pages`, `dvisvgmArgs` and `svg` are ignored. PNG and JPEG images in `files`
+can be included; PDF images cannot (`tex.wasm` is built without pdfTeX's PDF
+parser). One TeX pass per call: run twice with the first run's `artifacts`
+passed back as `files` for cross-references and outlines. Fidelity: pdfTeX's
+PDFs equal TeX Live's `latex -output-format=pdf` byte for byte apart from the
+pdfTeX version in the producer strings (`scripts/golden-pdf.mjs`); LuaTeX's are
+checked for content (pages, embedded faces) by the e2e tests.
+
 ### 3.1 Diagnostics are a feature, not an afterthought
 
 MetaPost's errors are unusually good (`mp_error` carries a `help[]` array

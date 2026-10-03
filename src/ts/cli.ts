@@ -35,6 +35,8 @@ const HELP = `Usage: mpost-wasm [OPTION]... [MPNAME[.mp]] [COMMANDS]
   --engine=NAME         latex | lualatex | luatex | plain | tex | auto (default auto: lualatex when
                         the document uses graphdrawing or \directlua)
   --fonts=paths|woff2   how text is emitted in --latex mode (default paths)
+  --pdf                 with --latex: write DOC.pdf (pdfTeX's or LuaTeX's own PDF output)
+                        instead of SVG pages; with --stdout, the PDF goes to stdout
   --opentype            load the OpenType bundles so \\usepackage{fontspec} works under
                         --engine=lualatex; off by default because LaTeX initialises
                         luaotfload on every LuaTeX run once it can find it
@@ -59,7 +61,7 @@ function parseArgs(argv: string[]) {
     jobname: '' , tex: 'auto' as TexEngine, internals: {} as Record<string, string | number>,
     halt: false, recorder: false, troff: false, format: '' as '' | OutputFormat, texmf: '', bundles: '', opentype: false,
     stdout: false, file: '', commands: '', help: false, version: false, dvitomp: false,
-    latex: false, plain: false, engine: 'auto' as 'auto' | 'latex' | 'lualatex' | 'luatex' | 'plain' | 'tex', fonts: 'paths' as 'paths' | 'woff2',
+    latex: false, plain: false, pdf: false, engine: 'auto' as 'auto' | 'latex' | 'lualatex' | 'luatex' | 'plain' | 'tex', fonts: 'paths' as 'paths' | 'woff2',
     verbose: 0, quiet: false, logLevel: '' as '' | LogLevel,
     prerender: false, figures: '', force: false, dryRun: false, args: [] as string[],
   };
@@ -87,6 +89,7 @@ function parseArgs(argv: string[]) {
       case 'bundles': o.bundles = v ?? next(); break;
       case 'opentype': o.opentype = true; break;
       case 'stdout': o.stdout = true; break;
+      case 'pdf': o.pdf = true; break;
       case 'help': o.help = true; break;
       case 'version': o.version = true; break;
       case 'dvitomp': o.dvitomp = true; break;
@@ -159,10 +162,13 @@ async function main() {
     if (!f) { console.error(`mpost-wasm: cannot open ${o.file}`); process.exit(1); }
     const job = o.jobname || path.basename(f).replace(/\.tex$/, '');
     const sib: Record<string, string | Uint8Array> = {};
-    for (const e of fs.readdirSync(path.dirname(f))) if (e !== path.basename(f) && /\.(tex|sty|cls|def|clo|fd|eps|dat|csv|txt|bib)$/.test(e)) sib[e] = fs.readFileSync(path.join(path.dirname(f), e));
-    const r = await mp.latex(fs.readFileSync(f, 'utf8'), { engine: o.engine, jobName: job, files: sib, fonts: o.fonts });
-    process.stdout.write(r.log.endsWith('\n') ? r.log : r.log + '\n');
-    if (o.stdout) { if (r.pages[0]) process.stdout.write(r.pages[0]); }
+    // sibling inputs; PNG and JPEG too, which pdfTeX and LuaTeX include in PDF output
+    for (const e of fs.readdirSync(path.dirname(f))) if (e !== path.basename(f) && /\.(tex|sty|cls|def|clo|fd|eps|dat|csv|txt|bib|png|jpe?g)$/i.test(e)) sib[e] = fs.readFileSync(path.join(path.dirname(f), e));
+    const r = await mp.latex(fs.readFileSync(f, 'utf8'), { engine: o.engine, jobName: job, files: sib, fonts: o.fonts, output: o.pdf ? 'pdf' : 'svg' });
+    // with --pdf --stdout, stdout is the PDF alone: the transcript goes to stderr instead
+    (o.pdf && o.stdout ? process.stderr : process.stdout).write(r.log.endsWith('\n') ? r.log : r.log + '\n');
+    if (o.pdf) { if (r.pdf) { if (o.stdout) process.stdout.write(r.pdf); else fs.writeFileSync(`${job}.pdf`, r.pdf); } }
+    else if (o.stdout) { if (r.pages[0]) process.stdout.write(r.pages[0]); }
     else r.pages.forEach((svg, i) => fs.writeFileSync(`${job}-${i + 1}.svg`, svg));
     fs.writeFileSync(`${job}.log`, r.texLog);
     mp.dispose();
