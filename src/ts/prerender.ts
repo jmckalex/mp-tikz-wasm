@@ -7,7 +7,12 @@
  *
  * For each page the figures go to the directory its loader names in
  * data-figures (default `figures/`), resolved against the page, unless a
- * directory is given for all of them. A file that already exists is kept —
+ * directory is given for all of them (or a base directory to resolve each
+ * page's data-figures against, for a rendered copy saved elsewhere). Each page's
+ * figures are typeset with the bundles its loader names in data-bundles, read
+ * exactly as auto.js reads them, so an opt-in bundle (`+classico`) is there as
+ * in the browser; pages wanting different bundles get separate engines. A file
+ * that already exists is kept —
  * the name is the content, so it is current — unless `force` is set. The
  * engine is created with the browser's defaults (deterministic, seed 42) so
  * the bytes are the ones the tags would have produced.
@@ -16,7 +21,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { MetaPost } from './index.js';
 import type { MetaPostOptions } from './types.js';
-import { extractFigures, figureHash, figureName, loaderAttributes, renderFigure } from './figures.js';
+import { extractFigures, figureHash, figureName, loaderAttributes, renderFigure, bundleList } from './figures.js';
+import { DEFAULT_BUNDLES } from './bundles-config.js';
 import type { FigureKind, FigureRequest } from './figures.js';
 
 export interface PrerenderOptions {
@@ -26,9 +32,15 @@ export interface PrerenderOptions {
   force?: boolean;
   /** Report what would be rendered and write nothing. */
   dryRun?: boolean;
-  /** An engine to use (disposed by the caller); otherwise one is created with `createOptions` and disposed. */
+  /** Resolve each page's data-figures against this directory instead of the page's own. */
+  baseDir?: string;
+  /** An engine to use for every page (disposed by the caller; the pages' data-bundles are then
+   *  not applied); otherwise one is created per bundle list with `createOptions` and disposed. */
   mp?: MetaPost;
+  /** `bundles` here overrides the pages' data-bundles for every page. */
   createOptions?: MetaPostOptions;
+  /** Bundles added to every page's list (the CLI's --opentype). */
+  addBundles?: string[];
   /** One line per figure as it is decided (default: nothing). */
   report?: (line: string) => void;
 }
@@ -41,21 +53,23 @@ export interface PrerenderEntry {
 export interface PrerenderSummary { entries: PrerenderEntry[]; rendered: number; existing: number; failed: number }
 
 /** The figures a page needs, with the directory they belong in. */
-export function planPage(page: string, figuresDir?: string): { dir: string; figures: (FigureRequest & { hash: string; name: string })[] } {
+export function planPage(page: string, figuresDir?: string, baseDir?: string): { dir: string; bundles?: string[]; figures: (FigureRequest & { hash: string; name: string })[] } {
   const html = fs.readFileSync(page, 'utf8');
-  const named = loaderAttributes(html).figures;
-  const dir = figuresDir ?? path.resolve(path.dirname(page), named && named !== 'off' ? named : 'figures');
+  const loader = loaderAttributes(html);
+  const named = loader.figures;
+  const dir = figuresDir ?? path.resolve(baseDir ?? path.dirname(page), named && named !== 'off' ? named : 'figures');
   const figures = extractFigures(html).map((f) => { const hash = figureHash(f); return { ...f, hash, name: figureName(hash) }; });
-  return { dir, figures };
+  return { dir, bundles: bundleList(loader.bundles, DEFAULT_BUNDLES), figures };
 }
 
 export async function prerender(pages: string[], opts: PrerenderOptions = {}): Promise<PrerenderSummary> {
   const report = opts.report ?? (() => {});
   const entries: PrerenderEntry[] = [];
   const seen = new Set<string>();
-  const todo: { entry: PrerenderEntry; req: FigureRequest }[] = [];
+  const todo: { entry: PrerenderEntry; req: FigureRequest; bundles: string[] }[] = [];
   for (const page of pages) {
-    const { dir, figures } = planPage(page, opts.figuresDir);
+    const { dir, figures, bundles: pageBundles } = planPage(page, opts.figuresDir, opts.baseDir);
+    const bundles = [...new Set([...(opts.createOptions?.bundles as string[] | undefined ?? pageBundles ?? DEFAULT_BUNDLES), ...(opts.addBundles ?? [])])];
     for (const f of figures) {
       const file = path.join(dir, f.name);
       if (seen.has(file)) continue;   // the same figure on two pages (or twice on one) is one file
@@ -63,30 +77,35 @@ export async function prerender(pages: string[], opts: PrerenderOptions = {}): P
       const entry: PrerenderEntry = { page, file, name: f.name, hash: f.hash, kind: f.kind, status: 'pending' };
       entries.push(entry);
       if (!opts.force && fs.existsSync(file)) { entry.status = 'exists'; report(line(entry)); continue; }
-      todo.push({ entry, req: { kind: f.kind, source: f.source, attrs: f.attrs } });
+      todo.push({ entry, req: { kind: f.kind, source: f.source, attrs: f.attrs }, bundles });
     }
   }
   if (opts.dryRun) {
     for (const { entry } of todo) report(line(entry));
   } else if (todo.length) {
-    const own = !opts.mp;
-    const mp = opts.mp ?? await MetaPost.create({ logLevel: 'warn', ...opts.createOptions });
-    try {
-      for (const { entry, req } of todo) {
-        const r = await renderFigure(mp, req, entry.hash);
-        entry.ms = r.ms;
-        if (r.ok) {
-          fs.mkdirSync(path.dirname(entry.file), { recursive: true });
-          fs.writeFileSync(entry.file, r.svg);
-          entry.status = 'rendered';
-        } else {
-          entry.status = 'failed';
-          entry.diagnostics = r.diagnostics;
+    // one engine per distinct bundle list, in first-use order (or the caller's engine for all)
+    const groups = new Map<string, typeof todo>();
+    for (const t of todo) { const k = opts.mp ? '' : t.bundles.join(','); groups.set(k, [...(groups.get(k) ?? []), t]); }
+    for (const group of groups.values()) {
+      const own = !opts.mp;
+      const mp = opts.mp ?? await MetaPost.create({ logLevel: 'warn', ...opts.createOptions, bundles: group[0].bundles });
+      try {
+        for (const { entry, req } of group) {
+          const r = await renderFigure(mp, req, entry.hash);
+          entry.ms = r.ms;
+          if (r.ok) {
+            fs.mkdirSync(path.dirname(entry.file), { recursive: true });
+            fs.writeFileSync(entry.file, r.svg);
+            entry.status = 'rendered';
+          } else {
+            entry.status = 'failed';
+            entry.diagnostics = r.diagnostics;
+          }
+          report(line(entry));
         }
-        report(line(entry));
+      } finally {
+        if (own) mp.dispose();
       }
-    } finally {
-      if (own) mp.dispose();
     }
   }
   const count = (s: PrerenderStatus) => entries.filter((e) => e.status === s).length;

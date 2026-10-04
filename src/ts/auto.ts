@@ -59,7 +59,7 @@ import type { MetaPost } from './index.js';
 import type { MetaPostOptions, PrefetchKind, LogLevel } from './types.js';
 import { Logger, consoleSink, DEFAULT_LOG_LEVEL, LOG_LEVELS, plural } from './logger.js';
 import { DEFAULT_BUNDLES } from './bundles-config.js';
-import { figureHash, figureName, renderFigure, isSvg, makeZip, wrapTikz, wrapMetaPost } from './figures.js';
+import { figureHash, figureName, renderFigure, isSvg, makeZip, wrapTikz, wrapMetaPost, bundleList } from './figures.js';
 import type { FigureKind, FigureRequest, FigureResult, SavedFigure } from './figures.js';
 
 export { wrapTikz, wrapMetaPost, figureHash, figureName };
@@ -513,16 +513,9 @@ function loaderOptions(): AutoOptions {
   if (ds.base) o.bundleBaseUrl = new URL('bundles/', new URL(ds.base, location.href)).href;
   if (ds.worker === 'off') o.worker = false;
   if (ds.cache === 'off') o.cacheResults = false;
-  if (ds.bundles) {
-    // A name prefixed with + is added to the defaults rather than replacing them,
-    // which is what an embedder wanting one extra bundle (`+opentype`) actually
-    // means: a bare list has to repeat all ten and goes stale when they change.
-    // Mixing the two forms is a replace, with the +names appended.
-    const names = ds.bundles.split(/[,\s]+/).filter(Boolean);
-    const added = names.filter((n) => n.startsWith('+')).map((n) => n.slice(1));
-    const listed = names.filter((n) => !n.startsWith('+'));
-    o.bundles = [...(listed.length ? listed : DEFAULT_BUNDLES), ...added];
-  }
+  // `+opentype` adds to the defaults, a bare list replaces them (bundleList, shared with --prerender)
+  const bundles = bundleList(ds.bundles, DEFAULT_BUNDLES);
+  if (bundles) o.bundles = bundles;
   if (ds.snapshot === 'on' || ds.snapshot === 'auto') o.snapshot = 'auto';   // opt in: 5.8 MB format, faster after the first figure
   if (ds.prefetch === 'off') o.prefetch = [];                                  // default: the kinds the page contains
   if (ds.figures && ds.figures !== 'off') o.figuresBaseUrl = new URL(ds.figures.replace(/\/?$/, '/'), location.href).href;

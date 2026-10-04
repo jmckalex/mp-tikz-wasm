@@ -266,7 +266,10 @@ files into a folder you pick (Chrome, Edge) or downloads them as a zip. With
 it exists and the engines start only for the figures that are missing. The
 name is the content: a changed diagram gets a new file and a stale one is
 never requested, so `--prerender` keeps the files that exist (`--force`
-re-renders them). Each saved SVG carries its fonts and namespaced ids, so it
+re-renders them). Each page's figures are typeset with the bundles its loader
+names in `data-bundles` (`+classico`, `+opentype`), as in the browser, and
+`--base=DIR` resolves `data-figures` against DIR instead of the page's own
+directory (for a rendered copy of a PHP page saved elsewhere). Each saved SVG carries its fonts and namespaced ids, so it
 also works as a plain image anywhere. `mpTikzWasm.figures()` lists them. A
 page whose figures are all saved (or cached) loads five small JavaScript
 modules, about 17 KB gzipped: the library, the WebAssembly engines and the

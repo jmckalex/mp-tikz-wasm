@@ -160,3 +160,17 @@ describe('makeZip', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });
+
+describe('bundleList (data-bundles, shared by auto.js and --prerender)', () => {
+  it('adds +names to the defaults, replaces with bare names, and is undefined when empty', async () => {
+    const { bundleList } = await import('../../src/ts/figures.js');
+    const D = ['core', 'latex-core'];
+    expect(bundleList('+opentype', D)).toEqual(['core', 'latex-core', 'opentype']);
+    expect(bundleList('+opentype, +classico', D)).toEqual(['core', 'latex-core', 'opentype', 'classico']);
+    expect(bundleList('core tex-plain', D)).toEqual(['core', 'tex-plain']);
+    expect(bundleList('core +opentype', D)).toEqual(['core', 'opentype']);
+    expect(bundleList('', D)).toBeUndefined();
+    expect(bundleList(undefined, D)).toBeUndefined();
+  });
+});
+

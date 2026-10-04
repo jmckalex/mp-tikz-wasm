@@ -345,8 +345,13 @@ as the browser would (script bodies raw, custom-element bodies and attribute
 values entity-decoded), typesets each element with the browser's defaults
 (deterministic, seed 42) and writes the file into the directory the page's
 loader names in `data-figures` (default `figures/`, next to the page) or into
-`--figures=DIR`. Files that exist are kept; `--force` re-renders; `--dry-run`
-lists. Exit 1 if any figure failed (nothing is written for it, so it is tried
+`--figures=DIR`; `--base=DIR` resolves each page's `data-figures` against DIR
+instead of the page's own directory, for a rendered copy saved elsewhere. Each
+page's figures get the bundles its loader names in `data-bundles`, parsed as
+`auto.js` parses them (`bundleList()` in `figures.ts`, shared by both), with an
+engine per distinct list; `--opentype` adds the OpenType bundles to every page,
+and `createOptions.bundles` (API) overrides the pages. Files that exist are
+kept; `--force` re-renders; `--dry-run` lists. Exit 1 if any figure failed (nothing is written for it, so it is tried
 again next time). `prerender()` in `dist/prerender.js` is the same thing as a
 function.
 

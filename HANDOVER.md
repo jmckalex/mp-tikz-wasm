@@ -892,6 +892,14 @@ replacing its tikzjax with this library).
    with the text missing. Tests: `test/unit/stale-cache.test.ts`, an e2e case.
    Embedders with their own URL handlers (Clew-iOS `clew-preview://`,
    Palimpsest `pdfv://`) must ignore the query string.
+11. **`--prerender` honours `data-bundles`; `--base=DIR`** (reported by ph341):
+   the pre-renderer built every engine with the default bundles, so a page
+   whose loader said `+classico` failed in the CLI while rendering in the
+   browser. `bundleList()` (figures.ts) is now the one parser of
+   `data-bundles`, used by `auto.js` and `planPage`; `prerender()` groups
+   figures by bundle list, one engine each. `--base=DIR` / `baseDir` resolves
+   `data-figures` against another directory. ph341 can drop its own
+   `prerender.mjs`.
 9. **ph341** (lecture deck) now loads `/software/mp-tikz-wasm/dist/auto.js` for
    one diagram; for `<tikz-diagram>` it was told to use `class="mathjax_ignore"`
    (MathJax 3.2.2's ignore class, checked in its copy).

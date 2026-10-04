@@ -125,3 +125,45 @@ describe.skipIf(!built)('saved figures', () => {
     expect(out).toMatch(/0 rendered, 0 already saved, 0 failed, 3 to render/);
   }, 60_000);
 });
+
+// A page whose loader asks for an opt-in bundle (data-bundles="+opentype") must be
+// pre-rendered with it, as auto.js renders it in the browser (reported by ph341 with
+// +classico, which CI's TeX Live does not have; opentype is in every build).
+const OTF_PAGE = `<!doctype html>
+<html><head><script type="module" src="../dist/auto.js" data-bundles="+opentype" data-figures="figs/"></script></head>
+<body>
+<tikz-diagram data-engine="lualatex" data-packages="fontspec">\\begin{tikzpicture}\\node {OpenType};\\end{tikzpicture}</tikz-diagram>
+</body></html>`;
+
+describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/bundles/opentype/manifest.json')))('pre-rendering honours the page\'s data-bundles', () => {
+  let dir: string, page: string, P: any, F: any;
+  beforeAll(async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mpw-prerender-bundles-'));
+    page = path.join(dir, 'page.html');
+    fs.writeFileSync(page, OTF_PAGE);
+    P = await import(path.join(REPO, 'dist/prerender.js'));
+    F = await import(path.join(REPO, 'dist/figures.js'));
+  });
+  afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it('plans the page\'s bundle list as auto.js would, and resolves data-figures against a base', () => {
+    const plan = P.planPage(page);
+    expect(plan.bundles).toContain('opentype');
+    expect(plan.bundles).toContain('latex-core');
+    expect(P.planPage(page, undefined, '/deck').dir).toBe('/deck/figs');
+  });
+
+  it('typesets a fontspec figure with the page\'s +opentype, with no options from the caller', async () => {
+    const r = await P.prerender([page], { createOptions: { logLevel: 'silent' } });
+    expect(r.failed).toBe(0);
+    expect(r.rendered).toBe(1);
+    const name = F.figureName(F.figureHash(F.extractFigures(OTF_PAGE)[0]));
+    expect(fs.existsSync(path.join(dir, 'figs', name))).toBe(true);
+  }, 180_000);
+
+  it('the CLI takes --base for data-figures', () => {
+    const out = execFileSync('node', [path.join(REPO, 'dist/cli.js'), '--prerender', '--dry-run', '--force', `--base=${path.join(dir, 'deck')}`, page], { encoding: 'utf8', cwd: dir });
+    expect(out).toContain(path.join('deck', 'figs', 'figure-'));
+  });
+});
+

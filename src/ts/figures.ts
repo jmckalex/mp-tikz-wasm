@@ -182,6 +182,20 @@ export function extractFigures(html: string): FoundFigure[] {
 }
 
 /** The `data-*` attributes of the page's auto.js loader tag (`data-figures` → `figures`), or {} if there is none. */
+/**
+ * A loader's data-bundles as a bundle list: names prefixed with + are added to the
+ * defaults (`+opentype`), a bare list replaces them; mixing the two is a replace
+ * with the +names appended. undefined when the attribute is absent or empty. The
+ * one parser for auto.js and the pre-renderer, so they can never load different sets.
+ */
+export function bundleList(spec: string | undefined, defaults: readonly string[]): string[] | undefined {
+  const names = (spec ?? '').split(/[,\s]+/).filter(Boolean);
+  if (!names.length) return undefined;
+  const added = names.filter((n) => n.startsWith('+')).map((n) => n.slice(1));
+  const listed = names.filter((n) => !n.startsWith('+'));
+  return [...(listed.length ? listed : defaults), ...added];
+}
+
 export function loaderAttributes(html: string): Record<string, string> {
   const m = /<script\b([^>]*\bsrc\s*=\s*["'][^"']*auto\.js["'][^>]*)>/i.exec(html);
   if (!m) return {};
