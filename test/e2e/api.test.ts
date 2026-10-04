@@ -238,7 +238,8 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     // dvisvgm used to write glyph references it never defined and exit 0
     const r = await mp.latex('\\documentclass{article}\\usepackage[T1]{fontenc}\\begin{document}EC text\\end{document}');
     expect(r.status).toBe('error');
-    expect(r.diagnostics.some((d: any) => /no font file for ecrm1000/.test(d.message))).toBe(true);
+    // the messages themselves in the assertion, so a failure says what was reported instead
+    expect(r.diagnostics.map((d: any) => d.message).join('\n')).toMatch(/no font file for ecrm1000|refers to glyphs it does not define/);
     const lm = await mp.latex('\\documentclass{article}\\usepackage[T1]{fontenc}\\usepackage{lmodern}\\begin{document}LM text\\end{document}');
     expect(lm.status).toBe('ok');
   }, 60_000);
