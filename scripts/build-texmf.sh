@@ -55,7 +55,7 @@ for d in base tex-ini-files l3kernel l3backend l3packages amsmath amsfonts amscl
          xcolor pgf tikz-cd pgfplots spath3 psnfss kvoptions etoolbox xkeyval geometry booktabs mathtools \
          ec standalone varwidth preview currfile filehook fontenc \
          hyperref hycolor kvsetkeys refcount rerunfilecheck atveryend letltxmacro auxhook url listings fp imakeidx todonotes firstaid \
-         circuitikz tikz-3dplot epstopdf-pkg grfext; do
+         circuitikz tikz-3dplot epstopdf-pkg grfext fontaxes figureversions; do
   [ -d "$TEXMF/tex/latex/$d" ] && cp -R "$TEXMF/tex/latex/$d" "$OUT/tex/latex/$d"
 done
 # circuitikz keeps every earlier release for LaTeX's rollback (\usepackage{circuitikz}[=v0.9.3],
@@ -218,13 +218,31 @@ for d in avantgar bookman courier helvetic ncntrsbk palatino symbol times zapfch
   [ -d "$TEXMF/fonts/type1/urw/$d" ] && find "$TEXMF/fonts/type1/urw/$d" -name '*.pfb' -exec cp {} "$OUT/fonts/type1/" \;
 done
 [ -f "$TEXMF/fonts/enc/dvips/base/8r.enc" ] && cp "$TEXMF/fonts/enc/dvips/base/8r.enc" "$OUT/fonts/enc/"
+# --- URW Classico (the opt-in `classico` bundle) -----------------------------
+# Hermann Zapf's revision of Optima for URW++ (CTAN: classico). NOT part of TeX
+# Live: URW released the fonts under the Aladdin Free Public License, which allows
+# non-commercial distribution only (NOTICE.md, licenses/COPYING.AFPL). So it is
+# taken from whichever TeX tree has it -- here texmf-local, from CTAN's
+# classico.tds.zip -- and skipped with a note where none does (CI, for one).
+CLTREE="$(tree_with tex/latex/classico/classico.sty || true)"
+if [ -n "$CLTREE" ]; then
+  cp -R "$CLTREE/tex/latex/classico" "$OUT/tex/latex/classico"
+  find "$CLTREE/fonts/tfm/urw/classico" -name '*.tfm' -exec cp {} "$OUT/fonts/tfm/" \;
+  find "$CLTREE/fonts/vf/urw/classico" -name '*.vf' -exec cp {} "$OUT/fonts/vf/" \;
+  find "$CLTREE/fonts/type1/urw/classico" -name '*.pfb' -exec cp {} "$OUT/fonts/type1/" \;
+  find "$CLTREE/fonts/enc/dvips/classico" -name '*.enc' -exec cp {} "$OUT/fonts/enc/" \;
+  # the TrueType faces, which classico.sty asks fontspec for under LuaLaTeX
+  mkdir -p "$OUT/fonts/truetype/urw/classico" && cp "$CLTREE"/fonts/truetype/urw/classico/*.ttf "$OUT/fonts/truetype/urw/classico/"
+else
+  echo "note: URW Classico (classico) is in no TeX tree here; the classico bundle will be empty" >&2
+fi
 # MetaPost looks for mpost.map first, then psfonts.map (psout.w); pdfTeX in PDF
 # mode and dvisvgm read pdftex.map / ps2pk.map. All are built from the dvips map
 # fragments of the fonts we ship; a fragment absent from this TeX Live is skipped.
 : > "$OUT/fonts/map/mpost.map"
 for rel in fonts/map/dvips/amsfonts/cm.map fonts/map/dvips/amsfonts/cmextra.map fonts/map/dvips/amsfonts/symbols.map \
            fonts/map/dvips/amsfonts/euler.map fonts/map/dvips/amsfonts/latxfont.map fonts/map/dvips/lm/lm.map \
-           fonts/map/dvips/tetex/ps2pk35.map; do
+           fonts/map/dvips/tetex/ps2pk35.map fonts/map/dvips/classico/classico.map; do
   t="$(tree_with "$rel" || true)"; [ -n "$t" ] && cat "$t/$rel" >> "$OUT/fonts/map/mpost.map"
 done
 cp "$OUT/fonts/map/mpost.map" "$OUT/fonts/map/psfonts.map"

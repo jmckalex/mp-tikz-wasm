@@ -266,6 +266,26 @@ fresh filesystem, so the instance carries luaotfload's `/texmf-var` cache from
 one run to the next (1052 ms → 430 ms on a repeat; `trace` logs its size). It
 lives as long as the instance and is not yet persisted across sessions.
 
+### 4.2 URW Classico: the `classico` bundle
+
+Hermann Zapf's revision of his Optima for URW++, with Michael Sharpe's LaTeX
+support from CTAN. Opt-in, and the one bundle that is not free software: its
+fonts are under the Aladdin Free Public License, which allows non-commercial
+distribution only (`NOTICE.md`), so TeX Live leaves it out and it is built from a
+local install (a tree without one builds an empty bundle). Ask for it with
+`bundles: [...DEFAULT_BUNDLES, 'classico']`, or `data-bundles="+classico"` on the
+tags' loader, then in the document or `data-preamble`:
+
+```latex
+\usepackage[T1]{fontenc}\usepackage{classico}          % Classico as the sans-serif font
+\usepackage[T1]{fontenc}\usepackage[sfdefault]{classico} % ... as the main font
+```
+
+`\sf`/`\sffamily`, `\textbf` and `\textit` within it pick up Classico Regular,
+Bold, Italic and Bold Italic, in SVG and in PDF output (the Type 1 faces,
+embedded). Under LuaLaTeX `classico.sty` loads `fontspec` for the TrueType
+faces, so add the `opentype` bundle too, or pass the package's `type1` option.
+
 ## 5. The CLI
 
 `mpost-wasm` should be a drop-in for `mpost` for the flags people actually use:

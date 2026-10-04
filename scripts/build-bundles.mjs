@@ -34,8 +34,16 @@ const isDefaultFace = (p) => p.startsWith('fonts/opentype/public/lm/');
 // engine's font cache from it so a fresh engine does not open every face to build it.
 const isFontDb = (p) => p.startsWith('luaotfload/');
 
+// URW Classico (the opt-in `classico` bundle): kept apart because it is the one
+// thing here that is not free software -- Aladdin Free Public License,
+// non-commercial distribution only (NOTICE.md). Its flattened files are told apart
+// by name; it must precede ps-fonts (whose u??* pattern matches uopr8a.pfb),
+// cm-tfm / cm-type1, lm-fonts (fonts/enc/), latex-extra and otf-fonts (truetype).
+const isClassico = (p) => p.startsWith('tex/latex/classico/') || /^fonts\/(tfm|vf|type1)\/(URWClassico-|uop)/.test(p)
+  || /^fonts\/enc\/clsc_/.test(p) || p.startsWith('fonts/truetype/urw/classico/');
 const SKIP = (p) => (p.startsWith('tex/generic/unicode-data/') && !isUnicodeRuntime(p)) || p === 'fonts/map/texfonts.map' || p.startsWith('tex/generic/config/');
 const RECIPES = [
+  ['classico',   isClassico],
   ['core',       (p) => p.startsWith('web2c/texmf.cnf') || p.startsWith('metapost/') || p.startsWith('fonts/map/')],
   // the 35 standard PostScript fonts: psnfss metrics/virtual fonts (p??*), URW Type 1 (u??*), the 8r encoding
   ['ps-fonts',   (p) => /^fonts\/(tfm|vf)\/p[a-z]{2}[a-z0-9]*\.(tfm|vf)$/.test(p) || /^fonts\/type1\/u[a-z]{2}[a-z0-9]*\.pfb$/.test(p) || p === 'fonts/enc/8r.enc'],

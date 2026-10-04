@@ -5,7 +5,7 @@
 
 export type BundleName =
   | 'core' | 'cm-tfm' | 'cm-type1' | 'tex-plain' | 'latex-core' | 'latex-extra'
-  | 'opentype' | 'otf-fonts'
+  | 'opentype' | 'otf-fonts' | 'classico'
   | (string & {});
 
 export interface BundleSpec {

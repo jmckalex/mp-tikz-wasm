@@ -13,8 +13,10 @@ Each part keeps its licence; the table says what applies to what.
 | LuaTeX (`luatex.wasm`) | GPL-2.0-or-later | includes Lua 5.3 (MIT), pplib (Paweł Jackowski, permissive; see `libs/pplib` in the TeX Live source), zziplib (LGPL-2.1-or-later or MPL-1.1), the fontforge-derived font loader (BSD-3-Clause), kpathsea, and our patched mplib; `luatex.wasm` is distributed under the GPL |
 | dvisvgm (`dvisvgm.wasm`) | GPL-3.0-or-later | includes FreeType (FTL), potrace (GPL-2.0-or-later), clipper (Boost), woff2 and brotli (MIT), xxHash (BSD), the URW base-14 CFF fonts as distributed by dvisvgm |
 | Computer Modern, AMS and Latin Modern fonts (`bundles/`) | Knuth's licence / AMS / GUST Font License | |
+| URW Classico fonts (`bundles/classico`, opt-in) | **Aladdin Free Public License** (`licenses/COPYING.AFPL`) | (URW)++ Design & Development, 2000 and 2013; the LaTeX support (`classico.sty`, `.fd`, metrics) by Michael Sharpe, from CTAN's `classico`. The AFPL allows modification and **non-commercial** distribution only, which is why TeX Live does not include it: anyone redistributing this project's bundles in a commercial product must leave the `classico` bundle out. Not part of TeX Live; built from a local install. |
 | LaTeX, PGF/TikZ, pgfplots and the other macro packages (`bundles/`) | LPPL 1.3c and package-specific free licences | see each package's header in TeX Live |
 
 The full texts are in the repository: `LICENSE` (LGPL-3.0, this project's own
 licence) and `licenses/GPL-3.0.txt` / `licenses/LGPL-3.0.txt`, copied from
-<https://www.gnu.org/licenses/>.
+<https://www.gnu.org/licenses/>; `licenses/COPYING.AFPL` is the Aladdin Free Public
+License of the URW Classico fonts, as distributed with CTAN's `classico`.

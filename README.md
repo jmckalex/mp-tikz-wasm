@@ -404,7 +404,7 @@ with, and the twelve patches.
 | `tex.wasm` | 1.1 MB | pdfTeX 1.40.27 in DVI mode with kpathsea, zlib, libpng |
 | `dvisvgm.wasm` | 2.6 MB | dvisvgm 3.4.3 with FreeType, potrace, clipper, woff2 and PGF's special handlers |
 | `luatex.wasm` | 4.2 MB, on demand | LuaTeX 1.21.0 in DVI mode with Lua 5.3, pplib, zziplib and the font loader; no C FFI |
-| `bundles/` | 81 MB on the server (60 MB default, 21 MB opt-in OpenType), per file on demand | Computer Modern, AMS, Latin Modern and the 35 PostScript fonts; plain, LaTeX and TikZ formats; PGF/TikZ with every library, pgfplots, tikz-cd, spath3 (the `calligraphy` and `knots` libraries, which pgf does not ship), chemfig, circuitikz, tikz-3dplot, this project's `svg.attributes` TikZ library, amsmath, mathtools, xcolor, standalone, geometry, hyperref, listings and more |
+| `bundles/` | 82 MB on the server (60 MB default, 21 MB opt-in OpenType, 1 MB opt-in URW Classico), per file on demand | Computer Modern, AMS, Latin Modern and the 35 PostScript fonts; plain, LaTeX and TikZ formats; PGF/TikZ with every library, pgfplots, tikz-cd, spath3 (the `calligraphy` and `knots` libraries, which pgf does not ship), chemfig, circuitikz, tikz-3dplot, this project's `svg.attributes` TikZ library, amsmath, mathtools, xcolor, standalone, geometry, hyperref, listings and more |
 
 Typical timings on an Apple-silicon laptop: a geometry figure 14 ms, a LaTeX
 label with amsmath 185 ms cold and 5 ms warm, a TikZ standalone figure about

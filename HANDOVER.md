@@ -865,6 +865,24 @@ replacing its tikzjax with this library).
    builders' own externals (checked to fail without the fix). Lesson: never
    silence a build step's output.
 
+7. **URW Classico, the opt-in `classico` bundle** (the owner's decision, asked
+   by ph341 for slides in Optima). Not in TeX Live: its fonts are under the
+   **Aladdin Free Public License** (non-commercial distribution only); the owner
+   decided to bundle it because Clew and Palimpsest are not commercial. Built
+   from the local install in `texmf-local` (a tree without it builds an empty
+   bundle; CI has none, so `test/e2e/classico.test.ts` skips there). 67 files,
+   987 KB; `classico.map` folded into the shared font maps; `fontaxes` and
+   `figureversions` (its dependencies, LPPL) added to `latex-extra`.
+   `NOTICE.md` row and `licenses/COPYING.AFPL`; `docs/08` §4.2. Checked: ph341's
+   diagram with `\usepackage[T1]{fontenc}\usepackage{classico}` sets `\sf` and
+   `\textbf` in Classico Regular/Bold (SVG; PDF embeds both). **Not released**:
+   the next release (0.3.2) would carry it; production deploy waits for that.
+8. **`.ttc` collections fail in paths mode too** — found while trying macOS
+   Optima for ph341; docs corrected (3e23bdc). Split faces work.
+9. **ph341** (lecture deck) now loads `/software/mp-tikz-wasm/dist/auto.js` for
+   one diagram; for `<tikz-diagram>` it was told to use `class="mathjax_ignore"`
+   (MathJax 3.2.2's ignore class, checked in its copy).
+
 ## CI — green as of 2026-09-29 (first green in session 4)
 
 `.github/workflows/ci.yml` runs two jobs on every push, both green, with time
