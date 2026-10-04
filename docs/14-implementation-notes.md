@@ -805,15 +805,19 @@ prefix. Three unit tests in `test/unit/svg-post.test.ts`. Note it only bites
 callers who ask for post-processing — `latex()` does no post-processing unless
 given `svg: {...}`, while the tags and `--prerender` always pass an `idPrefix`.
 
-**TrueType Collections still do not work in `woff2` mode — not fixed.**
+**TrueType Collections do not work — in either output mode; not fixed.**
 dvisvgm keys a native font by file path, and a `.ttc` face index is not part of
 that key, so `\setmainfont{X.ttc}[FontIndex=7, BoldFeatures={FontIndex=0}]`
 gives four TeX fonts that collapse into one `@font-face`. Since glyph ids differ
 between members of a collection, the bold and italic runs then draw whatever
 glyph the regular subset has at that id — garbled, not merely unstyled.
-`fonts: 'paths'` renders the same document correctly (17 distinct outlines
-against one embedded face), so it is specific to the webfont path and is
-dvisvgm's to fix. The workaround is one file per face: extracting faces 7, 0, 4
+Session 9 believed `fonts: 'paths'` rendered the same document correctly,
+having counted 17 distinct outlines against one embedded face; session 12
+looked at the output instead and found otherwise: `Optima.ttc` faces 0–3 set
+as regular, bold, italic and bold italic all drew as bold italic in paths mode
+(luaotfload had loaded `Optima.ttc](0)` … `(3)` correctly, so the faces merge
+after TeX, in dvisvgm). The same faces split into four `.ttf` files drew
+correctly. dvisvgm's to fix. The workaround is one file per face: extracting faces 7, 0, 4
 and 1 of `Avenir Next.ttc` into four `.ttf` files and naming them with
 `BoldFont=`/`ItalicFont=` gives four correct `@font-face` rules. Worth knowing
 before pointing this at macOS system fonts, where `.ttc` is common.

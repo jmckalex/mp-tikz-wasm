@@ -125,7 +125,7 @@ and §2.
 
 ## Four traps, all verified upstream
 
-**TrueType Collections are broken in `woff2` mode.** This matters immediately:
+**TrueType Collections are broken, in both output modes.** This matters immediately:
 Clew's `--clew-editor-font` is Avenir Next, which macOS ships as
 `/System/Library/Fonts/Avenir Next.ttc` — a collection. dvisvgm keys an embedded
 font by file path, and the face index is not part of that key, so
@@ -139,8 +139,11 @@ faces you need into separate `.ttf`/`.otf` files and name them with `BoldFont=`
 / `ItalicFont=`. For Avenir Next the indices are Regular 7, Bold 0, Italic 4,
 Bold Italic 1 — note index 0 is Bold, not Regular, so a bare
 `\setmainfont{Avenir Next.ttc}` silently gives you the bold face. Same applies
-to Helvetica Neue and Menlo. `fonts="paths"` renders collections correctly if
-you would rather avoid the whole problem.
+to Helvetica Neue and Menlo. *Corrected in session 12:* `fonts="paths"` is not
+a way round it. Rendering `Optima.ttc` with faces 0–3 as regular, bold, italic
+and bold italic drew all four as bold italic in paths mode too, while the same
+four faces split into `.ttf` files drew correctly. One file per face is the
+only route.
 
 **Name the file, not the family.** `\setmainfont{X.ttf}[Path=./]` always
 works. A lookup by family name of a face handed over with `addFiles()` goes

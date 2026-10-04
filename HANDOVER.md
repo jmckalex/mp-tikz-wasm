@@ -467,8 +467,9 @@ tree is clean.
     is the tags and `--prerender`, so it was reachable in practice. One **not
     fixed and dvisvgm's to fix**: a `.ttc` collection collapses to a single
     `@font-face` because the face index is not part of dvisvgm's font key, so
-    bold and italic draw garbled glyphs; `fonts: 'paths'` is fine. Workaround
-    is one file per face. Both are written up in `docs/14` §15.
+    bold and italic draw garbled glyphs. (Session 9 thought `fonts: 'paths'`
+    was fine; session 12 found the faces merge there too — `Optima.ttc` drew
+    all four styles as bold italic.) Workaround is one file per face. Both are written up in `docs/14` §15.
 11. **Plain LuaTeX cannot have OpenType — diagnosed to one missing callback;
     fixed in session 10** (see "What happened in session 10"; the rest of
     this item is session 9's analysis, kept as written). Session 9 took this
