@@ -221,6 +221,18 @@ action from Clew, but the first two change behaviour.
   `woff2` faces. If Clew sanitises figure SVG, use DOMPurify as in the README
   ("Untrusted sources"); Clew's own notes are trusted input and need none.
 
+## In 0.3.2 (unreleased)
+
+- **Bundle file URLs carry the file's hash:** `…/files/<path>?v=<sha>`, from
+  the manifest. A rebuilt file gets a new URL, so Clew's cache-clearing asset
+  stamp is no longer needed for bundle files. **A custom URL handler
+  (`clew-preview://`, Electron's protocol) must look files up by the URL's
+  path and ignore the query string.** Manifests are fetched with
+  `cache: 'no-cache'`.
+- **A missing font is an error now.** If dvisvgm finds no outline file for a
+  font, or the SVG refers to glyphs it does not define, `mp.latex()` reports
+  `error` instead of returning text-less SVG, and the tags do not cache it.
+
 ## In 0.3.1
 
 - **PDF output, on request:** `mp.latex(doc, { output: 'pdf' })` returns

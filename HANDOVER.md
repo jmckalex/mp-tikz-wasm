@@ -879,6 +879,19 @@ replacing its tikzjax with this library).
    the next release (0.3.2) would carry it; production deploy waits for that.
 8. **`.ttc` collections fail in paths mode too** — found while trying macOS
    Optima for ph341; docs corrected (3e23bdc). Split faces work.
+10. **Stale HTTP caches** (reported by ph341 after the Classico rebuild): MAMP
+   sends no Cache-Control, so Chrome reused yesterday's `latex-extra`
+   manifest (no `fontaxes`) and font maps (no Classico); dvisvgm then wrote
+   glyph references it never defined, **exited 0**, and the tags cached the
+   empty figure. Fixed: bundle file URLs carry the manifest's `?v=<sha>`,
+   manifests and hot lists are fetched with `cache: 'no-cache'`, and a LaTeX
+   render whose dvisvgm log says "no font file found" or whose SVG has
+   dangling `href="#…"` is now an **error** (not cached). This also turns a
+   long-silent failure into an error: T1 without `lmodern` uses the EC fonts,
+   whose Type 1 outlines (cm-super) are not bundled, and used to come out "ok"
+   with the text missing. Tests: `test/unit/stale-cache.test.ts`, an e2e case.
+   Embedders with their own URL handlers (Clew-iOS `clew-preview://`,
+   Palimpsest `pdfv://`) must ignore the query string.
 9. **ph341** (lecture deck) now loads `/software/mp-tikz-wasm/dist/auto.js` for
    one diagram; for `<tikz-diagram>` it was told to use `class="mathjax_ignore"`
    (MathJax 3.2.2's ignore class, checked in its copy).
@@ -1166,7 +1179,10 @@ and sync the website (`make sync-eschatolog`, dry run first) after a release.
     `dist/*.js` in nginx. See "The website". The same problem one level
     down — bundle files served with a long `max-age` — bit Clew in session
     10, and the manifest's per-file `sha` in the file URL is the fix for
-    both (next steps).
+    both. **Half done in session 12:** bundle file URLs now carry `?v=<sha>`
+    and manifests/hot lists are fetched with `cache: 'no-cache'` (after ph341
+    hit a stale font map; see session 12 item 10). `dist/*.js` and the engines
+    are still unversioned.
 13. **Saved-figure caveats, documented rather than solved** (session 6): a
     MetaPost element with several `beginfig` blocks saves the several
     `<svg>` roots it injects, joined by newlines — exact for the tags, not a
@@ -1362,12 +1378,10 @@ worth doing:
   `continue-on-error`; loose end 24); a DOM test library (happy-dom) so the
   live elements and `data-replace` are tested automatically; WorkerBackend
   rejecting calls at once after a watchdog kill (loose end 23).
-- **Put the manifest's per-file `sha` into bundle file URLs** (`?v=<sha>`,
-  `src/ts/vfs/bundle.ts`, one line where `url` is built — mind the Node
-  I/O path, which reads files by path). Both sides asked for it in session
-  10: a served bundle could then carry a long `max-age` safely, Clew could
-  drop its cache-clearing stamp, and loose end 12 (the 30-day cache on
-  `dist/*.js`) is the same fix one level up.
+- **Version `dist/*.js` and the engines too** (the rest of loose end 12):
+  bundle files carry `?v=<sha>` since session 12; the scripts and `.wasm`
+  do not, so a returning visitor can still pair an old `auto.js` with new
+  pages for up to 30 days on the droplet.
 - **Arbitrary LaTeX from a local (or served) TeX Live.** The user asked about
   this; it is well within reach because the hard parts already exist — the
   `find_file` host hook (`mpwasm_host_find_file`, surfaced as the `onFindFile`

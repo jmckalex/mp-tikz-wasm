@@ -266,6 +266,17 @@ fresh filesystem, so the instance carries luaotfload's `/texmf-var` cache from
 one run to the next (1052 ms → 430 ms on a repeat; `trace` logs its size). It
 lives as long as the instance and is not yet persisted across sessions.
 
+### 4.1a Caching bundle files
+
+Every bundle file's URL carries the hash the manifest records for it
+(`…/files/<path>?v=<sha>`), so a rebuilt file has a new URL and an HTTP cache
+can never hand back a stale copy; an unchanged file can be cached for good.
+Manifests and hot lists (which name the current files) are fetched with
+`cache: 'no-cache'`, so they are revalidated on every start-up (a 304 when
+unchanged). A custom `bundleIO`, or a custom URL scheme serving the bundles,
+should look files up by path and ignore the query. Node strips it before
+reading from disk.
+
 ### 4.2 URW Classico: the `classico` bundle
 
 Hermann Zapf's revision of his Optima for URW++, with Michael Sharpe's LaTeX

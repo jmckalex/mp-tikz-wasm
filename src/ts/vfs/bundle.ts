@@ -64,7 +64,12 @@ export class BundleSet {
     const blobBase = spec.blobBaseUrl ?? joinUrl(base, 'files');
     for (const [path, info] of Object.entries(manifest.files)) {
       if (this.files.has(path)) continue;      // first bundle wins
-      const f: BundleFile = { bundle: manifest.name, path, size: info.size, sha: info.sha, url: joinUrl(blobBase, path) };
+      // The file's hash in its URL: a rebuilt file gets a new URL, so an HTTP cache can
+      // never hand back a stale copy (a server that sends no Cache-Control lets the
+      // browser reuse files heuristically; a new font with an old font map then drew
+      // nothing), and an unchanged one may be cached for good.
+      const url = joinUrl(blobBase, path) + (info.sha ? `?v=${info.sha}` : '');
+      const f: BundleFile = { bundle: manifest.name, path, size: info.size, sha: info.sha, url };
       this.files.set(path, f);
       const name = path.slice(path.lastIndexOf('/') + 1);
       const list = this.byName.get(name);
@@ -250,7 +255,8 @@ export class BundleSet {
 export function browserIO(): BundleIO {
   const io: BundleIO = {
     async fetch(url) { const r = await fetch(url); if (!r.ok) throw new Error(`fetch ${url}: ${r.status}`); return new Uint8Array(await r.arrayBuffer()); },
-    async fetchJson(url) { const r = await fetch(url); if (!r.ok) throw new Error(`fetch ${url}: ${r.status}`); return r.json(); },
+    // manifests and hot lists name the current files: always revalidated (a 304 when unchanged)
+    async fetchJson(url) { const r = await fetch(url, { cache: 'no-cache' }); if (!r.ok) throw new Error(`fetch ${url}: ${r.status}`); return r.json(); },
   };
   if (inWorker && typeof XMLHttpRequest !== 'undefined') {
     io.fetchSync = (url) => {

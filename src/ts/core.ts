@@ -27,6 +27,15 @@ const FONT_DB = 'luaotfload-names.lua.gz';
 const FONT_DB_SEED = `${TEXMF_ROOT}/luaotfload/${FONT_DB}`;
 const FONT_DB_PATH = `${TEXMF_VAR}/luatex-cache/generic/names/${FONT_DB}`;
 
+/** The local references (href="#id") in an SVG that name no element in it. */
+export function danglingRefs(svg: string): string[] {
+  const ids = new Set<string>();
+  for (const m of svg.matchAll(/\bid=(["'])([^"']+)\1/g)) ids.add(m[2]);
+  const missing = new Set<string>();
+  for (const m of svg.matchAll(/href=(["'])#([^"']+)\1/g)) if (!ids.has(m[2])) missing.add(m[2]);
+  return [...missing];
+}
+
 /** Where MetaPost looks for each file type (docs/06 §2). */
 export const SEARCH_PATHS: Record<number, string[]> = {
   [MpFtype.program]: ['/work', `${TEXMF_ROOT}/metapost/base`, `${TEXMF_ROOT}/metapost`],
@@ -457,6 +466,7 @@ export class MetaPostCore {
     // history the status only turns on errors: ok | error | fatal (no DVI).
     let status: LatexResult['status'] = (tex.exitCode === 0 && !diagnostics.some((d) => d.severity === 'error')) ? 'ok' : 'error';
     const pages: string[] = [];
+    const danglingPages: string[] = [];
     let dvisvgmLog = '';
     let dvisvgmMs = 0;
     // 2. DVI → SVG (PDF output is finished: TeX wrote it)
@@ -481,12 +491,26 @@ export class MetaPostCore {
             .sort((a, b) => Number(/-(\d+)\.svg$/.exec(a)![1]) - Number(/-(\d+)\.svg$/.exec(b)![1]));
           for (let i = 0; i < names.length; i++) {
             const svg = M.FS.readFile(names[i], { encoding: 'utf8' }) as string;
+            const dangling = danglingRefs(svg);
+            if (dangling.length) danglingPages.push(`page ${i + 1}: ${plural(dangling.length, 'reference')} (${dangling.slice(0, 3).join(', ')}${dangling.length > 3 ? ', …' : ''})`);
             pages.push(lo.svg ? postProcessSvg(svg, lo.svg, i) : svg);
           }
         },
         onLine: (l) => { this.env.onLog?.(l); this.logger.debug('dvisvgm', l); },
       });
       dvisvgmLog = r.log; dvisvgmMs = r.ms;
+      // dvisvgm carries on when a font has no outline file (no map entry, no .pfb):
+      // it writes <use> references to glyphs it never defines and exits 0, so the
+      // text silently vanishes -- and the tags would cache that. Seen with a stale,
+      // HTTP-cached font map that predated a font. Make both signs of it errors.
+      const noFont = [...new Set([...r.log.matchAll(/no font file found for '([^']+)'/g)].map((m) => m[1]))];
+      if (noFont.length) {
+        status = 'error';
+        diagnostics.push({ severity: 'error', source: 'host', message: `dvisvgm found no font file for ${noFont.join(', ')}: their glyphs are missing from the SVG (no entry in the font map, or the font is not bundled)` });
+      } else if (danglingPages.length) {
+        status = 'error';
+        diagnostics.push({ severity: 'error', source: 'host', message: `the SVG refers to glyphs it does not define -- ${danglingPages.join('; ')}` });
+      }
       this.logger.info('host', `dvisvgm: ${plural(pages.length, 'page')} in ${ms(r.ms)}${r.exitCode ? `, exit ${r.exitCode}` : ''}`);
       if (r.exitCode !== 0 && pages.length === 0) {
         status = 'error';

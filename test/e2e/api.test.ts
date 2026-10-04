@@ -233,6 +233,16 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     }, 60_000);
   });
 
+  it('reports a font with no outline file instead of an SVG with the text missing', async () => {
+    // T1 without lmodern means the EC fonts, whose Type 1 outlines (cm-super) are not bundled:
+    // dvisvgm used to write glyph references it never defined and exit 0
+    const r = await mp.latex('\\documentclass{article}\\usepackage[T1]{fontenc}\\begin{document}EC text\\end{document}');
+    expect(r.status).toBe('error');
+    expect(r.diagnostics.some((d: any) => /no font file for ecrm1000/.test(d.message))).toBe(true);
+    const lm = await mp.latex('\\documentclass{article}\\usepackage[T1]{fontenc}\\usepackage{lmodern}\\begin{document}LM text\\end{document}');
+    expect(lm.status).toBe('ok');
+  }, 60_000);
+
   it('produces one SVG per page and maps errors to lines', async () => {
     const r = await mp.latex(`\\documentclass{article}\\pagestyle{empty}\\begin{document}one\\newpage two \\undefinedmacro\\end{document}`);
     expect(r.pages).toHaveLength(2);
