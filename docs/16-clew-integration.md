@@ -22,12 +22,9 @@ With `fonts="woff2"`, the SVG embeds a subset of the *same font file* as
 text renderer in the same face the surrounding note uses, and its text is
 selectable.
 
-**This is on the branch `opentype-fonts` (its head; `262fb36` is the last
-session-9 commit). It is NOT merged and NOT released.** Do not touch `src/shared/mptikz-manifest.json` yet — there is no
-release to pin. Until there is one, this only works on a machine where
-`stage-mptikz.js` picks up the owner's local build at
-`~/Source/mp-tikz-wasm/dist`, which it already prefers. Treat the work below as
-ready to write but gated on a release; coordinate before shipping.
+**Released since 0.3.0** (2026-09-28); "In 0.3.1" and "In 0.3.2" below say
+what followed. Pin moves go through Clew-boss, so that Clew-app and Clew-iOS
+move together.
 
 ## What Clew has to do
 
@@ -130,12 +127,11 @@ Clew's `--clew-editor-font` is Avenir Next, which macOS ships as
 `/System/Library/Fonts/Avenir Next.ttc` — a collection. Releases up to and
 including 0.3.1 draw every face of a collection as one, in both output modes:
 dvisvgm keyed a font by file path, not face index (a dvisvgm defect, which
-`patches/dvisvgm/0001` fixes after 0.3.1, not yet released). With those releases the
-only route is **one file per face**: extract the faces into separate
-`.ttf`/`.otf` files and name them with `BoldFont=` / `ItalicFont=`.
+`patches/dvisvgm/0001` fixes in 0.3.2). With those releases the only route is
+**one file per face**: extract the faces into separate `.ttf`/`.otf` files and
+name them with `BoldFont=` / `ItalicFont=`.
 
-From the first release carrying the patch, hand over the `.ttc` itself and
-give each face its index:
+From 0.3.2, hand over the `.ttc` itself and give each face its index:
 
 ```latex
 \setmainfont{Avenir Next.ttc}[Path=./, UprightFeatures={FontIndex=7},
@@ -227,7 +223,7 @@ action from Clew, but the first two change behaviour.
   `woff2` faces. If Clew sanitises figure SVG, use DOMPurify as in the README
   ("Untrusted sources"); Clew's own notes are trusted input and need none.
 
-## In 0.3.2 (unreleased)
+## In 0.3.2
 
 - **Bundle file URLs carry the file's hash:** `…/files/<path>?v=<sha>`, from
   the manifest. A rebuilt file gets a new URL, so Clew's cache-clearing asset
@@ -238,6 +234,16 @@ action from Clew, but the first two change behaviour.
 - **A missing font is an error now.** If dvisvgm finds no outline file for a
   font, or the SVG refers to glyphs it does not define, `mp.latex()` reports
   `error` instead of returning text-less SVG, and the tags do not cache it.
+- **TrueType Collections work** (`patches/dvisvgm/0001`): name each face by
+  `FontIndex`, as in "Four traps" above, instead of splitting the `.ttc`.
+- **`classico`, an opt-in bundle:** URW Classico (an Optima) for
+  `\usepackage{classico}`, added with `bundles: [...DEFAULT_BUNDLES,
+  'classico']` or `data-bundles="+classico"`. Its fonts are under the Aladdin
+  Free Public License (non-commercial distribution only), so it is never in
+  the defaults.
+- **`mpost-wasm --prerender` honours each page's `data-bundles`**, as the
+  browser does, and `--base=DIR` resolves `data-figures` against another
+  directory.
 
 ## In 0.3.1
 
