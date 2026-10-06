@@ -430,7 +430,11 @@ about 450 ms.
 
 ## Limits
 
-No PDF output, no Ghostscript, no `\write18`, no interactive error recovery.
+No Ghostscript, so PostScript specials are skipped: PSTricks, EPS images, raw
+`\special{ps: …}`, and graphicx's `\rotatebox`/`\scalebox` under its default
+dvips driver. `latex()` adds a warning diagnostic when that loses part of the
+picture. Headers and hyperref's pdfmarks, which nearly every document has,
+draw nothing and do not trigger it. No `\write18`, no interactive error recovery.
 The `runScript` and `makeText` callbacks force in-process mode. XeTeX is not
 included — OpenType fonts come from LuaTeX instead, see below. OpenType
 shaping is luaotfload's Lua `mode=node`, not HarfBuzz (this is `luatex`, not

@@ -344,7 +344,7 @@ __FIG:otf-math__
 
 <h2 id="limits">Limits</h2>
 <ul>
-  <li>No Ghostscript, so raw PostScript specials (pstricks, or PGF forced onto its dvips driver) are ignored; no external image inclusion in SVG output (PDF output includes PNG and JPEG, not PDF images).</li>
+  <li>No Ghostscript, so PostScript specials are skipped: pstricks, EPS images, raw <code>\special{ps: …}</code>, graphicx's <code>\rotatebox</code>/<code>\scalebox</code> under its default dvips driver, or PGF forced onto its dvips driver. <code>latex()</code> warns when that loses part of the picture. No external image inclusion in SVG output (PDF output includes PNG and JPEG, not PDF images).</li>
   <li>OpenType is opt-in and LuaTeX-only: there is no XeTeX, and shaping is luaotfload's Lua <code>mode=node</code>, not HarfBuzz (this is <code>luatex</code>, not <code>luahbtex</code>), so <code>mode=harf</code> and Graphite features are out. The bundled faces are Latin Modern; other faces are supplied by the host with <code>addFiles()</code>. TrueType Collections (<code>.ttc</code>) work from 0.3.2 when each face is named by its <code>FontIndex</code> (<code>BoldFeatures={FontIndex=1}</code> and so on); 0.3.1 and earlier draw every face of a collection as one, so with those hand over one <code>.ttf</code>/<code>.otf</code> per face.</li>
   <li>No PNG output and no <code>binary</code>/<code>interval</code> number systems (they need cairo and GMP/MPFR, which are not built).</li>
   <li>Worker mode cannot forward the <code>runScript</code>, <code>makeText</code> and <code>onFindFile</code> callbacks; providing one selects in-process mode.</li>

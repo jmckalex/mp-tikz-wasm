@@ -226,6 +226,19 @@ action from Clew, but the first two change behaviour.
   `woff2` faces. If Clew sanitises figure SVG, use DOMPurify as in the README
   ("Untrusted sources"); Clew's own notes are trusted input and need none.
 
+## In the next release (unreleased, branch `next`)
+
+- **A supplied family is found by name, every style of it:**
+  `\setmainfont{Optima}` or `{Avenir Next}` over an `addFiles()`d `.ttc` now
+  sets bold and italic too (the bundled `luaotfload.conf` turns on
+  `scan-local`). Before, only the regular face was found, as a file.
+- **Lost PostScript is reported:** `mp.latex()` adds a *warning* (status stays
+  `ok`) when skipped PostScript carried part of the picture: EPS images,
+  graphicx's `\rotatebox`/`\scalebox` under the default dvips driver, PSTricks,
+  raw `\special{ps: …}`. Every LaTeX document has a few harmless PostScript
+  specials (the kernel's header, hyperref's pdfmarks), and they are not
+  reported. Clew can show the warning; nothing that renders today changes.
+
 ## In 0.3.2
 
 - **Bundle file URLs carry the file's hash:** `…/files/<path>?v=<sha>`, from

@@ -6,6 +6,7 @@
 import { MpJob, MpFtype, MP_FTYPE_NAMES, MPX_FTYPE_TFM, MPX_FTYPE_VF, mpxAddPath, mplibVersion, mplibBuildId, type MplibModule, type MplibFactory } from './mplib.js';
 import { runTex, type TexFactory, type TexModule } from './texengine.js';
 import { runDvisvgm, type DvisvgmFactory } from './dvisvgm.js';
+import { dviSpecials, describeLostPostScript } from './postscript.js';
 import { BundleSet, TEXMF_ROOT } from './vfs/bundle.js';
 import { listFiles, mkdirp, writeFileDeep, isUnloadedLazy, ensureLoaded, type EmscriptenFS } from './vfs/lazyfs.js';
 import { scanTexBlocks, scanInputs, type TexBlock } from './tex/scanner.js';
@@ -510,6 +511,13 @@ export class MetaPostCore {
       } else if (danglingPages.length) {
         status = 'error';
         diagnostics.push({ severity: 'error', source: 'host', message: `the SVG refers to glyphs it does not define -- ${danglingPages.join('; ')}` });
+      }
+      // dvisvgm skips PostScript specials (no Ghostscript here). Most documents have
+      // some that draw nothing (the l3 kernel's header, hyperref's pdfmarks); say so
+      // only when what was skipped carried part of the picture (postscript.ts).
+      if (/PostScript specials? ignored/.test(r.log)) {
+        const lost = describeLostPostScript(dviSpecials(dviBytes));
+        if (lost) diagnostics.push({ severity: 'warning', source: 'host', message: `PostScript was ignored, so the SVG is missing ${lost}: dvisvgm runs PostScript through Ghostscript, which this build does not include`, help: ['TikZ, pgfplots, tikz-cd and MetaPost draw without PostScript and are unaffected'] });
       }
       this.logger.info('host', `dvisvgm: ${plural(pages.length, 'page')} in ${ms(r.ms)}${r.exitCode ? `, exit ${r.exitCode}` : ''}`);
       if (r.exitCode !== 0 && pages.length === 0) {

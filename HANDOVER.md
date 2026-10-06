@@ -10,17 +10,23 @@ Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State now (session 13, 2026-10-06):** `main` was fast-forwarded to
-`opentype-fonts` at the owner's request (6d89954: the `classico` bundle,
-hash-versioned bundle URLs, a font dvisvgm cannot draw is an error,
-`--prerender` honouring `data-bundles`), pushed, CI green (run 37488886716).
-**The branch `dvisvgm-ttc`** (from `main`, not merged, not pushed) fixes
-TrueType Collections properly: `patches/dvisvgm/0001`, the build step that
-applies it, an e2e test, docs. 281 tests, all goldens, contract 48/48. See
-"What happened in session 13". **Nothing after 0.3.1 is released**; 0.3.2
-would carry all of it. Clew-app re-pinned to v0.3.1 on 2026-10-06 (its
-cbfa692); Clew-iOS follows once its TestFlight push is done. A 0.3.2 re-pin
-goes through Clew-boss, so that the app and iOS move together.
+**State now (session 13, 2026-10-06):** **0.3.2 is prepared but not
+published.** `main` = 99c4a60 "Release 0.3.2" is pushed and CI is green (run
+37532889495). The tag, the GitHub release (archives in `release/`:
+`mp-tikz-wasm-0.3.2.tar.gz`, 44,998,767 bytes, sha256 92e5d03b…3e01e, local
+numbers), the website sync (staged; the dry run showed no deletions) and the
+upstream dvisvgm PRs (prepared in `release/upstream-dvisvgm-ttc/`) are all
+waiting: this session's auto-mode permission check refused each as "Create
+Public Surface", and the owner has to allow them in this session or run them.
+0.3.2 = the `.ttc` fix (`patches/dvisvgm/0001`), the `classico` bundle,
+hash-versioned bundle URLs, missing fonts as errors, `--prerender` with
+`data-bundles`, and the build-pages fix (879b1d4). **Branch `next`** (local,
+after 0.3.2): family-name lookup of supplied faces (44030fb), the lost-PostScript
+warning, and docs. **Ghostscript** (owner: a self-contained wasm subproject,
+wired in) has not started: the source download was refused too. Clew is on
+0.3.1 (Clew-app cbfa692; iOS after its TestFlight push), and a 0.3.2 re-pin
+goes through Clew-boss. jmarkdown plans to render TikZ/MetaPost with this
+library and targets the release after 0.3.2 (session 13, item 5).
 
 **Before that (session 12, 2026-10-04): v0.3.1 is released**
 (<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.3.1>, tag on
@@ -951,6 +957,39 @@ replacing its tikzjax with this library).
    is deterministic across processes. Since the patch changes allocation sizes,
    regenerated pages with OpenType figures reorder some glyph definitions
    (same content).
+
+4. **0.3.2 prepared** (99c4a60; `main` pushed, CI green). The full release build
+   found `npm run build:pages` broken since c1ec408: three scripts read bundle
+   files from disk with their own `bundleIO` and opened `texmf.cnf?v=…`. Fixed
+   in 879b1d4. MetaPost, pdfTeX and LuaTeX are byte-identical to 0.3.1. The
+   bundles change only by classico, its maps and fonts, Classico's name-index
+   entries, and the LuaTeX formats (loose end 15). The clean-extraction smoke
+   test passed, and a Clew-style extraction is identical to `dist/`.
+5. **jmarkdown** (the Markdown engine Clew vendors) will render TikZ and
+   MetaPost through this library, with no lualatex/dvisvgm/mpost/mptopdf. Its
+   plan: marked's async mode with a walkTokens fill of its hash cache, a fresh
+   engine every 100 figures (RSS creeps ~1 MB per LuaLaTeX compile after the
+   first ten), and MetaPost to PDF as `run(eps)` then `latex(\includegraphics
+   {fig.mps}, { output: 'pdf' })`. Measured with its real template (standalone,
+   18 TikZ libraries): `create()` takes 26 ms, a figure 0.5–0.7 s. It asked for
+   `run(src, { format: 'pdf' })` as a convenience (not built).
+6. **Supplied faces by family name** (44030fb, branch `next`): loose end 22,
+   `docs/14` §15.
+7. **Lost PostScript is reported** (branch `next`). Every LaTeX document
+   carries PostScript specials that dvisvgm skips without Ghostscript (the l3
+   kernel's `header=`, hyperref's pdfmarks, PGF's `ps::%%` comments).
+   `src/ts/postscript.ts` reads the DVI's specials and classifies them, and
+   `latex()` warns (status unchanged) only for EPS/PDF images, graphicx
+   rotation/scaling, PSTricks and other drawing. No false warnings over the
+   guide's 25 TeX examples and the 12 golden cases.
+8. **Not a fix: switching LaTeX's graphics driver to dvisvgm.** Under the
+   default dvips driver, `\rotatebox`/`\scalebox` vanish (PostScript, ignored).
+   `dvisvgm.def` writes SVG transforms, but it sets the transform for
+   dvisvgm's bounding-box computation with a `ps:` rotate, so without
+   Ghostscript the box is unrotated and `--exact-bbox` clips the content. Native
+   TeX Live confirms it: both drivers are correct with Ghostscript, and both
+   wrong without it. The patch (`graphics.cfg`/`color.cfg`) was built,
+   tested and withdrawn. The real fix is the Ghostscript wiring.
 
 ## CI — green as of 2026-09-29 (first green in session 4)
 

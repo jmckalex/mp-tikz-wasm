@@ -244,6 +244,19 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     expect(lm.status).toBe('ok');
   }, 60_000);
 
+  it('warns when skipped PostScript carried part of the picture, and only then', async () => {
+    // no Ghostscript here, so dvisvgm skips every PostScript special; most are harmless
+    const rotated = await mp.latex('\\documentclass{article}\\usepackage{graphicx}\\begin{document}\\rotatebox{30}{y}\\end{document}');
+    expect(rotated.status).toBe('ok');   // a warning, not an error: nothing that renders today fails
+    const warning = rotated.diagnostics.find((d: any) => /PostScript was ignored/.test(d.message));
+    expect(warning?.severity).toBe('warning');
+    expect(warning?.message).toMatch(/rotation and scaling/);
+    // the l3 kernel's header and hyperref's pdfmarks draw nothing
+    const quiet = await mp.latex('\\documentclass{article}\\usepackage{xcolor,hyperref}\\begin{document}\\textcolor{blue}{x}\\href{https://x.org}{y}\\end{document}');
+    expect(quiet.dvisvgmLog).toMatch(/PostScript specials? ignored/);
+    expect(quiet.diagnostics.filter((d: any) => /PostScript/.test(d.message))).toEqual([]);
+  }, 60_000);
+
   it('produces one SVG per page and maps errors to lines', async () => {
     const r = await mp.latex(`\\documentclass{article}\\pagestyle{empty}\\begin{document}one\\newpage two \\undefinedmacro\\end{document}`);
     expect(r.pages).toHaveLength(2);
