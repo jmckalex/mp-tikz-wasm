@@ -51,7 +51,10 @@ const mp = await MetaPost.create({ texmfDir: TEXMF, logLevel: 'silent' });
 // A lookup BY NAME: TeX Live 2025's luaotfload builds the database on any font
 // request, but older ones (Ubuntu's 2023, on CI) only when a name has to be resolved.
 const doc = String.raw`\documentclass{article}\usepackage{fontspec}\setmainfont{Latin Modern Roman}\begin{document}x\end{document}`;
-const r = await mp.latex(doc, { engine: 'lualatex' });
+// The tree's luaotfload.conf turns scan-local on (build-texmf.sh), and luaotfload
+// refuses to save an index built with it ("table contains local entries"); a
+// ./luaotfload.conf in the working directory takes precedence over the tree's.
+const r = await mp.latex(doc, { engine: 'lualatex', files: { 'luaotfload.conf': '[db]\n  scan-local = false\n' } });
 mp.dispose();
 if (r.status !== 'ok') {
   // the diagnostics parser can come back empty-handed (no DVI, no recognised error): show the log's end

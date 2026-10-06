@@ -49,6 +49,24 @@ function makeCollection(faces: Buffer[]): Buffer {
   return Buffer.concat([head, ...tables]);
 }
 
+// A face renamed in place, so that it is a family the prebuilt name index does not
+// know: equal-length replacements, as Mac Roman and as UTF-16BE, inside the name
+// and CFF tables only (their checksums go stale, which no reader here checks).
+function renameFace(face: Buffer, pairs: [string, string][]): Buffer {
+  const f = Buffer.from(face);
+  for (let t = 0; t < f.readUInt16BE(4); t++) {
+    const rec = 12 + 16 * t;
+    if (!['name', 'CFF '].includes(f.toString('latin1', rec, rec + 4))) continue;
+    const start = f.readUInt32BE(rec + 8), end = start + f.readUInt32BE(rec + 12);
+    for (const [from, to] of pairs) {
+      for (const [a, b] of [[Buffer.from(from, 'latin1'), Buffer.from(to, 'latin1')], [Buffer.from(from, 'utf16le').swap16(), Buffer.from(to, 'utf16le').swap16()]]) {
+        for (let i = f.indexOf(a, start); i >= 0 && i + a.length <= end; i = f.indexOf(a, i + 1)) b.copy(f, i);
+      }
+    }
+  }
+  return f;
+}
+
 const preamble = String.raw`\documentclass{article}\pagestyle{empty}\usepackage{fontspec}`;
 const body = String.raw`\begin{document}\noindent Quick brown fox, fi ffl, AVATAR.\end{document}`;
 
@@ -143,6 +161,23 @@ describe.skipIf(!built)('OpenType fonts (luaotfload)', () => {
     expect(families).toHaveLength(2);
     expect(new Set(families).size).toBe(2);
     expect(webfont.pages[0].match(/@font-face/g)).toHaveLength(2);
+  }, 180_000);
+
+  it('finds every face of a supplied family by its name, not only a file of that name', async () => {
+    // luaotfload leaves the working directory (where addFiles puts a face) out of
+    // its name index unless scan-local is on, which the bundled luaotfload.conf
+    // does: \setmainfont{Optima} used to load only Optima.ttc's first face, as a
+    // file, and fontspec could not resolve Optima/B, so bold came out regular
+    const mp = await create(['opentype']);
+    const pairs: [string, string][] = [['Latin Modern', 'Quartz Model'], ['LM Roman', 'QZ Roman'], ['LMRoman', 'QZRoman']];
+    const bold = FACE.replace('regular', 'bold');
+    await mp.addFiles({ 'qz.ttc': makeCollection([renameFace(fs.readFileSync(FACE), pairs), renameFace(fs.readFileSync(bold), pairs)]) });
+    const r = await mp.latex(String.raw`${preamble}\setmainfont{Quartz Model Roman}\begin{document}A \textbf{A}\end{document}`, { engine: 'lualatex', fonts: 'paths' });
+    expect(r.status).toBe('ok');
+    expect(r.texLog).not.toMatch(/Could not resolve font "Quartz Model Roman\/B"/);
+    const glyphs = [...r.pages[0].matchAll(/<path id='g\d+-\d+' d='([^']*)'/g)].map((m) => m[1]);
+    expect(glyphs).toHaveLength(2);
+    expect(glyphs[0]).not.toBe(glyphs[1]);
   }, 180_000);
 
   it('carries luaotfload\'s font cache from one run to the next', async () => {

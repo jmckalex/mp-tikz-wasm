@@ -1315,10 +1315,13 @@ and sync the website (`make sync-eschatolog`, dry run first) after a release.
 21. **`texmfDir` and bundles render one fontspec document differently**
     (session 11): same status, different SVG, seeded or not, so not the name
     database. Not investigated; the goldens run on bundles.
-22. **`docs/16` says `\setmainfont{Avenir Next}` by family name fails** for
-    a host-supplied face; `\setmainfont{Arial}` over an `addFiles()`d
-    `Arial.ttf` worked in session 11 (luaotfload's rescan picks up
-    `TEXMFDOTDIR`). Possibly `.ttc`-specific; check before telling Clew.
+22. ~~**`docs/16` says `\setmainfont{Avenir Next}` by family name fails**~~ —
+    **fixed in session 13** (branch `next`): it failed for every supplied
+    face, not just `.ttc`. luaotfload left the working directory out of its
+    index, so a name was retried as a file name. That found `Arial.ttf`
+    for "Arial" but only the first face of `Optima.ttc`, and bold/italic fell
+    back to regular. The bundled `luaotfload.conf` now sets `scan-local`
+    (`docs/14` §15).
 23. **A document can loop forever** — resolved as far as it should be, after
     the 0.3.0 release. Native LuaTeX hangs identically on the session-11
     trigger (checked: TeX Live 2025 final, lua-uni-algos removed, killed at

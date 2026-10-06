@@ -103,6 +103,19 @@ otf_pkg() {   # otf_pkg tex/luatex luaotfload
   else echo "warning: $1/$2 not found in any TeX tree; OpenType fonts will not work" >&2; fi
 }
 for d in luaotfload lualibs luatexbase lua-uni-algos; do otf_pkg tex/luatex "$d"; done
+# luaotfload's configuration (found through kpse, so a document's own
+# ./luaotfload.conf still wins). A face the host supplies with addFiles() sits in
+# the working directory, which luaotfload's name index leaves out unless
+# scan-local is on: \setmainfont{Optima} then fell back to a *file* called
+# Optima (the first face of Optima.ttc) and fontspec could not resolve
+# Optima/B, /I, /BI, so bold and italic came out regular. With scan-local, the
+# rescan that a missed name already triggers also reads the working directory.
+# luaotfload never saves an index with such entries, so the prebuilt one is
+# untouched (make-fontdb.mjs turns it off while building that).
+if [ -d "$OUT/tex/luatex/luaotfload" ]; then
+  printf '%s\n' '; mp-tikz-wasm: index faces in the working directory (addFiles) when a name misses' \
+    '[db]' '  scan-local = true' > "$OUT/tex/luatex/luaotfload/luaotfload.conf"
+fi
 for d in fontspec unicode-math; do otf_pkg tex/latex "$d"; done
 # lualatex-math is unicode-math's LuaTeX half -- \usepackage{unicode-math} loads it
 # and stops dead without it. It sits under tex/lualatex, which TEXINPUTS.dvilualatex

@@ -147,13 +147,16 @@ Checked with the patch, in both modes: the block above with macOS's own
 `Avenir Next.ttc`, and `Optima.ttc` faces 0–3 (regular, bold, italic, bold
 italic) each draw four distinct, correct faces.
 
-**Name the file, not the family.** `\setmainfont{X.ttf}[Path=./]` always
-works. A lookup by family name of a face handed over with `addFiles()` goes
-through luaotfload's rescan, which does look in the working directory: in
-session 11 `\setmainfont{Arial}` over an added `Arial.ttf` typeset correctly.
-Avenir Next is a `.ttc` and was not retried, and the rescan re-reads every
-face in the loaded bundles once per engine, so the filename form is still the
-one to emit.
+**Family names: from the release after 0.3.2.** A face handed over with
+`addFiles()` sits in the working directory, which luaotfload's name index left
+out. So in 0.3.2 and earlier, `\setmainfont{Optima}` over an added
+`Optima.ttc` loads the first face as a *file* called Optima, and bold and
+italic silently fall back to regular. Naming the file and the faces, as in the
+block above, works in every release. From the next release the bundled
+`luaotfload.conf` turns on `scan-local`, and `\setmainfont{Optima}` (or
+`{Avenir Next}`) finds every style of a supplied family. The rescan this needs
+happens only when a name misses, and costs little: a document with
+`\setmainfont{Optima}` took 0.7 s in all.
 
 **First render costs more than later ones.** Parsing a face costs about a
 second. Two things take the edge off: luaotfload's cache is carried between

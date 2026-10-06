@@ -731,10 +731,12 @@ Why this is safe:
 - **luaotfload checks one thing on load**, the index version (`names.version`,
   6 in luaotfload 3.29), and rebuilds on a mismatch — so an upgraded luaotfload
   with a stale database degrades to the old scan, not to an error.
-- **Misses still work.** A name the database lacks (a host-supplied face by
-  family name) triggers luaotfload's own rescan, exactly as before; verified
-  with `\setmainfont{Arial}` over an `addFiles()`d `Arial.ttf`, seeded and
-  unseeded alike.
+- **Misses still work.** A name the database lacks triggers luaotfload's own
+  rescan, exactly as before. For a host-supplied face that rescan has to read
+  the working directory, which needs `scan-local` (see "Supplying a face at
+  run time"). Session 11's `\setmainfont{Arial}` over an `addFiles()`d
+  `Arial.ttf` only seemed to work: the rescan did not find the family, and
+  luaotfload fell back to a file called `Arial`.
 - **Reproducible.** luaotfload stamps `meta.created`/`meta.modified` with the
   clock and each face with its mtime; the script sets them to zero (the
   timestamps only decide which faces a rescan re-reads, and in a fresh
@@ -779,6 +781,25 @@ antialiasing; `woff2` makes dvisvgm embed a subset of the face as `@font-face`
 and emit real `<text>`, so the SVG renders through the browser's own text
 rasteriser in the same font file the page's CSS loads. Measured on one line of
 New York: 34.9 KB of outlines against 6.8 KB of embedded webfont.
+
+**By family name, every style (session 13).** `\setmainfont{Optima}` with an
+`addFiles()`d `Optima.ttc` used to set the regular face and silently fall back
+to it for bold and italic. luaotfload indexes the working directory only with
+`[db] scan-local = true`. Without it, its rescan on the missed name found
+nothing, the name was retried as a *file* name (`Optima` → `Optima.ttc`, first
+face), and fontspec could not resolve `Optima/B`, `/I` or `/BI`. The same
+fallback is why `\setmainfont{Arial}` over `Arial.ttf` seemed to work: the file
+happened to carry the family's name. `build-texmf.sh` now writes
+`tex/luatex/luaotfload/luaotfload.conf` (in the `opentype` bundle) with
+`scan-local = true`. luaotfload takes the first config it finds, so a
+document's own `./luaotfload.conf` still wins. luaotfload never saves an index
+containing local entries, so the rescan stays in memory for that run, and the
+prebuilt database is untouched (`make-fontdb.mjs` turns the option off while
+building it; the database comes out byte-identical). A name that the bundles
+know never triggers a rescan, so documents that do not supply faces are
+unaffected. The e2e case renames Latin Modern in place ("Quartz Model Roman") to
+get a family the index lacks, builds a two-face `.ttc`, and checks that bold is
+a face of its own; with `scan-local = false` the same document fails.
 
 What the SVG does *not* take from the browser is layout. XDV-style native-font
 positioning aside, dvisvgm writes an explicit position per glyph, so the page
