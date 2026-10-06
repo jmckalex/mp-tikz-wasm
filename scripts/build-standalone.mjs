@@ -20,11 +20,13 @@ const BUNDLES = path.join(DIST, 'bundles');
 
 // ---- 1. pre-render the gallery, recording every bundle file that gets used
 const used = new Set();
-const record = (url) => { const m = /\/bundles\/[^/]+\/files\/(.+)$/.exec(url); if (m) used.add(m[1]); };
+const record = (p) => { const m = /\/bundles\/[^/]+\/files\/(.+)$/.exec(p); if (m) used.add(m[1]); };
+// a bundle file URL carries ?v=<sha> for HTTP caches (as src/ts/node.ts strips it); the disk has none
+const local = (u) => u.replace(/^file:\/\//, '').replace(/\?v=[0-9a-f]+$/, '');
 const io = {
-  async fetch(u) { record(u); return new Uint8Array(fs.readFileSync(u.replace(/^file:\/\//, ''))); },
-  fetchSync(u) { record(u); return new Uint8Array(fs.readFileSync(u.replace(/^file:\/\//, ''))); },
-  async fetchJson(u) { return JSON.parse(fs.readFileSync(u.replace(/^file:\/\//, ''), 'utf8')); },
+  async fetch(u) { const p = local(u); record(p); return new Uint8Array(fs.readFileSync(p)); },
+  fetchSync(u) { const p = local(u); record(p); return new Uint8Array(fs.readFileSync(p)); },
+  async fetchJson(u) { return JSON.parse(fs.readFileSync(local(u), 'utf8')); },
 };
 const mp = await MetaPost.create({ bundleIO: io, bundleBaseUrl: 'file://' + BUNDLES + '/', logLevel: 'silent' });
 const gallery = [];

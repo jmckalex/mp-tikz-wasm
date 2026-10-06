@@ -46,12 +46,14 @@ const gz = (data) => zlib.gzipSync(data, { level: 9 }).toString('base64');
 const glue = (name, global) => { let s = fs.readFileSync(path.join(DIST, name), 'utf8'); const m = /export default (\w+);\s*$/.exec(s); if (!m) throw new Error(`${name}: no default export`); return s.replace(/export default (\w+);\s*$/, `globalThis.${global} = ${m[1]};\n`); };
 let libText;
 const lib = () => libText ??= execFileSync(path.join(REPO, 'node_modules/.bin/esbuild'), ['src/ts/index.ts', '--bundle', '--format=esm', '--target=es2022', '--platform=browser', '--external:node:fs', '--external:node:worker_threads', '--log-level=error'], { cwd: REPO, encoding: 'utf8', maxBuffer: 64 << 20 });
+// a bundle file URL carries ?v=<sha> for HTTP caches (as src/ts/node.ts strips it); the disk has none
+const local = (u) => u.replace(/^file:\/\//, '').replace(/\?v=[0-9a-f]+$/, '');
 const fromBundle = (rel) => { for (const b of fs.readdirSync(BUNDLES)) { const p = path.join(BUNDLES, b, 'files', rel); if (fs.existsSync(p)) return p; } return null; };
 
 async function recordAssets(warm, extras = true) {
   const used = new Set();
-  const record = (u) => { const m = /\/bundles\/[^/]+\/files\/(.+)$/.exec(u); if (m) used.add(m[1]); };
-  const io = { async fetch(u) { record(u); return new Uint8Array(fs.readFileSync(u.replace(/^file:\/\//, ''))); }, fetchSync(u) { record(u); return new Uint8Array(fs.readFileSync(u.replace(/^file:\/\//, ''))); }, async fetchJson(u) { return JSON.parse(fs.readFileSync(u.replace(/^file:\/\//, ''), 'utf8')); } };
+  const record = (p) => { const m = /\/bundles\/[^/]+\/files\/(.+)$/.exec(p); if (m) used.add(m[1]); };
+  const io = { async fetch(u) { const p = local(u); record(p); return new Uint8Array(fs.readFileSync(p)); }, fetchSync(u) { const p = local(u); record(p); return new Uint8Array(fs.readFileSync(p)); }, async fetchJson(u) { return JSON.parse(fs.readFileSync(local(u), 'utf8')); } };
   const mp = await MetaPost.create({ bundleIO: io, bundleBaseUrl: 'file://' + BUNDLES + '/', logLevel: 'silent', snapshot: 'none' });
   for (const w of warm) {
     const r = w.mp ? await mp.run(w.mp, { format: 'svg' }) : await mp.latex(w.tex, { snapshot: 'none' });

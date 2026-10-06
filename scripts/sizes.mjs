@@ -7,8 +7,10 @@ const DIST = new URL('../dist', import.meta.url).pathname;
 const gz = (b) => zlib.gzipSync(b, { level: 6 }).length;
 const MB = (n) => (n / 1048576).toFixed(2) + ' MB';
 let used = new Map();
-const record = (u) => { const m = /\/bundles\/([^/]+)\/files\/(.+)$/.exec(u); if (m) { const p = u.replace(/^file:\/\//, ''); used.set(m[2], fs.statSync(p).size); } };
-const io = { async fetch(u) { record(u); return new Uint8Array(fs.readFileSync(u.replace(/^file:\/\//, ''))); }, fetchSync(u) { record(u); return new Uint8Array(fs.readFileSync(u.replace(/^file:\/\//, ''))); }, async fetchJson(u) { return JSON.parse(fs.readFileSync(u.replace(/^file:\/\//, ''), 'utf8')); } };
+// a bundle file URL carries ?v=<sha> for HTTP caches (as src/ts/node.ts strips it); the disk has none
+const local = (u) => u.replace(/^file:\/\//, '').replace(/\?v=[0-9a-f]+$/, '');
+const record = (p) => { const m = /\/bundles\/([^/]+)\/files\/(.+)$/.exec(p); if (m) used.set(m[2], fs.statSync(p).size); };
+const io = { async fetch(u) { const p = local(u); record(p); return new Uint8Array(fs.readFileSync(p)); }, fetchSync(u) { const p = local(u); record(p); return new Uint8Array(fs.readFileSync(p)); }, async fetchJson(u) { return JSON.parse(fs.readFileSync(local(u), 'utf8')); } };
 const scenarios = {
   'MetaPost geometry only': () => mp.run('beginfig(1); draw fullcircle scaled 50; endfig; end.'),
   'MetaPost label() (CM outlines)': () => mp.run('prologues:=3; beginfig(1); label("MetaPost", origin); endfig; end.'),
