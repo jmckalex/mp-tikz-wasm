@@ -1,0 +1,69 @@
+dvisvgm: the faces of a TrueType collection are different fonts
+
+NativeFont::uniqueName keys a native font by path and style (embolden,
+extend, slant), not by its face index. luaotfload's DVI font names carry the
+index ("[Optima.ttc]:index=2", parsed in DVIReader::defineFont) and XeTeX's
+XDV font definitions do too, but FontManager::registerFont finds the first
+face of the file already registered under the same key and clones it, so
+every face draws with the first one's index. With --no-fonts the later faces'
+glyphs are <use> references to the first face's paths; with
+--font-format=woff2 they all share one @font-face. Unchanged in upstream
+dvisvgm 3.6.1. A font that is not a collection always has index 0, so its
+name (nf0, nf1, ...) and the SVG it produces are what they were, except that
+the order of glyph definitions, which follows heap addresses, can move.
+
+Applied by scripts/build-dvisvgm-wasm.sh to copies under build/dvisvgm/patched;
+the vendored tree is never modified. Reproduce the defect by setting faces 0-3
+of macOS's /System/Library/Fonts/Optima.ttc as upright, bold, italic and bold
+italic with fontspec (FontIndex) and running dvilualatex and dvisvgm.
+
+diff --color -ruN a/src/Font.cpp b/src/Font.cpp
+--- a/src/Font.cpp
++++ b/src/Font.cpp
+@@ -583,10 +583,11 @@
+ 
+ //////////////////////////////////////////////////////////////////////////////
+ 
+-string NativeFont::uniqueName (const string &path, const FontStyle &style) {
++string NativeFont::uniqueName (const string &path, int fontIndex, const FontStyle &style) {
+ 	static unordered_map<string, int> ids;
+ 	ostringstream oss;
+-	oss << path << "b" << style.bold << "e" << style.extend << "s" << style.slant;
++	// the face index is part of the key: the faces of a collection (TTC) share one path
++	oss << path << "i" << fontIndex << "b" << style.bold << "e" << style.extend << "s" << style.slant;
+ 	auto it = ids.find(oss.str());
+ 	int id = ids.size();
+ 	if (it == ids.end())
+@@ -600,7 +601,7 @@
+ 
+ 
+ string NativeFont::name () const {
+-	return uniqueName(path(), _style);
++	return uniqueName(path(), fontIndex(), _style);
+ }
+ 
+ 
+diff --color -ruN a/src/Font.hpp b/src/Font.hpp
+--- a/src/Font.hpp
++++ b/src/Font.hpp
+@@ -285,7 +285,7 @@
+ 		Color color () const override                    {return _color;}
+ 		const FontMap::Entry* fontMapEntry () const override {return nullptr;}
+ 		virtual void mapCharToUnicode (uint32_t c, uint32_t codepoint) =0;
+-		static std::string uniqueName (const std::string &path, const FontStyle &style);
++		static std::string uniqueName (const std::string &path, int fontIndex, const FontStyle &style);
+ 		void visit (FontVisitor &visitor) override;
+ 		void visit (FontVisitor &visitor) const override;
+ 
+diff --color -ruN a/src/FontManager.cpp b/src/FontManager.cpp
+--- a/src/FontManager.cpp
++++ b/src/FontManager.cpp
+@@ -285,7 +285,7 @@
+ 	if (id >= 0)
+ 		return id;
+ 
+-	string fontname = NativeFont::uniqueName(filename, style);
++	string fontname = NativeFont::uniqueName(filename, fontIndex, style);
+ 	const char *path = filename.c_str();
+ 	unique_ptr<Font> newfont;
+ 	const int newid = _fonts.size();   // the new font gets this ID

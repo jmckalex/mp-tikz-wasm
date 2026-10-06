@@ -125,25 +125,31 @@ and §2.
 
 ## Four traps, all verified upstream
 
-**TrueType Collections are broken, in both output modes.** This matters immediately:
+**TrueType Collections: name every face's index.** This matters immediately:
 Clew's `--clew-editor-font` is Avenir Next, which macOS ships as
-`/System/Library/Fonts/Avenir Next.ttc` — a collection. dvisvgm keys an embedded
-font by file path, and the face index is not part of that key, so
-`\setmainfont{X.ttc}[FontIndex=7, BoldFeatures={FontIndex=0}]` collapses four
-faces into one `@font-face`. Because glyph ids differ between members of a
-collection, bold and italic then draw *garbled* glyphs, not merely unstyled
-ones. This is dvisvgm's bug, not fixed.
+`/System/Library/Fonts/Avenir Next.ttc` — a collection. Releases up to and
+including 0.3.1 draw every face of a collection as one, in both output modes:
+dvisvgm keyed a font by file path, not face index (a dvisvgm defect, which
+`patches/dvisvgm/0001` fixes after 0.3.1, not yet released). With those releases the
+only route is **one file per face**: extract the faces into separate
+`.ttf`/`.otf` files and name them with `BoldFont=` / `ItalicFont=`.
 
-The workaround, which is what you must do: **one file per face.** Extract the
-faces you need into separate `.ttf`/`.otf` files and name them with `BoldFont=`
-/ `ItalicFont=`. For Avenir Next the indices are Regular 7, Bold 0, Italic 4,
-Bold Italic 1 — note index 0 is Bold, not Regular, so a bare
-`\setmainfont{Avenir Next.ttc}` silently gives you the bold face. Same applies
-to Helvetica Neue and Menlo. *Corrected in session 12:* `fonts="paths"` is not
-a way round it. Rendering `Optima.ttc` with faces 0–3 as regular, bold, italic
-and bold italic drew all four as bold italic in paths mode too, while the same
-four faces split into `.ttf` files drew correctly. One file per face is the
-only route.
+From the first release carrying the patch, hand over the `.ttc` itself and
+give each face its index:
+
+```latex
+\setmainfont{Avenir Next.ttc}[Path=./, UprightFeatures={FontIndex=7},
+  BoldFont=Avenir Next.ttc, BoldFeatures={FontIndex=0},
+  ItalicFont=Avenir Next.ttc, ItalicFeatures={FontIndex=4},
+  BoldItalicFont=Avenir Next.ttc, BoldItalicFeatures={FontIndex=1}]
+```
+
+For Avenir Next the indices are Regular 7, Bold 0, Italic 4, Bold Italic 1 —
+note index 0 is Bold, not Regular, so a bare `\setmainfont{Avenir Next.ttc}`
+silently gives you the bold face. Same applies to Helvetica Neue and Menlo.
+Checked with the patch, in both modes: the block above with macOS's own
+`Avenir Next.ttc`, and `Optima.ttc` faces 0–3 (regular, bold, italic, bold
+italic) each draw four distinct, correct faces.
 
 **Name the file, not the family.** `\setmainfont{X.ttf}[Path=./]` always
 works. A lookup by family name of a face handed over with `addFiles()` goes

@@ -785,7 +785,7 @@ positioning aside, dvisvgm writes an explicit position per glyph, so the page
 carries the browser's font with TeX's typesetting: no reflow, no rewrapping.
 That is normally the point, but it is worth being clear about.
 
-### Two things `fonts: 'woff2'` gets wrong with real faces
+### Two things real faces got wrong, both fixed
 
 Both found by putting three such figures on one page (Clew's own fonts, as it
 happens) and looking at the result.
@@ -805,22 +805,53 @@ prefix. Three unit tests in `test/unit/svg-post.test.ts`. Note it only bites
 callers who ask for post-processing — `latex()` does no post-processing unless
 given `svg: {...}`, while the tags and `--prerender` always pass an `idPrefix`.
 
-**TrueType Collections do not work — in either output mode; not fixed.**
-dvisvgm keys a native font by file path, and a `.ttc` face index is not part of
-that key, so `\setmainfont{X.ttc}[FontIndex=7, BoldFeatures={FontIndex=0}]`
-gives four TeX fonts that collapse into one `@font-face`. Since glyph ids differ
-between members of a collection, the bold and italic runs then draw whatever
-glyph the regular subset has at that id — garbled, not merely unstyled.
-Session 9 believed `fonts: 'paths'` rendered the same document correctly,
-having counted 17 distinct outlines against one embedded face; session 12
-looked at the output instead and found otherwise: `Optima.ttc` faces 0–3 set
-as regular, bold, italic and bold italic all drew as bold italic in paths mode
-(luaotfload had loaded `Optima.ttc](0)` … `(3)` correctly, so the faces merge
-after TeX, in dvisvgm). The same faces split into four `.ttf` files drew
-correctly. dvisvgm's to fix. The workaround is one file per face: extracting faces 7, 0, 4
-and 1 of `Avenir Next.ttc` into four `.ttf` files and naming them with
-`BoldFont=`/`ItalicFont=` gives four correct `@font-face` rules. Worth knowing
-before pointing this at macOS system fonts, where `.ttc` is common.
+**TrueType Collections merged their faces, in both output modes — fixed by
+`patches/dvisvgm/0001` (session 13).** `\setmainfont{X.ttc}[FontIndex=7,
+BoldFeatures={FontIndex=0}]` gave four TeX fonts that dvisvgm drew as one. Since
+glyph ids differ between members of a collection, the other runs drew whatever
+the first face has at those ids. Session 9 believed `fonts: 'paths'` was
+unaffected, having counted distinct outlines; session 12 looked at the output
+and found `Optima.ttc` faces 0–3, set as regular, bold, italic and bold italic,
+all drawn as bold italic in paths mode too.
+
+The faces merge after TeX, and not where session 12's write-up put it.
+luaotfload does pass the index on: its DVI font names read
+`[/path/Optima.ttc]:index=2` (face 0 has no `index=`), and dvisvgm's
+`DVIReader::defineFont` parses that. The loss is one step later.
+`FontManager::registerFont` looks the font up by `NativeFont::uniqueName`,
+built from the path and the style (embolden, extend, slant) but not the index.
+Every face after the first therefore finds the first one already registered and
+becomes a `NativeFontRef` to it, which reports the first face's index. In paths
+mode the later faces' glyphs come out as `<use>` references to the first face's
+`<path>`s. In woff2 mode all the `text.fN` classes name one `@font-face`.
+Everything downstream (the CSS family, the woff2 subset, `FontEngine`'s
+current-face check) is keyed by that same name, so the patch puts the index
+into the key and changes nothing else. A font that is not a collection always
+has index 0, so its `nfN` names and its SVG content are as before; the TikZ
+goldens, two of them multi-font OpenType cases, still match, and the regenerated
+guide differs only in the order of some glyph definitions (see below). XeTeX's XDV font
+definitions reach the same function, so it would fix them too.
+Unchanged in upstream dvisvgm 3.6.1 (2026-08), so worth reporting.
+
+Verified in two places. Natively, with TeX Live 2025's own `dviluatex` and
+dvisvgm 3.4.3 on `Optima.ttc` faces 0–3: stock dvisvgm reproduces the defect,
+and the same source with the patch, built natively, draws four faces in both
+modes. In the wasm library, `test/e2e/opentype.test.ts` assembles a two-face
+collection from the bundled `lmroman10-regular` and `-bold` (the test builds the
+`ttcf` header itself, so the repository carries no binary font) and checks for
+two distinct outlines and two `@font-face` rules. It fails on the unpatched
+`dvisvgm.wasm`. The old workaround, one file per face, still works but is no
+longer needed.
+
+A side-finding from checking this: native dvisvgm does not write a multi-font
+document the same way twice. Its used-font and used-glyph tables are
+`unordered_map`s keyed by `Font*`, so the order of `<path>` definitions and
+`@font-face` rules follows heap addresses, which ASLR moves from one run to the
+next. Stock TeX Live's binary gave three different files in six runs of one
+DVI, all the same once sorted. `golden-tikz.mjs` already sorts the glyph
+definitions, on the belief that the order differs only between builds. In fact
+it differs between runs of one native binary too. `dvisvgm.wasm` has no ASLR
+and gave the same bytes in three separate processes.
 
 ### Reaching it from the drop-in tags
 

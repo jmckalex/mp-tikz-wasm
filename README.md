@@ -133,7 +133,8 @@ The written documentation is in the repository:
   was learned building it and
   [`HANDOVER.md`](HANDOVER.md), the summary of what exists,
   how to build and test it, and what is known to be unfinished.
-- [`patches/`](patches/): the twelve upstream patches, each explained.
+- [`patches/`](patches/): the twelve MetaPost patches and one each for
+  LuaTeX, `luaotfload.sty` and dvisvgm, each explained.
 - [`NOTICE.md`](NOTICE.md): what is licensed how.
 
 ## Get it
@@ -590,6 +591,14 @@ copy is never modified, and a patch whose target this TeX Live lacks is skipped)
 | # | File | Why |
 | --- | --- | --- |
 | texmf 0001 | `luaotfload.sty` | **upstream gap:** luaotfload's DVI module registers on `pre_shipout_filter`, a callback that the LaTeX kernel creates and calls from its `\shipout`. Plain TeX has neither, so every OpenType `\font` under `dviluatex` failed with "Unable to register callback" then "not loadable" — in stock TeX Live too. The patch creates the callback and calls it from a `\shipout` wrapper (the `everyshi` idiom), under plain TeX in DVI mode only |
+
+One patch applies to dvisvgm, in `patches/dvisvgm/` (applied by
+`scripts/build-dvisvgm-wasm.sh` to a copy of its `src/` under
+`build/dvisvgm/patched`):
+
+| # | File | Why |
+| --- | --- | --- |
+| dvisvgm 0001 | `Font.cpp`, `Font.hpp`, `FontManager.cpp` | **upstream defect:** a native font was keyed by file path and style, not by face index, so every face of a TrueType Collection (`.ttc`) after the first was taken for a copy of it: in paths mode their glyphs were drawn from the first face's outlines, and with `fonts: 'woff2'` they shared one `@font-face`. luaotfload writes the index into the DVI and dvisvgm reads it; the key now includes it. Unchanged in upstream dvisvgm 3.6.1. Other fonts always have index 0, so their SVG has the same content as before (the order of glyph definitions, which follows heap addresses, can move) |
 
 ## Licence
 

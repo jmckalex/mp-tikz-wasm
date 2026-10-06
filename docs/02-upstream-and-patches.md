@@ -167,13 +167,17 @@ Keep every patch in `patches/NNNN-name.patch`, applied by
 `scripts/apply-patches.sh`, each with a header comment giving *rationale* and
 *what would break upstream if it were merged*.
 
-Two more patch directories grew later, with the same rule (the vendored or
+Three more patch directories grew later, with the same rule (the vendored or
 installed copy is never modified; a patched copy is what gets built or
 bundled): `patches/luatex/` for the LuaTeX C sources, applied by
-`scripts/build-luatex-wasm.sh` (docs/14 §14), and `patches/texmf/` for the
+`scripts/build-luatex-wasm.sh` (docs/14 §14); `patches/texmf/` for the
 macro packages `scripts/build-texmf.sh` copies out of TeX Live, applied to the
-assembled tree (docs/14 §15: `luaotfload.sty`'s shipout hook for plain TeX).
-The README's "Patches to upstream" tables list all three sets.
+assembled tree (docs/14 §15: `luaotfload.sty`'s shipout hook for plain TeX);
+and `patches/dvisvgm/` for dvisvgm's C++ sources, applied by
+`scripts/build-dvisvgm-wasm.sh` to a copy of the whole `src/` directory, since
+its sources include their headers with quotes and a patched header has to sit
+beside them (docs/14 §15: the faces of a TrueType Collection).
+The README's "Patches to upstream" tables list all four sets.
 
 ### 5.1 `0001-mpxout-expose-mpto.patch` (required)
 

@@ -3,13 +3,24 @@
 Written 2026-09-13 (third session), revised 2026-09-15 (fourth and fifth
 sessions), 2026-09-16 (sixth), 2026-09-17 (seventh, eighth and ninth),
 2026-09-18 (tenth, consolidated), 2026-09-24 to 2026-09-29 (eleventh: the
-0.3.0 release and what followed) and 2026-10-03 (twelfth: PDF output). This file lives at the repository root; until session 5 it was
+0.3.0 release and what followed), 2026-10-03 (twelfth: PDF output) and
+2026-10-06 (thirteenth: `main` caught up; TrueType Collections fixed). This file lives at the repository root; until session 5 it was
 `docs/15-handover.md`. Everything below is verified unless marked otherwise.
 Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State now (session 12, 2026-10-04): v0.3.1 is released**
+**State now (session 13, 2026-10-06):** `main` was fast-forwarded to
+`opentype-fonts` at the owner's request (6d89954: the `classico` bundle,
+hash-versioned bundle URLs, a font dvisvgm cannot draw is an error,
+`--prerender` honouring `data-bundles`), pushed, CI green (run 37488886716).
+**The branch `dvisvgm-ttc`** (from `main`, not merged, not pushed) fixes
+TrueType Collections properly: `patches/dvisvgm/0001`, the build step that
+applies it, an e2e test, docs. 281 tests, all goldens, contract 48/48. See
+"What happened in session 13". **Nothing after 0.3.1 is released**; Clew is
+still pinned to 0.3.0, and 0.3.2 would carry all of it.
+
+**Before that (session 12, 2026-10-04): v0.3.1 is released**
 (<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.3.1>, tag on
 52b7bbc, which is `main` and the branch head at release; `mp-tikz-wasm-0.3.1.tar.gz`,
 **44,239,255 bytes, sha256
@@ -878,7 +889,8 @@ replacing its tikzjax with this library).
    `\textbf` in Classico Regular/Bold (SVG; PDF embeds both). **Not released**:
    the next release (0.3.2) would carry it; production deploy waits for that.
 8. **`.ttc` collections fail in paths mode too** — found while trying macOS
-   Optima for ph341; docs corrected (3e23bdc). Split faces work.
+   Optima for ph341; docs corrected (3e23bdc). Split faces work. *Fixed
+   properly in session 13* (`patches/dvisvgm/0001`).
 10. **Stale HTTP caches** (reported by ph341 after the Classico rebuild): MAMP
    sends no Cache-Control, so Chrome reused yesterday's `latex-extra`
    manifest (no `fontaxes`) and font maps (no Classico); dvisvgm then wrote
@@ -903,6 +915,40 @@ replacing its tikzjax with this library).
 9. **ph341** (lecture deck) now loads `/software/mp-tikz-wasm/dist/auto.js` for
    one diagram; for `<tikz-diagram>` it was told to use `class="mathjax_ignore"`
    (MathJax 3.2.2's ignore class, checked in its copy).
+
+## What happened in session 13 (2026-10-06, `main`, then branch `dvisvgm-ttc`)
+
+1. **`main` caught up.** At the owner's request `main` was fast-forwarded to
+   `opentype-fonts` (3e23bdc..6d89954) and pushed; CI run 37488886716 green.
+   The one red run on the branch since 0.3.1 (c1ec408) was the new missing-font
+   test expecting one wording of the error where CI reported the other;
+   7508118 accepts both. Two CI warnings worth acting on: `ubuntu-latest`
+   moves to Ubuntu 26 from 2026-10-19 (the native job apt-installs about ten
+   TeX Live packages, any of which can change or be renamed); and
+   checkout/setup-node/cache/setup-emsdk still target Node 20.
+2. **TrueType Collections fixed at the source** (branch `dvisvgm-ttc`). The
+   owner asked for a real fix instead of the one-file-per-face workaround. The
+   defect is dvisvgm's: luaotfload writes `[file.ttc]:index=N` into the DVI and
+   dvisvgm parses it, but `FontManager::registerFont` keys a native font by
+   path and style only, so every later face became a reference to the first.
+   `patches/dvisvgm/0001` puts the index into the key (three files, five lines).
+   `build-dvisvgm-wasm.sh` gained a patch step. It copies the whole `src/`
+   directory, because the sources include their headers with quotes, and it
+   rebuilds every object when the set of patches changes. Verified natively
+   (stock TeX Live dvisvgm 3.4.3 against the same source patched and built
+   with clang, on `Optima.ttc` faces 0–3), then in wasm. A new e2e case builds
+   a two-face `.ttc` from Latin Modern at run time and fails on the old
+   engine. macOS `Optima.ttc` and `Avenir Next.ttc` render all four faces in
+   both modes. Goldens unchanged.
+   `dvisvgm.wasm` is 37 bytes larger, and two builds give identical bytes.
+   Upstream 3.6.1 still has the defect. `docs/14` §15 has the write-up,
+   `docs/16` the `FontIndex` recipe for Clew, and the README a patch table.
+3. **Native dvisvgm is not run-to-run deterministic** on multi-font documents:
+   glyph and `@font-face` order follows heap addresses (ASLR). The golden
+   harness already sorts glyph definitions, so nothing breaks; the wasm engine
+   is deterministic across processes. Since the patch changes allocation sizes,
+   regenerated pages with OpenType figures reorder some glyph definitions
+   (same content).
 
 ## CI — green as of 2026-09-29 (first green in session 4)
 
@@ -1296,7 +1342,9 @@ and sync the website (`make sync-eschatolog`, dry run first) after a release.
 MetaPost saved as one file), 15 (LuaTeX format dumps not reproducible), 21
 (`texmfDir` vs bundles rendering) and the `.ttc` / `woff2` defect (dvisvgm's;
 report it upstream, keep the one-file-per-face workaround) stay open until a
-real need arrives. None affects a documented feature.
+real need arrives. None affects a documented feature. *Session 13:* the `.ttc`
+defect is fixed by `patches/dvisvgm/0001` (branch `dvisvgm-ttc`); reporting it
+upstream remains.
 
 ## Where to look
 
@@ -1326,6 +1374,11 @@ real need arrives. None affects a documented feature.
   hook `luaotfload.sty` needs under plain TeX, applied to the assembled tree
   by `scripts/build-texmf.sh`; `docs/14` §15 has the analysis, and golden
   `12-opentype-plain` is the proof.
+- `patches/dvisvgm/` — the one dvisvgm patch (session 13): the face index in
+  a native font's key, so a `.ttc`'s faces stay apart; applied by
+  `scripts/build-dvisvgm-wasm.sh` to a copy of `src/` under
+  `build/dvisvgm/patched`. `docs/14` §15 has the analysis; the collection
+  case in `test/e2e/opentype.test.ts` is the proof.
 - `test/e2e/opentype.test.ts`, `src/ts/bundles-config.ts`,
   `scripts/build-bundles.mjs` — OpenType fonts (sessions 9 and 10): the
   opt-in bundles, why they are opt-in, and why the whole Latin Modern family
@@ -1382,6 +1435,9 @@ worth doing:
   Clew-app is packaging dev.5 on the 0.3.0 pin (Clew-boss's plan, approved by
   the owner); Clew-boss decides when to re-pin, which needs its own figure
   checks. Clew-iOS follows Clew-app's manifest, so nothing moves there first.
+- **CI before 2026-10-19:** pin `runs-on` to `ubuntu-24.04` (or test the
+  TeX Live apt packages on Ubuntu 26 first) and move the actions off Node 20
+  (session 13, item 1). Offered to the owner, not done.
 - **Small hardening:** make the TikZ golden a CI gate (drop
   `continue-on-error`; loose end 24); a DOM test library (happy-dom) so the
   live elements and `data-replace` are tested automatically; WorkerBackend
@@ -1416,7 +1472,11 @@ worth doing:
   MacTeX-list announcement as forthcoming — and the luaotfload gap:
   `luaotfload.sty` advertises plain-TeX support but its DVI module needs a
   callback only LaTeX creates; `patches/texmf/0001` is the report and
-  `docs/14` §15 the write-up.
+  `docs/14` §15 the write-up. And dvisvgm's collection defect, to its author
+  (Martin Gieseking, github.com/mgieseki/dvisvgm): `patches/dvisvgm/0001`
+  applies to 3.6.1 with line offsets, and `uniqueName` has no other callers
+  there (checked 2026-10-06). Needs the owner's go-ahead: it is posted under
+  the owner's name.
 - Smaller: automatic reruns for PDF output (cross-references, outlines;
   latexmk-style, driven by the "Rerun" warnings); `luamplib` for MetaPost inside LuaLaTeX; more packages
   (beamer, babel, siunitx and xstring — the last two are what circuitikz's

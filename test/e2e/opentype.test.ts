@@ -19,6 +19,36 @@ const built = fs.existsSync(path.join(REPO, 'dist/index.js'))
 // OS font keeps this identical on macOS and on the CI runner.
 const FACE = path.join(BUNDLES, 'opentype/files/fonts/opentype/public/lm/lmroman10-regular.otf');
 
+// A collection (.ttc) assembled from single-face files: the 'ttcf' header, one
+// table directory per face, then each face's tables, unshared and 4-byte aligned.
+// That is all FreeType and luaotfload need, and it keeps a binary fixture out of
+// the repository.
+function makeCollection(faces: Buffer[]): Buffer {
+  let pos = 12 + 4 * faces.length;
+  const dirAt = faces.map((f) => { const at = pos; pos += 12 + 16 * f.readUInt16BE(4); return at; });
+  const head = Buffer.alloc(pos);
+  head.write('ttcf', 0, 'latin1');
+  head.writeUInt16BE(1, 4);   // version 1.0
+  head.writeUInt32BE(faces.length, 8);
+  const tables: Buffer[] = [];
+  faces.forEach((f, i) => {
+    head.writeUInt32BE(dirAt[i], 12 + 4 * i);
+    f.copy(head, dirAt[i], 0, 12);   // sfnt version and the binary-search fields
+    for (let t = 0; t < f.readUInt16BE(4); t++) {
+      const rec = 12 + 16 * t, at = dirAt[i] + rec;
+      const offset = f.readUInt32BE(rec + 8), length = f.readUInt32BE(rec + 12);
+      f.copy(head, at, rec, rec + 8);   // tag and checksum
+      head.writeUInt32BE(pos, at + 8);
+      head.writeUInt32BE(length, at + 12);
+      const table = Buffer.alloc((length + 3) & ~3);
+      f.copy(table, 0, offset, offset + length);
+      tables.push(table);
+      pos += table.length;
+    }
+  });
+  return Buffer.concat([head, ...tables]);
+}
+
 const preamble = String.raw`\documentclass{article}\pagestyle{empty}\usepackage{fontspec}`;
 const body = String.raw`\begin{document}\noindent Quick brown fox, fi ffl, AVATAR.\end{document}`;
 
@@ -89,6 +119,30 @@ describe.skipIf(!built)('OpenType fonts (luaotfload)', () => {
     expect(webfont.pages[0]).toContain('@font-face');
     expect(webfont.pages[0]).toContain('<text');
     expect(webfont.pages[0]).toMatch(/base64/);
+  }, 180_000);
+
+  it('draws each face of a collection (.ttc) as itself, in both font modes', async () => {
+    const mp = await create(['opentype']);
+    const bold = FACE.replace('regular', 'bold');
+    await mp.addFiles({ 'pair.ttc': makeCollection([fs.readFileSync(FACE), fs.readFileSync(bold)]) });
+    const doc = String.raw`${preamble}\setmainfont{pair.ttc}[Path=./, UprightFeatures={FontIndex=0},
+      BoldFont=pair.ttc, BoldFeatures={FontIndex=1}]\begin{document}A \textbf{A}\end{document}`;
+    const [outlines, webfont] = await Promise.all([
+      mp.latex(doc, { engine: 'lualatex', fonts: 'paths' }),
+      mp.latex(doc, { engine: 'lualatex', fonts: 'woff2' }),
+    ]);
+    expect(outlines.status).toBe('ok');
+    expect(webfont.status).toBe('ok');
+    // dvisvgm used to key a face by its file alone (patches/dvisvgm/0001): the bold
+    // A became a <use> of the regular one's outline, and both shared one @font-face
+    const glyphs = [...outlines.pages[0].matchAll(/<path id='g\d+-\d+' d='([^']*)'/g)].map((m) => m[1]);
+    expect(glyphs).toHaveLength(2);
+    expect(glyphs[0]).not.toBe(glyphs[1]);
+    expect(outlines.pages[0]).not.toMatch(/<use id='g\d+-\d+'/);
+    const families = [...webfont.pages[0].matchAll(/text\.f\d+ \{font-family:(\w+)/g)].map((m) => m[1]);
+    expect(families).toHaveLength(2);
+    expect(new Set(families).size).toBe(2);
+    expect(webfont.pages[0].match(/@font-face/g)).toHaveLength(2);
   }, 180_000);
 
   it('carries luaotfload\'s font cache from one run to the next', async () => {
