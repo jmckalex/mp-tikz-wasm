@@ -17,8 +17,10 @@ hash-versioned bundle URLs, a font dvisvgm cannot draw is an error,
 **The branch `dvisvgm-ttc`** (from `main`, not merged, not pushed) fixes
 TrueType Collections properly: `patches/dvisvgm/0001`, the build step that
 applies it, an e2e test, docs. 281 tests, all goldens, contract 48/48. See
-"What happened in session 13". **Nothing after 0.3.1 is released**; Clew is
-still pinned to 0.3.0, and 0.3.2 would carry all of it.
+"What happened in session 13". **Nothing after 0.3.1 is released**; 0.3.2
+would carry all of it. Clew-app re-pinned to v0.3.1 on 2026-10-06 (its
+cbfa692); Clew-iOS follows once its TestFlight push is done. A 0.3.2 re-pin
+goes through Clew-boss, so that the app and iOS move together.
 
 **Before that (session 12, 2026-10-04): v0.3.1 is released**
 (<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.3.1>, tag on
@@ -1431,10 +1433,10 @@ worth doing:
   commit 56f1546, branch m2; size and sha256 checked, provenance in its
   `vendor/mp-tikz-wasm/VERSION`); its LaTeX-note smoke test makes a native
   pdfTeX PDF with extractable text on the iPad simulator. It passes
-  `engine: 'latex'` and ships without the `luatex` bundle. **Clew stays on 0.3.0 for now:**
-  Clew-app is packaging dev.5 on the 0.3.0 pin (Clew-boss's plan, approved by
-  the owner); Clew-boss decides when to re-pin, which needs its own figure
-  checks. Clew-iOS follows Clew-app's manifest, so nothing moves there first.
+  `engine: 'latex'` and ships without the `luatex` bundle. **Clew is on
+  0.3.1** since 2026-10-06 (Clew-app cbfa692; Clew-iOS follows after its
+  TestFlight push). Clew-boss schedules re-pins: tell it when a release
+  exists.
 - **CI before 2026-10-19:** pin `runs-on` to `ubuntu-24.04` (or test the
   TeX Live apt packages on Ubuntu 26 first) and move the actions off Node 20
   (session 13, item 1). Offered to the owner, not done.
