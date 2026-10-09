@@ -22,7 +22,7 @@ With `fonts="woff2"`, the SVG embeds a subset of the *same font file* as
 text renderer in the same face the surrounding note uses, and its text is
 selectable.
 
-**Released since 0.3.0** (2026-09-28); "In 0.3.1" and "In 0.3.2" below say
+**Released since 0.3.0** (2026-09-28); "In 0.3.1" and "In 0.4.0" below say
 what followed. Pin moves go through Clew-boss, so that Clew-app and Clew-iOS
 move together.
 
@@ -127,11 +127,11 @@ Clew's `--clew-editor-font` is Avenir Next, which macOS ships as
 `/System/Library/Fonts/Avenir Next.ttc` — a collection. Releases up to and
 including 0.3.1 draw every face of a collection as one, in both output modes:
 dvisvgm keyed a font by file path, not face index (a dvisvgm defect, which
-`patches/dvisvgm/0001` fixes in 0.3.2). With those releases the only route is
+`patches/dvisvgm/0001` fixes in 0.4.0). With those releases the only route is
 **one file per face**: extract the faces into separate `.ttf`/`.otf` files and
 name them with `BoldFont=` / `ItalicFont=`.
 
-From 0.3.2, hand over the `.ttc` itself and give each face its index:
+From 0.4.0, hand over the `.ttc` itself and give each face its index:
 
 ```latex
 \setmainfont{Avenir Next.ttc}[Path=./, UprightFeatures={FontIndex=7},
@@ -147,12 +147,12 @@ Checked with the patch, in both modes: the block above with macOS's own
 `Avenir Next.ttc`, and `Optima.ttc` faces 0–3 (regular, bold, italic, bold
 italic) each draw four distinct, correct faces.
 
-**Family names: from the release after 0.3.2.** A face handed over with
+**Family names: from 0.4.0.** A face handed over with
 `addFiles()` sits in the working directory, which luaotfload's name index left
-out. So in 0.3.2 and earlier, `\setmainfont{Optima}` over an added
+out. So in 0.3.1 and earlier, `\setmainfont{Optima}` over an added
 `Optima.ttc` loads the first face as a *file* called Optima, and bold and
 italic silently fall back to regular. Naming the file and the faces, as in the
-block above, works in every release. From the next release the bundled
+block above, works in every release. From 0.4.0 the bundled
 `luaotfload.conf` turns on `scan-local`, and `\setmainfont{Optima}` (or
 `{Avenir Next}`) finds every style of a supplied family. The rescan this needs
 happens only when a name misses, and costs little: a document with
@@ -226,30 +226,10 @@ action from Clew, but the first two change behaviour.
   `woff2` faces. If Clew sanitises figure SVG, use DOMPurify as in the README
   ("Untrusted sources"); Clew's own notes are trusted input and need none.
 
-## In the next release (unreleased, branch `next`)
+## In 0.4.0
 
-- **A supplied family is found by name, every style of it:**
-  `\setmainfont{Optima}` or `{Avenir Next}` over an `addFiles()`d `.ttc` now
-  sets bold and italic too (the bundled `luaotfload.conf` turns on
-  `scan-local`). Before, only the regular face was found, as a file.
-- **Lost PostScript is reported:** `mp.latex()` adds a *warning* (status stays
-  `ok`) when skipped PostScript carried part of the picture: EPS images,
-  graphicx's `\rotatebox`/`\scalebox` under the default dvips driver, PSTricks,
-  raw `\special{ps: …}`. Every LaTeX document has a few harmless PostScript
-  specials (the kernel's header, hyperref's pdfmarks), and they are not
-  reported. Clew can show the warning; nothing that renders today changes.
-- **PostScript, opt-in:** with `data-bundles="+ghostscript"` (or the bundle in
-  `bundles`), PSTricks, EPS images, raw PostScript and graphicx's rotation and
-  scaling render, through Ghostscript 10.08.0 as a separate wasm module
-  (`dist/ghostscript/`, 12.5 MB, 8.6 MB gzipped, loaded only by a note whose DVI
-  carries such PostScript). It ships as its own release archive, unpacked into
-  `dist/`. Ghostscript is **AGPL**: Clew may ship it (GPL and AGPL combine), and must
-  offer its source, as it already does for the GPL engines. Whether Clew-iOS
-  ships it is the owner's call (the same App Store question as the GPL engines).
-  Without the bundle nothing changes. A custom URL handler must serve
-  `ghostscript/gs.mjs` and `gs.wasm` like the other engines.
-
-## In 0.3.2
+0.3.2 was prepared and tested but never published; its changes ship in
+0.4.0, so Clew moves from 0.3.1 straight to 0.4.0.
 
 - **Bundle file URLs carry the file's hash:** `…/files/<path>?v=<sha>`, from
   the manifest. A rebuilt file gets a new URL, so Clew's cache-clearing asset
@@ -270,6 +250,26 @@ action from Clew, but the first two change behaviour.
 - **`mpost-wasm --prerender` honours each page's `data-bundles`**, as the
   browser does, and `--base=DIR` resolves `data-figures` against another
   directory.
+- **A supplied family is found by name, every style of it:**
+  `\setmainfont{Optima}` or `{Avenir Next}` over an `addFiles()`d `.ttc` now
+  sets bold and italic too (the bundled `luaotfload.conf` turns on
+  `scan-local`). Before, only the regular face was found, as a file.
+- **Lost PostScript is reported:** `mp.latex()` adds a *warning* (status stays
+  `ok`) when skipped PostScript carried part of the picture: EPS images,
+  graphicx's `\rotatebox`/`\scalebox` under the default dvips driver, PSTricks,
+  raw `\special{ps: …}`. Every LaTeX document has a few harmless PostScript
+  specials (the kernel's header, hyperref's pdfmarks), and they are not
+  reported. Clew can show the warning; nothing that renders today changes.
+- **PostScript, opt-in:** with `data-bundles="+ghostscript"` (or the bundle in
+  `bundles`), PSTricks, EPS images, raw PostScript and graphicx's rotation and
+  scaling render, through Ghostscript 10.08.0 as a separate wasm module
+  (`dist/ghostscript/`, 12.5 MB, 8.6 MB gzipped, loaded only by a note whose DVI
+  carries such PostScript). It ships as its own release archive, unpacked into
+  `dist/`. Ghostscript is **AGPL**: Clew may ship it (GPL and AGPL combine), and must
+  offer its source, as it already does for the GPL engines. Whether Clew-iOS
+  ships it is the owner's call (the same App Store question as the GPL engines).
+  Without the bundle nothing changes. A custom URL handler must serve
+  `ghostscript/gs.mjs` and `gs.wasm` like the other engines.
 
 ## In 0.3.1
 
