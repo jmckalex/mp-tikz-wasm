@@ -1,0 +1,11 @@
+% mp-tikz-wasm: ghostscript
+% Raw PostScript, as hand-written documents use it: a procedure put in userdict
+% by a ps:: special (raw, no save/restore around it) and drawn from ps:
+% specials at the current point.
+\documentclass{article}
+\pagestyle{empty}
+\begin{document}
+\special{ps:: userdict /mpwbox { newpath 0 0 moveto 40 0 rlineto 0 20 rlineto -40 0 rlineto closepath } put}%
+Before\special{ps: gsave currentpoint translate mpwbox 0.2 0.6 0.2 setrgbcolor fill grestore}%
+\hspace{45pt}after \special{ps: gsave currentpoint translate 0 -5 moveto 60 0 rlineto 1 0 0 setrgbcolor 2 setlinewidth stroke grestore}underline.
+\end{document}

@@ -1,0 +1,65 @@
+dvisvgm: let a wasm build answer dlopen("libgs") from a bridge
+
+dvisvgm loads Ghostscript at run time with dlopen/dlsym (DLLoader) and uses
+it to interpret PostScript specials: PSTricks, EPS images, raw ps: code, and
+graphicx's rotation and scaling under its dvips driver. An Emscripten build
+without dynamic linking cannot dlopen anything, so mp-tikz-wasm compiled
+dvisvgm with DISABLE_GS and every such special was skipped. Under
+__EMSCRIPTEN__, DLLoader now calls mpw_dlopen/mpw_dlsym/mpw_dlclose instead.
+mp-tikz-wasm's src/c/gs-bridge.c defines them. It answers "libgs" with
+gsapi_* proxies whose work is done by a separate Ghostscript wasm module
+(never linked into dvisvgm.wasm), and nothing at all when that module is not
+loaded, so dvisvgm then behaves as it does without Ghostscript anywhere.
+Native builds are unchanged.
+
+Applied by scripts/build-dvisvgm-wasm.sh to the copy of src/ under
+build/dvisvgm/patched; the vendored tree is never modified.
+
+diff --color -ruN a/src/DLLoader.cpp b/src/DLLoader.cpp
+--- a/src/DLLoader.cpp
++++ b/src/DLLoader.cpp
+@@ -37,6 +37,8 @@
+ 	if (!dlname.empty()) {
+ #ifdef _WIN32
+ 		_handle = LoadLibrary(dlname.c_str());
++#elif defined(__EMSCRIPTEN__)
++		_handle = mpw_dlopen(dlname.c_str());
+ #else
+ 		_handle = dlopen(dlname.c_str(), RTLD_LAZY);
+ #endif
+@@ -50,6 +52,8 @@
+ 	if (_handle) {
+ #ifdef _WIN32
+ 		FreeLibrary(_handle);
++#elif defined(__EMSCRIPTEN__)
++		mpw_dlclose(_handle);
+ #else
+ 		dlclose(_handle);
+ #endif
+diff --color -ruN a/src/DLLoader.hpp b/src/DLLoader.hpp
+--- a/src/DLLoader.hpp
++++ b/src/DLLoader.hpp
+@@ -25,6 +25,14 @@
+ 
+ #ifdef _WIN32
+ 	#include "windows.hpp"
++#elif defined(__EMSCRIPTEN__)
++	// mp-tikz-wasm: no dynamic linking in this build; "libgs" is answered by a
++	// bridge to a separate Ghostscript module (src/c/gs-bridge.c in mp-tikz-wasm)
++	extern "C" {
++		void* mpw_dlopen (const char *name);
++		void* mpw_dlsym (void *handle, const char *name);
++		void mpw_dlclose (void *handle);
++	}
+ #else
+ 	#include <dlfcn.h>
+ #endif
+@@ -60,6 +68,8 @@
+ 	if (_handle) {
+ #ifdef _WIN32
+ 		return reinterpret_cast<T>(GetProcAddress(_handle, name));
++#elif defined(__EMSCRIPTEN__)
++		return reinterpret_cast<T>(mpw_dlsym(_handle, name));
+ #else
+ 		return reinterpret_cast<T>(dlsym(_handle, name));
+ #endif

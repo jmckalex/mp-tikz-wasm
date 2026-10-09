@@ -22,8 +22,11 @@ Public Surface", and the owner has to allow them in this session or run them.
 hash-versioned bundle URLs, missing fonts as errors, `--prerender` with
 `data-bundles`, and the build-pages fix (879b1d4). **Branch `next`** (local,
 after 0.3.2): family-name lookup of supplied faces (44030fb), the lost-PostScript
-warning, and docs. **Ghostscript** (owner: a self-contained wasm subproject,
-wired in) has not started: the source download was refused too. Clew is on
+warning, docs, and (2026-10-09) **PostScript through Ghostscript**: PSTricks,
+EPS, raw PostScript and graphicx rotation/scaling render, opt-in via the
+`ghostscript` bundle. Ghostscript 10.08.0 comes from the Ghostscript port at
+`~/Source/ghostscript`, another session's project, pinned in
+`vendor/GHOSTSCRIPT.lock`; see session 13 item 9 and `docs/14` §17. Clew is on
 0.3.1 (Clew-app cbfa692; iOS after its TestFlight push), and a 0.3.2 re-pin
 goes through Clew-boss. jmarkdown plans to render TikZ/MetaPost with this
 library and targets the release after 0.3.2 (session 13, item 5).
@@ -991,6 +994,29 @@ replacing its tikzjax with this library).
    wrong without it. The patch (`graphics.cfg`/`color.cfg`) was built,
    tested and withdrawn. The real fix is the Ghostscript wiring.
 
+9. **PostScript through Ghostscript** (2026-10-09, branch `next`), at the owner's
+   request ("make … Ghostscript … a subproject … wire it in so that we fix all
+   the PS-dependent issues"). The Ghostscript port, another session working in
+   `~/Source/ghostscript`, built Ghostscript 10.08.0 to wasm and added, at our
+   request, the `gsapi_*` exports, PROXYFS, a lean variant (12.5 MB, 8.6 MB gzipped)
+   and a native `libgs` of the same tree built with `-ffp-contract=off`, for the
+   oracle. Pinned by sha256 in `vendor/GHOSTSCRIPT.lock` and copied in by
+   `scripts/vendor-ghostscript.sh` (its repo has no remote or tag yet; re-pin
+   when it does). Wiring:
+   - `patches/dvisvgm/0002` (DLLoader asks a bridge), `src/c/gs-bridge.{c,js}`;
+   - `src/ts/ghostscript.ts` (the bridge, PROXYFS mounts, lazy loader), with
+     the decision in `core.ts`;
+   - `dist/ghostscript/` (`build-ghostscript.sh`), and the `ghostscript` bundle
+     (dvips headers, PSTricks).
+   Goldens 13–16 are byte-identical to TeX Live's dvisvgm with that libgs; 8
+   e2e tests. Documents without lossy PostScript never load it, and every older
+   golden is unchanged. Also: files TeX wrote are now visible to dvisvgm, and
+   CI installs the core PSTricks packages, though it has no Ghostscript module
+   (its tests and goldens skip there).
+   Checked in Chrome as well: in the default Web Worker, PSTricks and EPS render
+   with the right colours; `gs.mjs` and `gs.wasm` are fetched inside the worker,
+   about 1.6 s from `create()` to the first figure on localhost.
+
 ## CI — green as of 2026-09-29 (first green in session 4)
 
 `.github/workflows/ci.yml` runs two jobs on every push, both green, with time
@@ -1479,6 +1505,9 @@ worth doing:
   0.3.1** since 2026-10-06 (Clew-app cbfa692; Clew-iOS follows after its
   TestFlight push). Clew-boss schedules re-pins: tell it when a release
   exists.
+- **Ghostscript follow-ups:** re-pin `vendor/GHOSTSCRIPT.lock` when the port is committed or tagged; give CI
+  the module once the port is reachable from it; the release step now packages
+  `mp-tikz-wasm-ghostscript-<ver>` separately (AGPL).
 - **CI before 2026-10-19:** pin `runs-on` to `ubuntu-24.04` (or test the
   TeX Live apt packages on Ubuntu 26 first) and move the actions off Node 20
   (session 13, item 1). Offered to the owner, not done.

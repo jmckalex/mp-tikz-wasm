@@ -23,6 +23,8 @@
 /vendor/texlive-source/
 /vendor/native-build/
 /vendor/wasm-build/
+# the pinned Ghostscript build (scripts/vendor-ghostscript.sh, vendor/GHOSTSCRIPT.lock)
+/vendor/ghostscript/
 
 # tooling
 .emsdk-cache/

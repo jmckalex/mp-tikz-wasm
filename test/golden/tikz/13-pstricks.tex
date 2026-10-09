@@ -1,0 +1,19 @@
+% mp-tikz-wasm: ghostscript
+% PSTricks through Ghostscript (docs/14 §17): core shapes and fills, arrows,
+% pst-plot's \psplot and \psaxes, pst-node connections and a pst-grad gradient,
+% all drawn by PostScript that dvisvgm hands to the Ghostscript module.
+\documentclass{article}
+\usepackage{pstricks,pst-plot,pst-node,pst-grad}
+\pagestyle{empty}
+\begin{document}
+\begin{pspicture}(-0.5,-1.5)(6,3)
+  \psframe[fillstyle=gradient,gradbegin=yellow,gradend=orange,linecolor=blue](0,0)(2,2)
+  \pscircle[linewidth=1.5pt,linecolor=red](1,1){0.7}
+  \psline[linewidth=1pt,arrows=->](2.5,0)(3.5,1.5)
+  \pspolygon[fillstyle=solid,fillcolor=green!40](4,0)(5.5,0)(4.75,1.5)
+  \psaxes[labels=none,ticks=none]{->}(0,-1)(-0.2,-1.3)(5.8,-0.2)
+  \psplot[linecolor=magenta,plotpoints=60]{0}{5.5}{x 57.3 mul sin 0.5 mul 0.6 sub}
+  \rput(1,2.5){\textbf{PSTricks}}
+  \cnodeput(4,2.5){A}{a}\cnodeput(5.5,2.5){B}{b}\ncline{->}{A}{B}
+\end{pspicture}
+\end{document}

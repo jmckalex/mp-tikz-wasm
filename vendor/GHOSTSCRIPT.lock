@@ -1,0 +1,18 @@
+# The pinned Ghostscript build behind the opt-in `ghostscript` bundle.
+# scripts/vendor-ghostscript.sh copies these files from the Ghostscript port
+# (GS_DIR, default ~/Source/ghostscript: Ghostscript 10.08.0 built to wasm by
+# its own project) into vendor/ghostscript/ and refuses any whose sha256
+# differs. The port is its own repository; this file is what pins it here.
+#
+# source  ~/Source/ghostscript  commit 67fd48f plus uncommitted changes of 2026-10-09
+#         (gsapi exports, PROXYFS, the lean variant, pdf/pdf.mak's sarc4 fix),
+#         awaiting a commit/tag by that project's owner; re-pin when it lands.
+#
+# file                       sha256                                                            from (under GS_DIR)
+gs.js                        5aaf248169f2dda3fe2b8cf5b1ebd14c3e0fd4f1d2bee9ffe05582ce207db291  dist/lean/gs.js
+gs.wasm                      cfe263a2ca44862db36b7b39291f541be25765119800c27f500bf98b4c724a3a  dist/lean/gs.wasm
+LICENSE                      8ce064f423b7c24a011b6ebf9431b8bf9861a5255e47c84bfb23fc526d030a8b  src/ghostscript-10.08.0/LICENSE
+COPYING                      57c8ff33c9c0cfc3ef00e650a1cc910d7ee479a8bc509f6c9209a7c2a11399d6  src/ghostscript-10.08.0/doc/COPYING
+# the native library of the same tree, built with -ffp-contract=off so its arithmetic is
+# gs.wasm's (no fused multiply-adds), for the golden tests' oracle (dvisvgm --libgs); optional
+native/libgs.10.08.dylib     5954e71f5742ed503b87d7817e541afeda27685df1f6b51dccb427f53fb58e41  build/native-lib/sobin/libgs.10.08.dylib

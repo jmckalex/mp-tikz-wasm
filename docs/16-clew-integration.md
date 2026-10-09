@@ -238,6 +238,16 @@ action from Clew, but the first two change behaviour.
   raw `\special{ps: …}`. Every LaTeX document has a few harmless PostScript
   specials (the kernel's header, hyperref's pdfmarks), and they are not
   reported. Clew can show the warning; nothing that renders today changes.
+- **PostScript, opt-in:** with `data-bundles="+ghostscript"` (or the bundle in
+  `bundles`), PSTricks, EPS images, raw PostScript and graphicx's rotation and
+  scaling render, through Ghostscript 10.08.0 as a separate wasm module
+  (`dist/ghostscript/`, 12.5 MB, 8.6 MB gzipped, loaded only by a note whose DVI
+  carries such PostScript). It ships as its own release archive, unpacked into
+  `dist/`. Ghostscript is **AGPL**: Clew may ship it (GPL and AGPL combine), and must
+  offer its source, as it already does for the GPL engines. Whether Clew-iOS
+  ships it is the owner's call (the same App Store question as the GPL engines).
+  Without the bundle nothing changes. A custom URL handler must serve
+  `ghostscript/gs.mjs` and `gs.wasm` like the other engines.
 
 ## In 0.3.2
 

@@ -155,6 +155,31 @@ done
 
 # pgf's and pgfplots' generic parts live under tex/generic
 for d in pgf pgfplots; do [ -d "$TEXMF/tex/generic/$d" ] && cp -R "$TEXMF/tex/generic/$d" "$OUT/tex/generic/$d"; done
+# --- PostScript: the opt-in `ghostscript` bundle ----------------------------------
+# dvisvgm runs PostScript specials through Ghostscript (src/ts/ghostscript.ts)
+# and, as dvips does, first runs dvips's own PostScript headers: tex.pro defines
+# TeXDict, special.pro and color.pro what graphicx's and color's dvips drivers
+# write, l3backend-dvips.pro the kernel's. Those go in the `ghostscript` bundle
+# with the PSTricks family, macros and .pro headers alike: every pst-* package
+# this TeX Live has, except the three that are mostly data (pst-geo's maps,
+# pst-poker's and pst-flags' artwork: 36 MB of the family's 46), and multido,
+# which PSTricks loads.
+mkdir -p "$OUT/dvips"
+for d in base l3backend; do
+  t="$(tree_with "dvips/$d" || true)"; [ -n "$t" ] && cp -R "$t/dvips/$d" "$OUT/dvips/$d"
+done
+for top in dvips tex/generic tex/latex; do
+  t="$(tree_with "$top/pstricks" || true)"; [ -n "$t" ] || { echo "  warning: $top/pstricks not found in any TeX tree; PSTricks will not work" >&2; continue; }
+  mkdir -p "$OUT/$top"
+  for dir in "$t/$top/pstricks" "$t/$top/pstricks-add" "$t/$top"/pst-*; do
+    [ -d "$dir" ] || continue
+    case "$(basename "$dir")" in pst-geo|pst-poker|pst-flags) continue;; esac
+    cp -R "$dir" "$OUT/$top/$(basename "$dir")"
+  done
+done
+for top in tex/generic tex/latex; do
+  t="$(tree_with "$top/multido" || true)"; [ -n "$t" ] && mkdir -p "$OUT/$top" && cp -R "$t/$top/multido" "$OUT/$top/multido"
+done
 # drop documentation-ish files that are never input
 find "$OUT/tex" \( -name '*.dtx' -o -name '*.ins' -o -name '*.pdf' -o -name 'README*' -o -name 'CHANGES*' \) -delete
 

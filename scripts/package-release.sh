@@ -4,6 +4,11 @@
 # bundles) plus the demo pages, so users need neither TeX Live nor Emscripten.
 #
 #   scripts/package-release.sh            -> release/mp-tikz-wasm-<version>.tar.gz and .zip
+#                                            (+ mp-tikz-wasm-ghostscript-<version>.* when dist/ghostscript exists)
+#
+# The Ghostscript module (dist/ghostscript: gs.mjs, gs.wasm) is AGPL, so it ships as
+# an archive of its own, unpacked into dist/; the main archive keeps the
+# `ghostscript` bundle (dvips headers and PSTricks, not Ghostscript itself).
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(node -p "require('$REPO/package.json').version")"
@@ -16,6 +21,7 @@ done
 rm -rf "$STAGE"; mkdir -p "$STAGE"
 cp -R "$REPO/dist" "$STAGE/dist"
 rm -f "$STAGE"/dist/*.map "$STAGE"/dist/*/*.map
+rm -rf "$STAGE/dist/ghostscript"
 mkdir -p "$STAGE/site"
 cp "$REPO"/site/index.html "$REPO"/site/app.js "$REPO"/site/theme.css "$REPO"/site/theme.js "$REPO"/site/examples.js "$REPO"/site/examples-tikz.js "$REPO"/site/tags.html "$REPO"/site/guide.html "$REPO"/site/minimal.html "$REPO"/site/minimal-sources.js "$REPO"/site/live.html "$REPO"/site/live-sources.js "$REPO"/site/page-common.js "$STAGE/site/" 2>/dev/null || true
 cp -R "$REPO/site/figures" "$STAGE/site/figures"     # the tags page's saved figures (mpost-wasm --prerender)
@@ -38,4 +44,23 @@ TXT
 sed -i '' "s#path.resolve(new URL('..', import.meta.url).pathname)#path.resolve(new URL('.', import.meta.url).pathname)#" "$STAGE/serve.mjs" 2>/dev/null || sed -i "s#path.resolve(new URL('..', import.meta.url).pathname)#path.resolve(new URL('.', import.meta.url).pathname)#" "$STAGE/serve.mjs"
 (cd "$OUT" && tar -czf "$NAME.tar.gz" "$NAME" && rm -f "$NAME.zip" && zip -qr "$NAME.zip" "$NAME")
 du -sh "$OUT/$NAME.tar.gz" "$OUT/$NAME.zip" | awk '{print "  " $2 "  " $1}'
+if [ -d "$REPO/dist/ghostscript" ]; then
+  GSNAME="mp-tikz-wasm-ghostscript-$VERSION"
+  rm -rf "$OUT/$GSNAME"; mkdir -p "$OUT/$GSNAME/dist"
+  cp -R "$REPO/dist/ghostscript" "$OUT/$GSNAME/dist/ghostscript"
+  cat > "$OUT/$GSNAME/README.md" <<'TXT'
+mp-tikz-wasm — Ghostscript module (optional)
+
+Unpack beside mp-tikz-wasm's own dist/ (this archive holds dist/ghostscript/), then
+enable PostScript with the `ghostscript` bundle:
+
+  MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'ghostscript'] })
+  <script type="module" src="dist/auto.js" data-bundles="+ghostscript"></script>
+
+Ghostscript is licensed under the GNU AGPL v3 (dist/ghostscript/COPYING); see
+dist/ghostscript/SOURCE.md for its corresponding source.
+TXT
+  (cd "$OUT" && tar -czf "$GSNAME.tar.gz" "$GSNAME" && rm -f "$GSNAME.zip" && zip -qr "$GSNAME.zip" "$GSNAME")
+  du -sh "$OUT/$GSNAME.tar.gz" "$OUT/$GSNAME.zip" | awk '{print "  " $2 "  " $1}'
+fi
 echo "  contents: $(find "$STAGE" -type f | wc -l | tr -d ' ') files, $(du -sh "$STAGE" | cut -f1) unpacked"

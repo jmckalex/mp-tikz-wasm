@@ -1,0 +1,11 @@
+% mp-tikz-wasm: ghostscript
+% graphicx's box transforms under its default dvips driver, which writes them
+% as PostScript: without Ghostscript they are lost (and before it, the words
+% overprinted one another).
+\documentclass{article}
+\usepackage{graphicx}
+\pagestyle{empty}
+\begin{document}
+A\rotatebox{90}{Rotated}B \scalebox{2}[1]{wide} \resizebox{1.5cm}{!}{resized}
+\reflectbox{mirror} \rotatebox[origin=c]{-30}{tilted}
+\end{document}

@@ -37,6 +37,14 @@ const DVISVGM_ARGS = ['--no-mktexmf', '--exact-bbox', '-v3', '--page=1-', '--no-
 // deliberately, which is cases 11 and 12 and needs the opt-in bundles on our side.
 const needsOtf = (src) => /\\usepackage\{(fontspec|unicode-math)\}|\\setmainfont|\\setmathfont|\\input luaotfload/.test(src);
 const needsLua = (src) => /\\usegdlibrary|graphdrawing|\\directlua/.test(src) || needsOtf(src);
+// PostScript cases (PSTricks, EPS, graphicx's dvips-driver transforms, raw ps:) say so on
+// their first line. dvisvgm runs their PostScript through Ghostscript: on our side the
+// Ghostscript module behind the opt-in `ghostscript` bundle, on the oracle's the native
+// library of the same Ghostscript tree (vendor/GHOSTSCRIPT.lock), so both sides run
+// Ghostscript 10.08.0. Without either half (CI has neither), these cases are skipped.
+const needsGs = (src) => /^% mp-tikz-wasm: ghostscript/.test(src);
+const GS_NATIVE = path.join(REPO, 'vendor/ghostscript/native/libgs.10.08.dylib');
+const haveGsWasm = fs.existsSync(path.join(REPO, 'dist/ghostscript/gs.wasm'));
 function oracle(caseFile, plain) {
   const dir = fs.mkdtempSync(path.join(OUT, 'oracle-'));
   // the same driver line the library injects (docs/14 §7), same first line
@@ -52,7 +60,8 @@ function oracle(caseFile, plain) {
   try { execFileSync(prog, ['-interaction=nonstopmode', 'doc.tex'], { cwd: dir, stdio: 'ignore', env }); } catch { /* errors are part of some cases */ }
   const pages = [];
   if (fs.existsSync(path.join(dir, 'doc.dvi'))) {
-    try { execFileSync('dvisvgm', [...DVISVGM_ARGS, '-o', 'doc-%p.svg', 'doc.dvi'], { cwd: dir, stdio: 'ignore', env }); } catch { /* keep what was produced */ }
+    const gsArgs = needsGs(src) ? [`--libgs=${GS_NATIVE}`] : [];
+    try { execFileSync('dvisvgm', [...DVISVGM_ARGS, ...gsArgs, '-o', 'doc-%p.svg', 'doc.dvi'], { cwd: dir, stdio: 'ignore', env }); } catch { /* keep what was produced */ }
     for (let p = 1; ; p++) { const f = path.join(dir, `doc-${p}.svg`); if (!fs.existsSync(f)) break; pages.push(normalise(fs.readFileSync(f, 'utf8'))); }
   }
   fs.rmSync(dir, { recursive: true, force: true });
@@ -65,16 +74,20 @@ const mp = await MetaPost.create({ logLevel: 'silent' });
 // `opentype` is opt-in, and deliberately so: with it loaded LaTeX finds luaotfload and
 // initialises it on every run, which would change every other case here. A second engine
 // keeps that confined to the cases that ask for it.
-let mpOtf = null;
+let mpOtf = null, mpGs = null;
 const engineFor = async (src) => needsOtf(src)
   ? (mpOtf ??= await MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'opentype', 'otf-fonts'], logLevel: 'silent' }))
+  : needsGs(src) ? (mpGs ??= await MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'ghostscript'], logLevel: 'silent' }))
   : mp;
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0;
 const files = fs.readdirSync(CASES).filter((f) => f.endsWith('.tex') && (only.length === 0 || only.some((o) => f.includes(o)))).sort();
 for (const f of files) {
   const name = path.basename(f, '.tex');
   const src = fs.readFileSync(path.join(CASES, f), 'utf8');
   const plain = /\\bye\s*$/.test(src.trim());
+  if (needsGs(src) && (!haveGsWasm || (mode !== '--check' && !fs.existsSync(GS_NATIVE)))) {
+    skipped++; console.log(`skip ${name} (needs ${!haveGsWasm ? 'dist/ghostscript' : GS_NATIVE}: scripts/vendor-ghostscript.sh)`); continue;
+  }
   const engine = needsLua(src) ? (plain ? 'luatex' : 'lualatex') : plain ? 'plain' : 'latex';
   let r, rs;
   const engineMp = await engineFor(src);
@@ -108,5 +121,5 @@ for (const f of files) {
 }
 mp.dispose();
 mpOtf?.dispose();
-console.log(`\n${pass} passed, ${fail} failed`);
+console.log(`\n${pass} passed, ${fail} failed${skipped ? `, ${skipped} skipped` : ""}`);
 process.exit(fail ? 1 : 0);

@@ -1,0 +1,18 @@
+% mp-tikz-wasm: ghostscript
+% An EPS image through graphicx's default dvips driver (a PSfile= special): it
+% is Ghostscript that opens the file, from dvisvgm's working directory. Scaled
+% and rotated with \includegraphics's own keys.
+\begin{filecontents*}[overwrite]{fig.eps}
+%!PS-Adobe-3.0 EPSF-3.0
+%%BoundingBox: 0 0 72 72
+newpath 0 0 moveto 72 72 lineto 72 0 lineto closepath 0 0 1 setrgbcolor fill
+newpath 36 36 20 0 360 arc 1 0 0 setrgbcolor 3 setlinewidth stroke
+%%EOF
+\end{filecontents*}
+\documentclass{article}
+\usepackage{graphicx}
+\pagestyle{empty}
+\begin{document}
+\includegraphics{fig.eps}\quad
+\includegraphics[width=1.5cm,angle=30]{fig.eps}
+\end{document}

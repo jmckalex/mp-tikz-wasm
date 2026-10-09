@@ -29,9 +29,11 @@ PACKAGES="kpathsea texlive-scripts
   graphics-cfg graphics-def grfext helvetic hycolor hyperref hyph-utf8 hyphen-ancientgreek
   hyphen-base hyphen-greek iftex imakeidx infwarerr intcalc knuth-lib kvdefinekeys
   kvoptions kvsetkeys l3backend l3kernel l3packages latex latex-fonts latexconfig
-  letltxmacro listings lm lm-math ltxcmds lua-uni-algos lualatex-math lualibs luaotfload
+  letltxmacro listings lm lm-math ltxcmds lua-uni-algos lualatex-math lualibs luaotfload multido
   luatex85 luatexbase mathtools mcf2graph metaobj metapost metauml mpcolornames mptopdf ncntrsbk
   palatino pdfescape pdftex pdftexcmds pgf pgfplots plain preview psnfss refcount
+  pst-3d pst-arrow pst-coil pst-eps pst-fill pst-func pst-grad pst-math pst-node
+  pst-plot pst-text pst-tools pst-tree pstricks pstricks-add
   rerunfilecheck roundrect shapes simplekv spath3 splines standalone stringenc symbol
   tex-ini-files tikz-3dplot tikz-cd times todonotes tools unicode-data unicode-math
   uniquecounter url varwidth xcolor xkeyval zapfchan zapfding"

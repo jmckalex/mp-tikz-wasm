@@ -7,6 +7,7 @@ import { MpJob, MpFtype, MP_FTYPE_NAMES, MPX_FTYPE_TFM, MPX_FTYPE_VF, mpxAddPath
 import { runTex, type TexFactory, type TexModule } from './texengine.js';
 import { runDvisvgm, type DvisvgmFactory } from './dvisvgm.js';
 import { dviSpecials, describeLostPostScript } from './postscript.js';
+import type { Ghostscript } from './ghostscript.js';
 import { BundleSet, TEXMF_ROOT } from './vfs/bundle.js';
 import { listFiles, mkdirp, writeFileDeep, isUnloadedLazy, ensureLoaded, type EmscriptenFS } from './vfs/lazyfs.js';
 import { scanTexBlocks, scanInputs, type TexBlock } from './tex/scanner.js';
@@ -70,6 +71,8 @@ export interface CoreEnv {
   /** luatex.wasm, same module interface as tex.wasm; needed for engine 'lualatex' / 'luatex' */
   luatexFactory?: TexFactory;
   dvisvgmFactory?: DvisvgmFactory;
+  /** the Ghostscript module for dvisvgm's PostScript (ghostscript.ts), when enabled; null if it cannot be loaded */
+  ghostscript?: () => Promise<Ghostscript | null>;
   /** bundles merged into /texmf (browser, or Node without texmfDir) */
   bundles?: BundleSet;
   /** Node: real directory mounted at /texmf with NODEFS */
@@ -484,21 +487,41 @@ export class MetaPostCore {
       if (lo.fonts === 'woff2') args.push('--font-format=woff2'); else args.push('--no-fonts');
       if (lo.bbox) args.push(`--bbox=${lo.bbox}`);
       args.push(...(lo.dvisvgmArgs ?? []), `${job}.dvi`);
-      const r = await runDvisvgm(this.env.dvisvgmFactory!, {   // checked at the top for SVG output
-        args,
-        setup: (M) => { mkdirp(M.FS, '/work'); this.installTexmf(M.FS, M.NODEFS); this.copyUserFiles(M); writeFileDeep(M.FS, `/work/${job}.dvi`, dviBytes); M.FS.chdir('/work'); },
-        collect: (M) => {
-          const names = listFiles(M.FS, '/work').filter((p) => new RegExp(`^/work/${job.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)\\.svg$`).test(p))
-            .sort((a, b) => Number(/-(\d+)\.svg$/.exec(a)![1]) - Number(/-(\d+)\.svg$/.exec(b)![1]));
-          for (let i = 0; i < names.length; i++) {
-            const svg = M.FS.readFile(names[i], { encoding: 'utf8' }) as string;
-            const dangling = danglingRefs(svg);
-            if (dangling.length) danglingPages.push(`page ${i + 1}: ${plural(dangling.length, 'reference')} (${dangling.slice(0, 3).join(', ')}${dangling.length > 3 ? ', …' : ''})`);
-            pages.push(lo.svg ? postProcessSvg(svg, lo.svg, i) : svg);
-          }
-        },
-        onLine: (l) => { this.env.onLog?.(l); this.logger.debug('dvisvgm', l); },
-      });
+      // PostScript that dvisvgm can only draw through Ghostscript (postscript.ts).
+      // Nearly every LaTeX DVI has some PostScript that draws nothing (the l3
+      // kernel's header, hyperref's pdfmarks); Ghostscript is loaded only for the
+      // rest, so every other document renders exactly as without it.
+      const lost = describeLostPostScript(dviSpecials(dviBytes));
+      const gs = lost && this.env.ghostscript ? await this.env.ghostscript() : null;
+      if (gs) this.logger.info('host', `PostScript (${lost}): dvisvgm runs it through Ghostscript`);
+      let r: Awaited<ReturnType<typeof runDvisvgm>>;
+      try {
+        r = await runDvisvgm(this.env.dvisvgmFactory!, {   // checked at the top for SVG output
+          args,
+          ...(gs ? { module: { gsBridge: gs.bridge() } } : {}),
+          // Ghostscript opens files itself (an EPS is `(fig.eps) run`): it sees dvisvgm's /work and /texmf
+          setup: (M) => {
+            mkdirp(M.FS, '/work'); this.installTexmf(M.FS, M.NODEFS); this.copyUserFiles(M);
+            // what TeX wrote beside the job (an EPS from filecontents, say), as a native
+            // dvisvgm run in the same directory would see it
+            for (const [name, data] of Object.entries(artifacts)) writeFileDeep(M.FS, `/work/${name}`, data);
+            writeFileDeep(M.FS, `/work/${job}.dvi`, dviBytes); M.FS.chdir('/work'); gs?.mount(M.FS, ['/work', TEXMF_ROOT]);
+          },
+          collect: (M) => {
+            const names = listFiles(M.FS, '/work').filter((p) => new RegExp(`^/work/${job.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)\\.svg$`).test(p))
+              .sort((a, b) => Number(/-(\d+)\.svg$/.exec(a)![1]) - Number(/-(\d+)\.svg$/.exec(b)![1]));
+            for (let i = 0; i < names.length; i++) {
+              const svg = M.FS.readFile(names[i], { encoding: 'utf8' }) as string;
+              const dangling = danglingRefs(svg);
+              if (dangling.length) danglingPages.push(`page ${i + 1}: ${plural(dangling.length, 'reference')} (${dangling.slice(0, 3).join(', ')}${dangling.length > 3 ? ', …' : ''})`);
+              pages.push(lo.svg ? postProcessSvg(svg, lo.svg, i) : svg);
+            }
+          },
+          onLine: (l) => { this.env.onLog?.(l); this.logger.debug('dvisvgm', l); },
+        });
+      } finally {
+        gs?.unmount();
+      }
       dvisvgmLog = r.log; dvisvgmMs = r.ms;
       // dvisvgm carries on when a font has no outline file (no map entry, no .pfb):
       // it writes <use> references to glyphs it never defines and exits 0, so the
@@ -512,12 +535,17 @@ export class MetaPostCore {
         status = 'error';
         diagnostics.push({ severity: 'error', source: 'host', message: `the SVG refers to glyphs it does not define -- ${danglingPages.join('; ')}` });
       }
-      // dvisvgm skips PostScript specials (no Ghostscript here). Most documents have
-      // some that draw nothing (the l3 kernel's header, hyperref's pdfmarks); say so
-      // only when what was skipped carried part of the picture (postscript.ts).
-      if (/PostScript specials? ignored/.test(r.log)) {
-        const lost = describeLostPostScript(dviSpecials(dviBytes));
-        if (lost) diagnostics.push({ severity: 'warning', source: 'host', message: `PostScript was ignored, so the SVG is missing ${lost}: dvisvgm runs PostScript through Ghostscript, which this build does not include`, help: ['TikZ, pgfplots, tikz-cd and MetaPost draw without PostScript and are unaffected'] });
+      // PostScript that carried part of the picture and was skipped: no Ghostscript
+      // (not enabled, or not loadable), or Ghostscript gave up on it
+      if (lost && (!gs || /PostScript specials? ignored/.test(r.log))) {
+        const why = !this.env.ghostscript ? "dvisvgm runs PostScript through Ghostscript: add the 'ghostscript' bundle"
+          : !gs ? 'the Ghostscript module could not be loaded' : 'Ghostscript did not run it';
+        diagnostics.push({ severity: 'warning', source: 'host', message: `PostScript was ignored, so the SVG is missing ${lost}: ${why}`, help: ['TikZ, pgfplots, tikz-cd and MetaPost draw without PostScript and are unaffected'] });
+      }
+      if (gs) {
+        for (const m of new Set([...r.log.matchAll(/PostScript error: (.*)/g)].map((x) => x[1].trim()))) {
+          diagnostics.push({ severity: 'warning', source: 'host', message: `Ghostscript: PostScript error ${m}` });
+        }
       }
       this.logger.info('host', `dvisvgm: ${plural(pages.length, 'page')} in ${ms(r.ms)}${r.exitCode ? `, exit ${r.exitCode}` : ''}`);
       if (r.exitCode !== 0 && pages.length === 0) {

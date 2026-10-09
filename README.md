@@ -430,15 +430,37 @@ about 450 ms.
 
 ## Limits
 
-No Ghostscript, so PostScript specials are skipped: PSTricks, EPS images, raw
-`\special{ps: …}`, and graphicx's `\rotatebox`/`\scalebox` under its default
-dvips driver. `latex()` adds a warning diagnostic when that loses part of the
-picture. Headers and hyperref's pdfmarks, which nearly every document has,
-draw nothing and do not trigger it. No `\write18`, no interactive error recovery.
+PostScript (PSTricks, EPS images, raw `\special{ps: …}`, and graphicx's
+`\rotatebox`/`\scalebox` under its default dvips driver) needs the opt-in
+`ghostscript` bundle and the Ghostscript module (see below). Without them
+dvisvgm skips it, and `latex()` adds a warning when that loses part of the
+picture. No `\write18`, no interactive error recovery.
 The `runScript` and `makeText` callbacks force in-process mode. XeTeX is not
 included — OpenType fonts come from LuaTeX instead, see below. OpenType
 shaping is luaotfload's Lua `mode=node`, not HarfBuzz (this is `luatex`, not
 `luahbtex`), so `mode=harf` and Graphite features are out.
+
+### PostScript: PSTricks and EPS
+
+dvisvgm draws PostScript through Ghostscript, which here is a separate wasm
+module (Ghostscript 10.08.0, AGPL, its own release archive). It is loaded only
+when a document's DVI carries PostScript that would otherwise be lost, and never
+linked with the engines. Turn it on with the `ghostscript` bundle, which also
+brings dvips's PostScript headers and the PSTricks family:
+
+```js
+const mp = await MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'ghostscript'] });
+await mp.latex(String.raw`\documentclass{article}\usepackage{pstricks}
+\begin{document}\begin{pspicture}(3,2)\pscircle[linecolor=red](1.5,1){0.7}\end{pspicture}\end{document}`);
+```
+
+or `data-bundles="+ghostscript"` on the drop-in loader (`ghostscript: true`
+with `texmfDir`). EPS images, files the document wrote itself included, are
+opened by Ghostscript from the job's directory. The output is byte-identical to
+TeX Live's dvisvgm with Ghostscript 10.08.0 on the PostScript golden cases. A
+document with PostScript takes about 0.2 s here; documents without it never load
+Ghostscript. Source build: `scripts/vendor-ghostscript.sh` copies the pinned
+module from the Ghostscript port (`vendor/GHOSTSCRIPT.lock`).
 
 ### OpenType fonts
 
@@ -596,13 +618,14 @@ copy is never modified, and a patch whose target this TeX Live lacks is skipped)
 | --- | --- | --- |
 | texmf 0001 | `luaotfload.sty` | **upstream gap:** luaotfload's DVI module registers on `pre_shipout_filter`, a callback that the LaTeX kernel creates and calls from its `\shipout`. Plain TeX has neither, so every OpenType `\font` under `dviluatex` failed with "Unable to register callback" then "not loadable" — in stock TeX Live too. The patch creates the callback and calls it from a `\shipout` wrapper (the `everyshi` idiom), under plain TeX in DVI mode only |
 
-One patch applies to dvisvgm, in `patches/dvisvgm/` (applied by
+Two patches apply to dvisvgm, in `patches/dvisvgm/` (applied by
 `scripts/build-dvisvgm-wasm.sh` to a copy of its `src/` under
 `build/dvisvgm/patched`):
 
 | # | File | Why |
 | --- | --- | --- |
 | dvisvgm 0001 | `Font.cpp`, `Font.hpp`, `FontManager.cpp` | **upstream defect:** a native font was keyed by file path and style, not by face index, so every face of a TrueType Collection (`.ttc`) after the first was taken for a copy of it: in paths mode their glyphs were drawn from the first face's outlines, and with `fonts: 'woff2'` they shared one `@font-face`. luaotfload writes the index into the DVI and dvisvgm reads it; the key now includes it. Unchanged in upstream dvisvgm 3.6.1. Other fonts always have index 0, so their SVG has the same content as before (the order of glyph definitions, which follows heap addresses, can move) |
+| dvisvgm 0002 | `DLLoader.hpp`, `DLLoader.cpp` | **wasm-only:** an Emscripten build without dynamic linking cannot `dlopen` libgs, so it was built with `DISABLE_GS` and skipped all PostScript. Under `__EMSCRIPTEN__`, `DLLoader` now asks `mpw_dlopen`/`mpw_dlsym`, which `src/c/gs-bridge.c` answers with `gsapi_*` proxies for a separate Ghostscript module, and with nothing when that module is not loaded |
 
 ## Licence
 
@@ -610,7 +633,10 @@ This project's own code is LGPL-3.0-or-later (`LICENSE`). The wasm modules
 combine it with upstream software under its own terms: MetaPost is public
 domain, but `mplib.wasm` includes `avl.c` (LGPL) and decNumber (ICU), so it is
 LGPL-3.0-or-later too; `tex.wasm`, `luatex.wasm` and `dvisvgm.wasm` are GPL.
-The fonts and macro packages in the bundles keep their own licences (Knuth's,
+The optional Ghostscript module (`dist/ghostscript/`, its own release archive)
+is AGPL-3.0: a separate module that dvisvgm reaches through a bridge, never
+linked with the others; whoever serves or ships it must offer its source
+(`dist/ghostscript/SOURCE.md`). The fonts and macro packages in the bundles keep their own licences (Knuth's,
 AMS, GUST, LPPL). [`NOTICE.md`](NOTICE.md) lists every part, and `licenses/`
 holds the full texts.
 

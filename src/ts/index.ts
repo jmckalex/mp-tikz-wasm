@@ -8,6 +8,7 @@ import { Logger, DEFAULT_LOG_LEVEL, LOG_LEVELS, isLogLevel, consoleSink } from '
 import { BundleSet, browserIO } from './vfs/bundle.js';
 import { resolveBundleSpecs, DEFAULT_BUNDLES } from './bundles-config.js';
 import { isNode, nodeIO } from './node.js';
+import { ghostscriptLoader, ghostscriptWanted, type GhostscriptFactory } from './ghostscript.js';
 import type { WorkerResponse, WorkerEvent } from './worker.js';
 export * from './types.js';
 export { sanitizeSvg, postProcessSvg } from './render/svg.js';
@@ -68,8 +69,12 @@ class InProcessBackend implements Backend {
     if (!luatexFactory && texFactory) {
       try { luatexFactory = (await import(/* @vite-ignore */ new URL('./luatex.mjs', here).href)).default; } catch { luatexFactory = undefined; }
     }
+    const gsBase = o.ghostscriptBaseUrl ?? new URL('./ghostscript/', here).href;
+    const ghostscript = dvisvgmFactory && ghostscriptWanted(o.ghostscript, o.bundles ?? DEFAULT_BUNDLES)
+      ? ghostscriptLoader({ glueUrl: new URL('gs.mjs', gsBase).href, wasmUrl: new URL('gs.wasm', gsBase).href, fetch: (u) => io.fetch(u), factory: o.modules?.ghostscript as GhostscriptFactory | undefined, log: (m) => this.logger.info('host', m) })
+      : undefined;
     this.core = new MetaPostCore({
-      mplibFactory, texFactory, luatexFactory, dvisvgmFactory, bundles: this.bundles, texmfDir, options: o, logger: this.logger,
+      mplibFactory, texFactory, luatexFactory, dvisvgmFactory, ghostscript, bundles: this.bundles, texmfDir, options: o, logger: this.logger,
       onProgress: (e) => this.emit('progress', e),
       onLog: (l) => this.emit('log', l),
     });

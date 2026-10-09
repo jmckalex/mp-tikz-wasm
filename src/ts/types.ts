@@ -5,7 +5,7 @@
 
 export type BundleName =
   | 'core' | 'cm-tfm' | 'cm-type1' | 'tex-plain' | 'latex-core' | 'latex-extra'
-  | 'opentype' | 'otf-fonts' | 'classico'
+  | 'opentype' | 'otf-fonts' | 'classico' | 'ghostscript'
   | (string & {});
 
 export interface BundleSpec {
@@ -85,8 +85,18 @@ export interface MetaPostOptions {
   /** Every line the engines print, whatever the level (also the 'log' event). */
   log?: (line: string) => void;
   wasmUrls?: { mplib?: string; tex?: string };
+  /**
+   * PostScript in LaTeX documents (PSTricks, EPS images, `\special{ps: …}`,
+   * graphicx's rotation and scaling under its dvips driver) through a separate
+   * Ghostscript module (AGPL), loaded only when a document's DVI carries such
+   * PostScript. On by default when the `ghostscript` bundle is in `bundles`;
+   * set it for `texmfDir`, which has no bundle list.
+   */
+  ghostscript?: boolean;
+  /** Where the Ghostscript module's gs.mjs and gs.wasm are; default `ghostscript/` beside index.js. */
+  ghostscriptBaseUrl?: string;
   /** Pre-loaded Emscripten module factories (e.g. for a single-file build); in-process mode only. */
-  modules?: { mplib?: (opts?: Record<string, unknown>) => Promise<any>; tex?: (opts?: Record<string, unknown>) => Promise<any>; luatex?: (opts?: Record<string, unknown>) => Promise<any>; dvisvgm?: (opts?: Record<string, unknown>) => Promise<any> };
+  modules?: { mplib?: (opts?: Record<string, unknown>) => Promise<any>; tex?: (opts?: Record<string, unknown>) => Promise<any>; luatex?: (opts?: Record<string, unknown>) => Promise<any>; dvisvgm?: (opts?: Record<string, unknown>) => Promise<any>; ghostscript?: (opts?: Record<string, unknown>) => Promise<any> };
   /** Custom bundle I/O (e.g. files embedded in the page); in-process mode only. */
   bundleIO?: { fetch(url: string): Promise<Uint8Array>; fetchSync?: (url: string) => Uint8Array; fetchJson(url: string): Promise<unknown> };
   /** Run in-process instead of in a Web Worker (default: worker in browsers, in-process in Node). */

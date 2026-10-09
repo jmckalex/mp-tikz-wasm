@@ -12,6 +12,8 @@ export interface DvisvgmRunOptions {
   setup: (M: DvisvgmModule) => void;
   collect?: (M: DvisvgmModule) => void;
   onLine?: (line: string) => void;
+  /** extra properties for the module object, e.g. gsBridge (ghostscript.ts) */
+  module?: Record<string, unknown>;
 }
 
 export async function runDvisvgm(factory: DvisvgmFactory, opts: DvisvgmRunOptions): Promise<{ exitCode: number; log: string; ms: number }> {
@@ -19,6 +21,7 @@ export async function runDvisvgm(factory: DvisvgmFactory, opts: DvisvgmRunOption
   const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   let exitCode = -1;
   const M = await factory({
+    ...opts.module,
     print: (s: string) => { lines.push(s); opts.onLine?.(s); },
     printErr: (s: string) => { lines.push(s); opts.onLine?.(s); },
     noInitialRun: true,

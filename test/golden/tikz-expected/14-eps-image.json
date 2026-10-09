@@ -1,0 +1,6 @@
+{
+ "oracle": "TeX Live 2025 / dvisvgm 3.4.3",
+ "pages": [
+  "<?xml version='1.0' encoding='UTF-8'?>\n\n<svg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='140.027625pt' height='72pt' viewBox='76.712329 52.801982 140.027625 72'>\n<g id='page1'>\n<g transform='matrix(1 0 0 -1 76.712329 124.801982)'>\n<path d='M0 0L72 72V0Z' fill='#00f'/>\n<path d='M56 36C56 47.043 47.043 56 36 56S16 47.043 16 36S24.957 16 36 16S56 24.957 56 36' stroke='#f00' fill='none' stroke-width='3'/>\n</g>\n<g transform='matrix(.511195 -.295139 -.295139 -.511195 179.933891 124.80166)'>\n<path d='M0 0L72 72V0Z' fill='#00f'/>\n<path d='M56 36C56 47.043 47.043 56 36 56S16 47.043 16 36S24.957 16 36 16S56 24.957 56 36' stroke='#f00' fill='none' stroke-width='3' stroke-miterlimit='10'/>\n</g>\n</g>\n</svg>"
+ ]
+}

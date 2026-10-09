@@ -10,6 +10,7 @@ import { BundleSet, browserIO } from './vfs/bundle.js';
 import { resolveBundleSpecs, DEFAULT_BUNDLES } from './bundles-config.js';
 import { Logger, DEFAULT_LOG_LEVEL } from './logger.js';
 import { isNode, nodeIO } from './node.js';
+import { ghostscriptLoader, ghostscriptWanted } from './ghostscript.js';
 import type { MetaPostOptions, RunOptions, LatexRunOptions, LogLevel } from './types.js';
 
 // Node worker_threads: give the rest of this file the Web Worker surface it uses
@@ -66,8 +67,12 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
           await bundles.prefetchEager();
           if (!bundles.canFetchSync) await bundles.prefetchAll();
         }
+        const gsBase = options.ghostscriptBaseUrl ?? new URL('./ghostscript/', baseUrl).href;
+        const ghostscript = dvisvgmFactory && ghostscriptWanted(options.ghostscript, options.bundles ?? DEFAULT_BUNDLES)
+          ? ghostscriptLoader({ glueUrl: new URL('gs.mjs', gsBase).href, wasmUrl: new URL('gs.wasm', gsBase).href, fetch: (u) => io.fetch(u), log: (m) => logger?.info('host', m) })
+          : undefined;
         core = new MetaPostCore({
-          mplibFactory, texFactory, luatexFactory, dvisvgmFactory, bundles: texmfDir ? undefined : bundles, texmfDir, options, logger,
+          mplibFactory, texFactory, luatexFactory, dvisvgmFactory, ghostscript, bundles: texmfDir ? undefined : bundles, texmfDir, options, logger,
           onProgress: (e) => post({ event: 'progress', data: e }),
           onLog: (line) => post({ event: 'log', data: line }),
         });

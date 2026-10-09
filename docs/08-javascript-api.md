@@ -48,6 +48,8 @@ wrong.
 interface MetaPostOptions {
   bundles?: (BundleName | BundleSpec)[];
   bundleBaseUrl?: string;
+  ghostscript?: boolean;              // PostScript through Ghostscript; default: the 'ghostscript' bundle is in `bundles` (§4.3)
+  ghostscriptBaseUrl?: string;        // where gs.mjs and gs.wasm are; default `ghostscript/` beside index.js
 
   numberSystem?: 'scaled' | 'double' | 'decimal' | 'binary' | 'interval';
   tex?: 'none' | 'plain' | 'etex' | 'latex' | 'auto';
@@ -296,6 +298,29 @@ tags' loader, then in the document or `data-preamble`:
 Bold, Italic and Bold Italic, in SVG and in PDF output (the Type 1 faces,
 embedded). Under LuaLaTeX `classico.sty` loads `fontspec` for the TrueType
 faces, so add the `opentype` bundle too, or pass the package's `type1` option.
+
+### 4.3 PostScript: the `ghostscript` bundle
+
+PSTricks, EPS images (`\includegraphics{fig.eps}`), raw `\special{ps: …}` and
+graphicx's `\rotatebox`/`\scalebox`/`\resizebox` (under its default dvips
+driver) are PostScript, which dvisvgm draws through Ghostscript. Ask for it
+with `bundles: [...DEFAULT_BUNDLES, 'ghostscript']`, or `data-bundles="+ghostscript"`
+on the tags' loader, or `ghostscript: true` with `texmfDir`. The bundle carries
+dvips's PostScript headers and the PSTricks family (every `pst-*` package
+except the data-heavy `pst-geo`, `pst-poker`, `pst-flags`). The interpreter is
+Ghostscript 10.08.0 as a separate wasm module in `dist/ghostscript/` (AGPL; 12.5 MB,
+8.6 MB gzipped; its own release archive). It is fetched, compiled and started
+only when a document's DVI carries PostScript that would otherwise be lost, then
+reused for later documents on the same engine. Documents without such PostScript
+never load it.
+
+EPS files can come from `files`, the bundles, or the document itself
+(`filecontents`): Ghostscript opens them from the job's directory and the
+texmf tree, as a native run would. Output is byte-identical to TeX Live's
+dvisvgm with Ghostscript 10.08.0 on the PostScript golden cases (docs/14 §17).
+PostScript errors come back as warnings (`Ghostscript: PostScript error …`).
+Without Ghostscript, `latex()` warns when skipped PostScript carried part of
+the picture, naming what was lost; status stays `ok`.
 
 ## 5. The CLI
 

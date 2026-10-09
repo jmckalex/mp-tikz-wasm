@@ -1024,3 +1024,94 @@ PDF — `/ID` included — equals TeX Live's byte for byte except for the versio
 digits in `/Producer` and `/PTEX.Fullbanner` (golden-pdf masks exactly
 those).
 
+
+## 17. PostScript through Ghostscript (session 13)
+
+dvisvgm interprets PostScript specials only through Ghostscript, and
+`dvisvgm.wasm` used to be compiled with `DISABLE_GS`, so it skipped them all. What
+was lost: PSTricks, EPS images (`\includegraphics` writes a `PSfile=` special),
+raw `\special{ps: …}`, and graphicx's `\rotatebox`/`\scalebox`/`\resizebox`,
+which its default dvips driver writes as PostScript. It all came out as an `ok`
+SVG with the drawing missing (or, for rotation, words overprinting each other).
+Switching graphicx to `dvisvgm.def` is no fix on its own: that driver computes
+the bounding box of a transformed box through a `ps:` rotate, so without
+Ghostscript the content is clipped (§15's session-13 item 8, checked against
+native TeX Live with and without Ghostscript).
+
+**The shape: a separate module behind a narrow bridge.** Ghostscript comes from
+the Ghostscript port (its own project; pinned by `vendor/GHOSTSCRIPT.lock` and
+copied in by `scripts/vendor-ghostscript.sh`): Ghostscript 10.08.0 built to wasm,
+lean variant (PostScript and PDF interpreters, `%rom%` fonts and init files, no
+output devices; 12.5 MB, 8.6 MB gzipped), exporting the `gsapi_*` C API, `addFunction`
+and PROXYFS. It is never linked into `dvisvgm.wasm`:
+
+- dvisvgm loads libgs with dlopen/dlsym (`DLLoader`). `patches/dvisvgm/0002` makes
+  `DLLoader` call `mpw_dlopen`/`mpw_dlsym`/`mpw_dlclose` under `__EMSCRIPTEN__`, and
+  `dvisvgm.wasm` is now built without `DISABLE_GS`.
+- `src/c/gs-bridge.c` answers "libgs" with proxies for the nine `gsapi_*`
+  functions dvisvgm uses. Each has the exact C signature of its `iapi.h`
+  declaration, since dvisvgm calls them through typed function pointers and
+  wasm's `call_indirect` checks the signature. Its JS half (`gs-bridge.js`)
+  forwards each call to `Module.gsBridge`.
+- `src/ts/ghostscript.ts` implements that bridge against the Ghostscript module.
+  It copies code into its heap, collects its stdout and stderr through `addFunction`'d
+  callbacks, and the C proxy replays them to dvisvgm's callbacks before
+  returning. dvisvgm only consumes that output (its stdin callback returns 0),
+  so the order is the one it sees natively.
+- One module serves every document in turn: `gsapi_new_instance` …
+  `gsapi_delete_instance` per dvisvgm run. A non-threaded Ghostscript refuses a
+  second live instance, and there never is one. A module that traps is marked
+  broken and replaced.
+
+**Files.** Ghostscript opens files itself: an EPS goes in as `(fig.eps) run`, with
+the path dvisvgm resolved. For each run, dvisvgm's `/work` and `/texmf` are
+mounted into the Ghostscript module with PROXYFS, and unmounted after. Files TeX
+wrote beside the job (an EPS from `filecontents`) are now copied into dvisvgm's
+`/work` along with the user's, as a native run in one directory would see them.
+
+**When it loads.** Nearly every LaTeX DVI carries PostScript that draws nothing:
+the l3 kernel's `header=l3backend-dvips.pro`, PGF's `ps::%%` comments, hyperref's
+pdfmarks. If those started Ghostscript, every document would pay for it, so
+`postscript.ts` reads the DVI's specials first. Ghostscript is loaded (glue
+imported, `gs.wasm` compiled once per process, a module instantiated per engine)
+only when something would otherwise be lost. Every other document renders
+exactly as before, with dvisvgm not even finding libgs. Without the bundle, the
+same classification produces the lost-PostScript warning, which now names the
+`ghostscript` bundle.
+
+**The `ghostscript` bundle** (opt-in) is the switch and the TeX side.
+`MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'ghostscript'] })`, or
+`data-bundles="+ghostscript"`, turns Ghostscript on (`ghostscript: true` does
+it for `texmfDir`). The bundle carries what dvisvgm and LaTeX need besides the
+module: dvips's PostScript headers (`dvips/base`: `tex.pro` defines `TeXDict`;
+`special.pro`, `color.pro`), `l3backend-dvips.pro`, and the PSTricks family:
+every `pst-*` package TeX Live has except `pst-geo`, `pst-poker` and `pst-flags`,
+which are 36 MB of map and artwork data. Plus `multido`: 272 files, 9.6 MB,
+fetched one at a time. The module itself lives in `dist/ghostscript/` (`gs.mjs`,
+`gs.wasm`, `COPYING`, `LICENSE`, `SOURCE.md`) and is released as an archive of
+its own, because it is AGPL.
+
+**Verified.** Golden cases 13–16 (`% mp-tikz-wasm: ghostscript` on their first
+line) compare against TeX Live's dvisvgm with `--libgs` pointing at the port's
+native `libgs` of the same 10.08.0 tree. All four are byte-identical: PSTricks
+(gradient, `\psplot`, nodes), EPS (written by `filecontents`), graphicx
+transforms, and raw `ps:` with a `ps::` procedure definition. That needed one
+thing of the oracle. At first the PSTricks case matched in 360 of 361 lines, with
+one arrowhead path off by at most 2e-5 pt: arm64 clang fuses a*b+c into
+multiply-adds, which wasm lacks. The port now builds that native library with
+`-ffp-contract=off` (no FMA left, by objdump), and the line matches. Native and
+wasm still link different libm (macOS against musl), so transcendental functions
+could differ in the last ulp; none of these cases shows it. The cases are skipped
+where either half is missing; CI has neither yet. `test/e2e/ghostscript.test.ts` covers PSTricks colours,
+EPS from the working directory and from `filecontents`, the rotated box's
+bounding box (TeX Live's own figures), Ghostscript staying unloaded for
+PostScript that draws nothing, six documents in turn on one engine, the
+`worker_threads` path, and the warning without the bundle. A document with
+PostScript renders in 150–210 ms here, Ghostscript included.
+
+**A trap on the way.** dvisvgm calls `gsapi_revision` before
+`gsapi_new_instance`. The first bridge reused one scratch cell, so
+`*pinstance` still held the revision struct's product pointer, and since 9.5x a
+non-null `*pinstance` asks Ghostscript to share that "instance": it trapped
+with "memory access out of bounds". The cell is zeroed first now, as dvisvgm's
+own `_inst = nullptr` does natively.
