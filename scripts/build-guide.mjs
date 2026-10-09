@@ -63,7 +63,10 @@ html = html.replace(/__FIG:([a-z0-9-]+)__/g, (_m, id) => figures[id] ?? `<p clas
   .replace(/__VERSION__/g, VERSION)
   .replace(/__WASM_MB__/g, MB(numbers.mplib + numbers.tex + numbers.dvisvgm))
   .replace(/__WASM_GZ_MB__/g, MB(numbers.gz))
-  .replace(/__MPLIB_MB__/g, MB(numbers.mplib)).replace(/__TEX_MB__/g, MB(numbers.tex)).replace(/__DVISVGM_MB__/g, MB(numbers.dvisvgm)).replace(/__LUATEX_MB__/g, MB(sz('luatex.wasm')));
+  .replace(/__MPLIB_MB__/g, MB(numbers.mplib)).replace(/__TEX_MB__/g, MB(numbers.tex)).replace(/__DVISVGM_MB__/g, MB(numbers.dvisvgm)).replace(/__LUATEX_MB__/g, MB(sz('luatex.wasm')))
+  // the optional Ghostscript module (dist/ghostscript, AGPL); absent when it was not built
+  .replace(/__GS_MB__/g, fs.existsSync(path.join(REPO, 'dist/ghostscript/gs.wasm')) ? MB(sz('ghostscript/gs.wasm')) : '–')
+  .replace(/__GS_GZ_MB__/g, fs.existsSync(path.join(REPO, 'dist/ghostscript/gs.wasm')) ? MB(gz('ghostscript/gs.wasm')) : '–');
 html = highlightPage(html);   // the lang-html / lang-js code blocks
 fs.writeFileSync(path.join(REPO, 'site/guide.html'), html);
 console.log(`  site/guide.html: ${(html.length / 1024).toFixed(0)} KB`);

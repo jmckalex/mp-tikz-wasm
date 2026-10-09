@@ -86,6 +86,7 @@ that people will paste from the internet.
 | Reading host files | Browser: MEMFS only, nothing to read. Node: NODEFS mount is explicitly scoped to the CWD; document it. |
 | Infinite loop | Worker + `timeoutMs` + `worker.terminate()`. There is no in-wasm interrupt. |
 | Memory exhaustion | `-sMAXIMUM_MEMORY`, `memoryLimitBytes`, and an allocation hook that aborts cleanly rather than growing forever. |
+| PostScript (opt-in Ghostscript) | *As built (session 13):* a document's PostScript runs in a separate Ghostscript wasm module without SAFER (dvisvgm's `-dDELAYSAFER`), so it is given only in-memory trees: `/work` and the bundles' `/texmf`, never a real directory (`texmfDir`). Loops are stopped by the worker's `timeoutMs`. docs/14 §17. |
 | Malicious binary input | `.tfm`, `.pfb`, `.dvi` parsers all read untrusted bytes. Fuzz them (`docs/09` §L5). This is the most likely place for a real memory-safety bug — and wasm contains it to the sandbox, which is a genuine advantage over native `mpost`. |
 | Output injection | SVG output can contain arbitrary text from `special` and from label content. **Never `innerHTML` it without sanitising** — say so in the API docs and ship `result.figures[0].svgSafe` (DOMPurify-equivalent, or a strict allow-list serialiser built from the JSON backend). *As built (session 11): no `svgSafe`; the README documents a DOMPurify configuration, verified against shadings, patterns and woff2 text, and the early regex `sanitizeSvg()` is deprecated — it destroyed all three.* |
 

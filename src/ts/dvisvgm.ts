@@ -36,11 +36,17 @@ export async function runDvisvgm(factory: DvisvgmFactory, opts: DvisvgmRunOption
   try { M.FS.mkdir('/bin'); } catch { /* exists */ }
   M.FS.writeFile('/bin/dvisvgm', '');
   opts.setup(M);
+  // in Node, Emscripten's runtime writes dvisvgm's status into process.exitCode,
+  // which would make the host process exit with it; the status is ours to report
+  const proc = (globalThis as any).process;
+  const savedExitCode = proc?.exitCode;
   try {
     const r = M.callMain(opts.args);
     if (typeof r === 'number') exitCode = r;
   } catch (e: any) {
     if (e && e.name === 'ExitStatus') exitCode = e.status; else throw e;
+  } finally {
+    if (proc) proc.exitCode = savedExitCode;
   }
   opts.collect?.(M);
   return { exitCode, log: lines.join('\n'), ms: (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0 };

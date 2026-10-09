@@ -406,9 +406,10 @@ with, and the twelve patches.
 | --- | --- | --- |
 | `mplib.wasm` | 1.2 MB | MetaPost 2.11: interpreter, PostScript and SVG backends, Type 1 machinery, TFM reader, `mpto` and `dvitomp` |
 | `tex.wasm` | 1.1 MB | pdfTeX 1.40.27 in DVI mode with kpathsea, zlib, libpng |
-| `dvisvgm.wasm` | 2.6 MB | dvisvgm 3.4.3 with FreeType, potrace, clipper, woff2 and PGF's special handlers |
-| `luatex.wasm` | 4.2 MB, on demand | LuaTeX 1.21.0 in DVI mode with Lua 5.3, pplib, zziplib and the font loader; no C FFI |
-| `bundles/` | 82 MB on the server (60 MB default, 21 MB opt-in OpenType, 1 MB opt-in URW Classico), per file on demand | Computer Modern, AMS, Latin Modern and the 35 PostScript fonts; plain, LaTeX and TikZ formats; PGF/TikZ with every library, pgfplots, tikz-cd, spath3 (the `calligraphy` and `knots` libraries, which pgf does not ship), chemfig, circuitikz, tikz-3dplot, this project's `svg.attributes` TikZ library, amsmath, mathtools, xcolor, standalone, geometry, hyperref, listings and more |
+| `dvisvgm.wasm` | 2.7 MB | dvisvgm 3.4.3 with FreeType, potrace, clipper, woff2 and PGF's special handlers; PostScript through the optional Ghostscript module |
+| `luatex.wasm` | 4.4 MB, on demand | LuaTeX 1.21.0 in DVI mode with Lua 5.3, pplib, zziplib and the font loader; no C FFI |
+| `ghostscript/gs.wasm` | 12.5 MB (8.6 MB gzipped), opt-in, on demand, its own release archive | Ghostscript 10.08.0 (AGPL), the PostScript and PDF interpreters with their fonts; loaded only for documents whose PostScript needs it |
+| `bundles/` | 92 MB on the server (60 MB default, 20 MB opt-in OpenType, 10 MB opt-in PostScript, 1 MB opt-in URW Classico), per file on demand | Computer Modern, AMS, Latin Modern and the 35 PostScript fonts; plain, LaTeX and TikZ formats; PGF/TikZ with every library, pgfplots, tikz-cd, spath3 (the `calligraphy` and `knots` libraries, which pgf does not ship), chemfig, circuitikz, tikz-3dplot, this project's `svg.attributes` TikZ library, amsmath, mathtools, xcolor, standalone, geometry, hyperref, listings and more; opt-in, PSTricks and dvips's PostScript headers |
 
 Typical timings on an Apple-silicon laptop: a geometry figure 14 ms, a LaTeX
 label with amsmath 185 ms cold and 5 ms warm, a TikZ standalone figure about
@@ -419,13 +420,17 @@ about 450 ms.
 
 - MetaPost golden corpus: 15 cases, EPS and SVG byte-identical to `mpost`,
   plain TeX and LaTeX labels included.
-- TikZ golden corpus: 8 documents byte-identical to `latex` or `dvilualatex`
-  plus `dvisvgm`, with and without the snapshot format.
+- TikZ golden corpus: 16 documents byte-identical to `latex` or `dvilualatex`
+  plus `dvisvgm`, with and without the snapshot format. Four of them are
+  PostScript (PSTricks, EPS, graphicx transforms, raw `ps:`), compared with
+  `dvisvgm --libgs` and a native Ghostscript of the same 10.08.0 tree.
+- PDF golden corpus: 5 documents byte-identical to TeX Live's PDF output apart
+  from the version string.
 - The whole PGF manual, 1181 pages: DVI byte-identical to native `latex`,
   every SVG page identical to native dvisvgm after normalising dvisvgm's own
   run-to-run glyph aliasing.
 - MetaPost's `mtrap` test: output files identical to native MetaPost 2.11.
-- 205 unit and end-to-end tests, a 46-check native contract harness, and a
+- 296 unit and end-to-end tests, a 48-check native contract harness, and a
   memory test that fails if 300 runs leave a single byte allocated.
 
 ## Limits
@@ -543,6 +548,11 @@ already contains everything built.
   Debian and Ubuntu the CI workflow installs `texlive-metapost
   texlive-latex-base texlive-latex-recommended texlive-fonts-recommended
   texlive-pictures texlive-latex-extra texlive-luatex dvisvgm`.
+- **Optional, for PostScript: the Ghostscript port**, a separate project that
+  builds Ghostscript to wasm. `scripts/vendor-ghostscript.sh` copies its pinned
+  build (`vendor/GHOSTSCRIPT.lock`) from `GS_DIR` (default `~/Source/ghostscript`).
+  Without it the build skips `dist/ghostscript`, and PostScript stays skipped
+  with a warning.
 - **Disk and time.** About 3 GB in the checkout (the vendored TeX Live source
   is 1.1 GB unpacked, the native builds 0.8 GB) plus 1.8 GB for Emscripten.
   The native LuaTeX pass takes several minutes; the rest a few minutes each.
@@ -554,11 +564,12 @@ git clone https://github.com/jmckalex/mp-tikz-wasm.git && cd mp-tikz-wasm
 npm install
 ./scripts/extract-vendor.sh      # fetch and verify the pinned TeX Live 2025 source (111 MB)
 ./scripts/verify-pin.sh          # assert the mplib API the design relies on
-make contract                    # native mplib + 46 checks
+make contract                    # native mplib + 48 checks
 scripts/native-texlive.sh        # once: the native web2c pass that generates pdfTeX's C
 scripts/native-dvisvgm.sh        # once: dvisvgm's configure
 scripts/native-luatex.sh         # once: native LuaTeX build, compile commands recorded for emcc
-npm run build                    # mplib.wasm, tex.wasm, luatex.wasm, dvisvgm.wasm, texmf, formats, bundles, TypeScript
+scripts/vendor-ghostscript.sh    # optional: the pinned Ghostscript module (GS_DIR)
+npm run build                    # mplib.wasm, tex.wasm, luatex.wasm, dvisvgm.wasm, dist/ghostscript, texmf, formats, bundles, TypeScript
 npm test                         # unit + end-to-end
 npm run test:golden              # MetaPost corpus vs native mpost
 npm run test:golden:tikz         # TikZ corpus vs native latex/dvilualatex + dvisvgm
@@ -570,8 +581,9 @@ feature guide, the two single-file pages and the single-file playground.
 
 ### Publishing
 
-`npm run package` writes the release archives to `release/`; upload them to a
-GitHub release, which is where the guide's "Get it" section sends people.
+`npm run package` writes the release archives to `release/`: the main one, and
+`mp-tikz-wasm-ghostscript-<version>` with `dist/ghostscript/` when it was built
+(Ghostscript is AGPL, so it ships apart). Upload all of them to a GitHub release, which is where the guide's "Get it" section sends people.
 `scripts/stage-site.sh <dir>` assembles the demo pages, the guide, the built
 library, an `.htaccess` with the MIME types Apache needs and the licence files
 into a directory in the layout of the release archive, ready to upload to any
@@ -642,17 +654,21 @@ holds the full texts.
 
 ## Repository map
 
-`src/c` is the C shim around mplib; `src/ts` the library, worker, TeX bridge,
-tag renderer and CLI; `patches/` the upstream patches; `scripts/` the build
+`src/c` is the C shim around mplib, and the bridge through which dvisvgm reaches
+Ghostscript (`gs-bridge.c`); `src/ts` the library, worker, TeX bridge, tag
+renderer, CLI and Ghostscript loader (`ghostscript.ts`); `patches/` the upstream patches; `scripts/` the build
 pipeline, each script's header saying what it does; `site/` the demo pages and
 the guide template; `test/` the contract harness, unit tests, golden corpora
 and leak harness; `docs/` the design documents and implementation notes, with
 [HANDOVER.md](HANDOVER.md) as the hand-over summary; `bundles/texmf.cnf`
-the kpathsea configuration inside the virtual filesystem.
+the kpathsea configuration inside the virtual filesystem; `vendor/GHOSTSCRIPT.lock`
+the pin of the Ghostscript build.
 
 ## Credits
 
 MetaPost by John Hobby, maintained by Taco Hoekwater and Luigi Scarso; pdfTeX
 by Hàn Thế Thành and the pdfTeX team; LuaTeX by the LuaTeX team; dvisvgm by
 Martin Gieseking; PGF/TikZ by Till Tantau and its maintainers; all from TeX
-Live 2025. Built with Emscripten.
+Live 2025. PSTricks by Timothy Van Zandt, maintained by Herbert Voß. Ghostscript
+by Artifex Software, built to WebAssembly by the Ghostscript port. Built with
+Emscripten.

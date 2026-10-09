@@ -176,7 +176,8 @@ assembled tree (docs/14 §15: `luaotfload.sty`'s shipout hook for plain TeX);
 and `patches/dvisvgm/` for dvisvgm's C++ sources, applied by
 `scripts/build-dvisvgm-wasm.sh` to a copy of the whole `src/` directory, since
 its sources include their headers with quotes and a patched header has to sit
-beside them (docs/14 §15: the faces of a TrueType Collection).
+beside them (docs/14 §15: the faces of a TrueType Collection; §17: `DLLoader`
+asking the Ghostscript bridge instead of `dlopen`).
 The README's "Patches to upstream" tables list all four sets.
 
 ### 5.1 `0001-mpxout-expose-mpto.patch` (required)

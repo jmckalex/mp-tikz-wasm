@@ -319,6 +319,10 @@ EPS files can come from `files`, the bundles, or the document itself
 texmf tree, as a native run would. Output is byte-identical to TeX Live's
 dvisvgm with Ghostscript 10.08.0 on the PostScript golden cases (docs/14 §17).
 PostScript errors come back as warnings (`Ghostscript: PostScript error …`).
+Ghostscript runs a document's PostScript without SAFER, so it sees only
+in-memory trees: with `texmfDir` it gets `/work` but not the real texmf
+directory, and an EPS kept inside that tree is out of its reach (pass it in
+`files`).
 Without Ghostscript, `latex()` warns when skipped PostScript carried part of
 the picture, naming what was lost; status stays `ok`.
 

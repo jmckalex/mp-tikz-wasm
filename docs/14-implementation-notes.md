@@ -1109,6 +1109,27 @@ PostScript that draws nothing, six documents in turn on one engine, the
 `worker_threads` path, and the warning without the bundle. A document with
 PostScript renders in 150–210 ms here, Ghostscript included.
 
+**What the PostScript can touch.** dvisvgm starts Ghostscript with
+`-dDELAYSAFER` and never turns SAFER on, so a document's PostScript can use the
+file operators (`(x) (w) file`, `deletefile`, `renamefile`). Ghostscript is
+therefore given only in-memory trees. `/work` is always a MEMFS copy, and
+`/texmf` is mounted only when it is the bundles' MEMFS too, never when it is a
+real directory (`texmfDir`, mounted with NODEFS). Before that rule, a
+`\special{ps: (/texmf/x) (w) file closefile}` with `texmfDir` created the file
+in the real tree (checked, then fixed; an e2e case keeps it so). The cost: under
+`texmfDir`, an EPS file kept inside the texmf tree is not reachable by
+Ghostscript; one in the document's own files is. Everything a run writes in
+the in-memory trees is discarded with the dvisvgm instance. A loop in
+PostScript is a loop in the engine: in a worker, `timeoutMs` stops it, as it
+does a TeX loop.
+
+**The host's exit code.** In Node, Emscripten's runtime writes each program's
+exit status into `process.exitCode`. A dvisvgm run that failed (exit −2 on a
+PostScript error) left 254 there, and a host whose own work had succeeded
+exited with it. `runTex` and `runDvisvgm` now restore `process.exitCode`
+after every run: the status belongs in the result. This predated Ghostscript;
+PostScript errors only made it easy to hit.
+
 **A trap on the way.** dvisvgm calls `gsapi_revision` before
 `gsapi_new_instance`. The first bridge reused one scratch cell, so
 `*pinstance` still held the revision struct's product pointer, and since 9.5x a

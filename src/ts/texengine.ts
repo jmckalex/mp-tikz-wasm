@@ -52,12 +52,18 @@ export async function runTex(factory: TexFactory, opts: TexRunOptions): Promise<
   M.FS.writeFile(opts.program ?? '/bin/pdftex', '');   // kpathsea wants dirname(argv[0]) to exist
   opts.setup(M);
   const t2 = now();
+  // in Node, Emscripten's runtime writes the program's status into process.exitCode,
+  // which would make the host process exit with it; the status is ours to report
+  const proc = (globalThis as any).process;
+  const savedExitCode = proc?.exitCode;
   try {
     const r = M.callMain(opts.args);
     if (typeof r === 'number') exitCode = r;
   } catch (e: any) {
     if (e && e.name === 'ExitStatus') exitCode = e.status;
     else throw e;
+  } finally {
+    if (proc) proc.exitCode = savedExitCode;
   }
   const t3 = now();
   opts.collect?.(M);

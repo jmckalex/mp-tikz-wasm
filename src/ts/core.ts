@@ -505,7 +505,11 @@ export class MetaPostCore {
             // what TeX wrote beside the job (an EPS from filecontents, say), as a native
             // dvisvgm run in the same directory would see it
             for (const [name, data] of Object.entries(artifacts)) writeFileDeep(M.FS, `/work/${name}`, data);
-            writeFileDeep(M.FS, `/work/${job}.dvi`, dviBytes); M.FS.chdir('/work'); gs?.mount(M.FS, ['/work', TEXMF_ROOT]);
+            writeFileDeep(M.FS, `/work/${job}.dvi`, dviBytes); M.FS.chdir('/work');
+            // Ghostscript runs a document's PostScript without SAFER (dvisvgm asks for
+            // -dDELAYSAFER and never sets it), so it gets only in-memory trees: /work, and
+            // /texmf unless that is a real directory (texmfDir, mounted with NODEFS)
+            gs?.mount(M.FS, this.env.texmfDir ? ['/work'] : ['/work', TEXMF_ROOT]);
           },
           collect: (M) => {
             const names = listFiles(M.FS, '/work').filter((p) => new RegExp(`^/work/${job.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)\\.svg$`).test(p))

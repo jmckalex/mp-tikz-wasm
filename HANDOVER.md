@@ -1011,6 +1011,12 @@ replacing its tikzjax with this library).
    golden is unchanged. Also: files TeX wrote are now visible to dvisvgm, and
    CI installs the core PSTricks packages, though it has no Ghostscript module
    (its tests and goldens skip there).
+   Security: Ghostscript runs PostScript without SAFER (dvisvgm's
+   `-dDELAYSAFER`), so it is given only in-memory trees, never a `texmfDir` on
+   disk. Before that rule, a PostScript special wrote into the real tree; an e2e
+   case now guards it. Also fixed, older than Ghostscript: in Node an engine's
+   exit status leaked into `process.exitCode` (a failed dvisvgm run made the
+   host exit with 254); both runners restore it now.
    Checked in Chrome as well: in the default Web Worker, PSTricks and EPS render
    with the right colours; `gs.mjs` and `gs.wasm` are fetched inside the worker,
    about 1.6 s from `create()` to the first figure on localhost.
@@ -1172,7 +1178,8 @@ make contract                    # native mplib + 48 checks
 scripts/native-texlive.sh        # once: web2c pass for pdfTeX
 scripts/native-dvisvgm.sh        # once: dvisvgm config
 scripts/native-luatex.sh         # once: native LuaTeX build, compile commands recorded
-npm run build                    # all wasm, texmf, formats, TypeScript, font database, bundles, hot lists
+scripts/vendor-ghostscript.sh    # optional: the pinned Ghostscript module from the port (GS_DIR)
+npm run build                    # all wasm, dist/ghostscript, texmf, formats, TypeScript, font database, bundles, hot lists
 npm test && npm run test:golden && npm run test:golden:tikz
 npm run build:guide; npm run build:pages; npm run build:standalone
 node dist/cli.js --prerender site/tags.html   # site/figures/ (committed; only if the tags page changed)
@@ -1189,11 +1196,17 @@ rebuild: `build:texmf` wipes the font database (run `build:fontdb` before
 
 ```sh
 npm run build && npm run build:guide && npm run build:pages && npm run build:standalone
-npm run package                                   # release/mp-tikz-wasm-<version>.{tar.gz,zip}
+npm run package                                   # release/mp-tikz-wasm-<version>.{tar.gz,zip} and, from 0.4.0,
+                                                  # release/mp-tikz-wasm-ghostscript-<version>.{tar.gz,zip} (AGPL, apart)
 git tag v<version> && git push origin main --tags
 gh release create v<version> release/mp-tikz-wasm-<version>.tar.gz release/mp-tikz-wasm-<version>.zip \
+  release/mp-tikz-wasm-ghostscript-<version>.tar.gz release/mp-tikz-wasm-ghostscript-<version>.zip \
   --title "mp-tikz-wasm <version>" --notes-file <notes>
 ```
+
+From 0.4.0 the build needs `vendor/ghostscript/` (`scripts/vendor-ghostscript.sh`)
+for the Ghostscript archive. Without it, `npm run package` writes only the main
+archive, whose `ghostscript` bundle then works only with a module from elsewhere.
 
 **v0.2.1 is released** (2026-09-17, session 8, published by the owner):
 <https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.2.1>, tag `v0.2.1`
@@ -1442,11 +1455,17 @@ upstream remains.
   hook `luaotfload.sty` needs under plain TeX, applied to the assembled tree
   by `scripts/build-texmf.sh`; `docs/14` §15 has the analysis, and golden
   `12-opentype-plain` is the proof.
-- `patches/dvisvgm/` — the one dvisvgm patch (session 13): the face index in
-  a native font's key, so a `.ttc`'s faces stay apart; applied by
+- `patches/dvisvgm/` — two dvisvgm patches (session 13): 0001, the face index in
+  a native font's key, so a `.ttc`'s faces stay apart; 0002, `DLLoader` asking
+  the Ghostscript bridge instead of `dlopen`. Both are applied by
   `scripts/build-dvisvgm-wasm.sh` to a copy of `src/` under
-  `build/dvisvgm/patched`. `docs/14` §15 has the analysis; the collection
-  case in `test/e2e/opentype.test.ts` is the proof.
+  `build/dvisvgm/patched`. `docs/14` §15 and §17 have the analysis.
+- Ghostscript (session 13): `src/c/gs-bridge.{c,js}` (the "libgs" dvisvgm
+  loads), `src/ts/ghostscript.ts` (the bridge to the module, PROXYFS mounts,
+  the lazy loader), `src/ts/postscript.ts` (which PostScript a DVI carries),
+  `scripts/vendor-ghostscript.sh` with `vendor/GHOSTSCRIPT.lock` (the pin of the
+  port's build), `scripts/build-ghostscript.sh` (`dist/ghostscript/`),
+  `test/e2e/ghostscript.test.ts`, golden cases 13–16. `docs/14` §17.
 - `test/e2e/opentype.test.ts`, `src/ts/bundles-config.ts`,
   `scripts/build-bundles.mjs` — OpenType fonts (sessions 9 and 10): the
   opt-in bundles, why they are opt-in, and why the whole Latin Modern family

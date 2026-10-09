@@ -90,6 +90,24 @@ describe.skipIf(!built)('PostScript through Ghostscript', () => {
     expect(colours(r.pages[0])).toContain("fill='#ff0'");
   }, 120_000);
 
+  it("keeps a real texmf directory (texmfDir) out of PostScript's reach", async () => {
+    // dvisvgm runs Ghostscript without SAFER, so a document's PostScript can use file
+    // operators: Ghostscript is only given in-memory trees, never a NODEFS mount
+    const marker = path.join(REPO, 'build/texmf/mpw-gs-write-probe');
+    fs.rmSync(marker, { force: true });
+    const t = await create({ texmfDir: path.join(REPO, 'build/texmf'), ghostscript: true });
+    const exitBefore = process.exitCode;
+    const r = await t.latex(String.raw`\documentclass{article}\begin{document}x\special{ps: (/texmf/mpw-gs-write-probe) (w) file closefile 0 0 moveto 10 10 lineto stroke}\end{document}`);
+    try {
+      expect(fs.existsSync(marker)).toBe(false);
+      expect(r.diagnostics.map((d: any) => d.message).join('\n')).toMatch(/PostScript error/);
+      // dvisvgm failed (exit -2): its status is in the result, not left in the host's exit code
+      expect(process.exitCode).toBe(exitBefore);
+    } finally {
+      fs.rmSync(marker, { force: true });
+    }
+  }, 120_000);
+
   it("names the 'ghostscript' bundle when PostScript is skipped without it", async () => {
     const plain = await create({});
     const r = await plain.latex(String.raw`\documentclass{article}\usepackage{graphicx}\begin{document}\rotatebox{30}{y}\end{document}`);
