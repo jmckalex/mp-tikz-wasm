@@ -32,7 +32,8 @@ cp "$V/gs.wasm" "$V/LICENSE" "$V/COPYING" "$OUT/"
   echo "(https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/tag/gs10080) with the port's"
   echo "changes applied (a new svg output device, not built into this lean variant, and a"
   echo "dependency fix in pdf/pdf.mak), its build script (build.sh; this module is VARIANT=lean)"
-  echo "and its JS wrappers."
+  echo "and its JS wrappers. To rebuild it: unpack the archive and run \`VARIANT=lean ./build.sh\`"
+  echo "with Emscripten 6.0.0; the output is dist/lean/gs.js and gs.wasm."
   echo "The files built from it, as pinned in mp-tikz-wasm's vendor/GHOSTSCRIPT.lock:"
   echo
   grep -E '^gs\.(js|wasm) ' "$REPO/vendor/GHOSTSCRIPT.lock" | awk '{ print "    " $1 "  sha256 " $2 }'
