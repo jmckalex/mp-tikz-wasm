@@ -1201,11 +1201,14 @@ npm run package                                   # release/mp-tikz-wasm-<versio
 git tag v<version> && git push origin main --tags
 gh release create v<version> release/mp-tikz-wasm-<version>.tar.gz release/mp-tikz-wasm-<version>.zip \
   release/mp-tikz-wasm-ghostscript-<version>.tar.gz release/mp-tikz-wasm-ghostscript-<version>.zip \
+  release/mp-tikz-wasm-ghostscript-<version>-source.tar.gz \
   --title "mp-tikz-wasm <version>" --notes-file <notes>
 ```
 
 From 0.4.0 the build needs `vendor/ghostscript/` (`scripts/vendor-ghostscript.sh`)
-for the Ghostscript archive. Without it, `npm run package` writes only the main
+for the Ghostscript archive, and for its corresponding source (AGPL): a `git archive` of
+the port at the commit in `vendor/GHOSTSCRIPT.lock`, 90 MB, released as
+`mp-tikz-wasm-ghostscript-<version>-source.tar.gz`. Never release the module without it. Without it, `npm run package` writes only the main
 archive, whose `ghostscript` bundle then works only with a module from elsewhere.
 
 **v0.2.1 is released** (2026-09-17, session 8, published by the owner):

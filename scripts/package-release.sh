@@ -62,5 +62,12 @@ dist/ghostscript/SOURCE.md for its corresponding source.
 TXT
   (cd "$OUT" && tar -czf "$GSNAME.tar.gz" "$GSNAME" && rm -f "$GSNAME.zip" && zip -qr "$GSNAME.zip" "$GSNAME")
   du -sh "$OUT/$GSNAME.tar.gz" "$OUT/$GSNAME.zip" | awk '{print "  " $2 "  " $1}'
+  # its corresponding source (AGPL section 6), from the same place
+  if [ -f "$REPO/vendor/ghostscript/source.tar.gz" ]; then
+    cp "$REPO/vendor/ghostscript/source.tar.gz" "$OUT/$GSNAME-source.tar.gz"
+    du -sh "$OUT/$GSNAME-source.tar.gz" | awk '{print "  " $2 "  " $1}'
+  else
+    echo "  warning: vendor/ghostscript/source.tar.gz missing (scripts/vendor-ghostscript.sh): the Ghostscript archive must not be released without its source" >&2
+  fi
 fi
 echo "  contents: $(find "$STAGE" -type f | wc -l | tr -d ' ') files, $(du -sh "$STAGE" | cut -f1) unpacked"

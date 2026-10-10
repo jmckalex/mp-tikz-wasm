@@ -26,10 +26,14 @@ cp "$V/gs.wasm" "$V/LICENSE" "$V/COPYING" "$OUT/"
   echo "bridge when a document carries PostScript. Licence: GNU AGPL v3 (COPYING;"
   echo "LICENSE says which parts it covers)."
   echo
-  echo "Corresponding source: the Ghostscript 10.08.0 release"
-  echo "(https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/tag/gs10080)"
-  echo "plus the port's build script and changes, as pinned in mp-tikz-wasm's"
-  echo "vendor/GHOSTSCRIPT.lock:"
+  echo "Corresponding source: the Ghostscript port's tree at commit"
+  echo "$(awk '$1 == "commit" { print $2 }' "$REPO/vendor/GHOSTSCRIPT.lock"), released beside this module as"
+  echo "mp-tikz-wasm-ghostscript-<version>-source.tar.gz. It holds the Ghostscript 10.08.0 source"
+  echo "(https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/tag/gs10080) with the port's"
+  echo "changes applied (a new svg output device, not built into this lean variant, and a"
+  echo "dependency fix in pdf/pdf.mak), its build script (build.sh; this module is VARIANT=lean)"
+  echo "and its JS wrappers."
+  echo "The files built from it, as pinned in mp-tikz-wasm's vendor/GHOSTSCRIPT.lock:"
   echo
   grep -E '^gs\.(js|wasm) ' "$REPO/vendor/GHOSTSCRIPT.lock" | awk '{ print "    " $1 "  sha256 " $2 }'
 } > "$OUT/SOURCE.md"

@@ -647,7 +647,8 @@ domain, but `mplib.wasm` includes `avl.c` (LGPL) and decNumber (ICU), so it is
 LGPL-3.0-or-later too; `tex.wasm`, `luatex.wasm` and `dvisvgm.wasm` are GPL.
 The optional Ghostscript module (`dist/ghostscript/`, its own release archive)
 is AGPL-3.0: a separate module that dvisvgm reaches through a bridge, never
-linked with the others; whoever serves or ships it must offer its source
+linked with the others; whoever serves or ships it must offer its source,
+which each release carries as `mp-tikz-wasm-ghostscript-<version>-source.tar.gz`
 (`dist/ghostscript/SOURCE.md`). The fonts and macro packages in the bundles keep their own licences (Knuth's,
 AMS, GUST, LPPL). [`NOTICE.md`](NOTICE.md) lists every part, and `licenses/`
 holds the full texts.

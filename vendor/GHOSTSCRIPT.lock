@@ -4,9 +4,14 @@
 # its own project) into vendor/ghostscript/ and refuses any whose sha256
 # differs. The port is its own repository; this file is what pins it here.
 #
-# source  ~/Source/ghostscript  commit 67fd48f plus uncommitted changes of 2026-10-09
-#         (gsapi exports, PROXYFS, the lean variant, pdf/pdf.mak's sarc4 fix),
-#         awaiting a commit/tag by that project's owner; re-pin when it lands.
+# source  ~/Source/ghostscript  commit e8c528bc529359d595cf8edf07303ee89a1acb64
+#         (gsapi exports, PROXYFS, the lean variant; on 7dc721c: the svg device's
+#         transparency and pdf/pdf.mak's sarc4 fix). No remote or tag yet.
+#
+# The port's commit: scripts/vendor-ghostscript.sh makes the corresponding source
+# from it (a `git archive`, unmodified Ghostscript 10.08.0 with the port's changes and
+# build script), which the release ships beside the module (AGPL section 6).
+commit                       e8c528bc529359d595cf8edf07303ee89a1acb64
 #
 # file                       sha256                                                            from (under GS_DIR)
 gs.js                        5aaf248169f2dda3fe2b8cf5b1ebd14c3e0fd4f1d2bee9ffe05582ce207db291  dist/lean/gs.js
