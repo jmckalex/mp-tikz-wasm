@@ -10,27 +10,34 @@ Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State now (session 13, 2026-10-09): 0.4.0 is prepared, not published.**
-Clew-boss decided to fold 0.3.2 into it, so there is one release and one
-re-pin, Clew 0.3.1 → 0.4.0. `main` on GitHub is 99c4a60 ("Release 0.3.2", CI green, never tagged).
-Locally, the branch `next` carries 0.4.0: family-name lookup of supplied faces
-(44030fb), the lost-PostScript warning (c9c8ea8), **PostScript through
-Ghostscript** (3404f26; item 9 below, `docs/14` §17), and the release commit.
-Archives are in `release/`: `mp-tikz-wasm-0.4.0`, `mp-tikz-wasm-ghostscript-0.4.0`
-(AGPL, apart), and that module's corresponding source,
-`mp-tikz-wasm-ghostscript-0.4.0-source.tar.gz` (a git archive of the port at
-e8c528b); notes `release/notes-0.4.0.md`. The tag goes on `next`'s tip, 4be6313
-or later.
-Publishing is blocked: this session's auto-mode permission check refuses
-pushes, tags, releases, the site sync and the upstream PRs ("Create Public
-Surface"). The owner has to leave auto mode in this window or add allow
-rules with `/permissions` (`Bash(git push:*)`, `Bash(gh release create:*)`, …).
-Then: push `next` and `main`, wait for CI, tag v0.4.0, create the release with
-all five files, check GitHub's size and sha256, sync the site, send Clew-boss
-both assets' url/bytes/sha256, and open the dvisvgm PRs
-(`release/upstream-dvisvgm-ttc/`). Clew is on 0.3.1 (Clew-app cbfa692).
-Clew-app is adding PostScript support against the local build; Clew-iOS
-follows at its next sync. jmarkdown targets 0.4.0 and passes `ghostscript`.
+**State now (session 13, 2026-10-10): v0.4.0 is released**
+(<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.4.0>, tag on
+f473f4f, which is `main` and `next`; CI green on both). Clew-boss decided to
+fold 0.3.2 into it (99c4a60, never tagged), so there was one release and one
+re-pin, Clew 0.3.1 → 0.4.0. It carries family-name lookup of supplied faces
+(44030fb), the lost-PostScript warning (c9c8ea8) and **PostScript through
+Ghostscript** (3404f26; item 9 below, `docs/14` §17). Five assets, GitHub's
+numbers (notes in `release/notes-0.4.0.md`):
+
+- `mp-tikz-wasm-0.4.0.tar.gz`, **47,164,148 bytes, sha256
+  6cae11a63fee19b4298e71be83f9bbfaffc5d20cae69ccd23254fe7fce369dad**, and `.zip`
+  (49,302,994 bytes, b0b5671f…d2ec);
+- `mp-tikz-wasm-ghostscript-0.4.0.tar.gz` (AGPL, apart), **8,629,054 bytes, sha256
+  7134bc067ea99ed9c98bd8e99909b0b2b52fb93e4b22b951ffaf5756c2c35d48**, and `.zip`
+  (8,631,792 bytes, f02d5529…0c17);
+- `mp-tikz-wasm-ghostscript-0.4.0-source.tar.gz`, that module's corresponding
+  source (a git archive of the port at e8c528b), **90,111,919 bytes, sha256
+  2096e4fc00b79ec80d11a3984009c606907cadb92456f93ed62e56d0d494f84a**.
+
+The site (jmckalex.org and eschatolog.ist `/software/mp-tikz-wasm/`) serves
+0.4.0, `dist/ghostscript/` included. The dvisvgm fixes are upstream as pull
+requests from the fork jmckalex/dvisvgm: #307 (TTC face index, our patch 0001)
+and #308 (`DISABLE_GS` stub `finalize()`); drop patch 0001 once a dvisvgm
+release carries #307. Clew-boss has the numbers; Clew-app is adding PostScript
+support, Clew-iOS follows at its next sync, jmarkdown targets 0.4.0 and passes
+`ghostscript`. The Ghostscript port (~/Source/ghostscript) has no public
+repository yet: if it gets one, point `SOURCE.md` at it and re-pin
+`vendor/GHOSTSCRIPT.lock`.
 
 **Before that (session 12, 2026-10-04): v0.3.1 is released**
 (<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.3.1>, tag on
