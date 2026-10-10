@@ -16,14 +16,17 @@ re-pin, Clew 0.3.1 → 0.4.0. `main` on GitHub is 99c4a60 ("Release 0.3.2", CI g
 Locally, the branch `next` carries 0.4.0: family-name lookup of supplied faces
 (44030fb), the lost-PostScript warning (c9c8ea8), **PostScript through
 Ghostscript** (3404f26; item 9 below, `docs/14` §17), and the release commit.
-Archives are in `release/`, two of them: `mp-tikz-wasm-0.4.0` and
-`mp-tikz-wasm-ghostscript-0.4.0` (AGPL, apart); notes `release/notes-0.4.0.md`.
+Archives are in `release/`: `mp-tikz-wasm-0.4.0`, `mp-tikz-wasm-ghostscript-0.4.0`
+(AGPL, apart), and that module's corresponding source,
+`mp-tikz-wasm-ghostscript-0.4.0-source.tar.gz` (a git archive of the port at
+e8c528b); notes `release/notes-0.4.0.md`. The tag goes on `next`'s tip, 4be6313
+or later.
 Publishing is blocked: this session's auto-mode permission check refuses
 pushes, tags, releases, the site sync and the upstream PRs ("Create Public
 Surface"). The owner has to leave auto mode in this window or add allow
 rules with `/permissions` (`Bash(git push:*)`, `Bash(gh release create:*)`, …).
 Then: push `next` and `main`, wait for CI, tag v0.4.0, create the release with
-all four files, check GitHub's size and sha256, sync the site, send Clew-boss
+all five files, check GitHub's size and sha256, sync the site, send Clew-boss
 both assets' url/bytes/sha256, and open the dvisvgm PRs
 (`release/upstream-dvisvgm-ttc/`). Clew is on 0.3.1 (Clew-app cbfa692).
 Clew-app is adding PostScript support against the local build; Clew-iOS
