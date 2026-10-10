@@ -48,11 +48,17 @@ if [ -d "$REPO/dist/ghostscript" ]; then
   GSNAME="mp-tikz-wasm-ghostscript-$VERSION"
   rm -rf "$OUT/$GSNAME"; mkdir -p "$OUT/$GSNAME/dist"
   cp -R "$REPO/dist/ghostscript" "$OUT/$GSNAME/dist/ghostscript"
-  cat > "$OUT/$GSNAME/README.md" <<'TXT'
+  cat > "$OUT/$GSNAME/README.md" <<TXT
 mp-tikz-wasm — Ghostscript module (optional)
 
-Unpack beside mp-tikz-wasm's own dist/ (this archive holds dist/ghostscript/), then
-enable PostScript with the `ghostscript` bundle:
+This archive holds dist/ghostscript/, which goes beside mp-tikz-wasm's own dist/.
+Unpack the two archives together like this (naming the dist member keeps this
+README from replacing the main one):
+
+  tar -xzf $NAME.tar.gz
+  tar -xzf $GSNAME.tar.gz --strip-components=1 -C $NAME $GSNAME/dist
+
+Then enable PostScript with the \`ghostscript\` bundle:
 
   MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'ghostscript'] })
   <script type="module" src="dist/auto.js" data-bundles="+ghostscript"></script>
