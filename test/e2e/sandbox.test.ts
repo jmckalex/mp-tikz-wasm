@@ -16,7 +16,9 @@ describe.skipIf(!built)('sandbox', () => {
   let secret: string;
   const marker = (n: string) => path.join(dir, `marker-${n}`);
   const markers = () => fs.readdirSync(dir).filter((f) => f.startsWith('marker-'));
-  const probes = (log: string) => Object.fromEntries([...log.matchAll(/^PROBE ([^=]+)=(.*)$/gm)].map((m) => [m[1], m[2]]));
+  // a probe's value runs to the end of its line, or to the ';' the Lua probes end with: TeX may put the
+  // page marker (" [1") on the same line, depending on what the LaTeX kernel printed before shipout
+  const probes = (log: string) => Object.fromEntries([...log.matchAll(/^PROBE ([^=]+)=([^;\n]*)/gm)].map((m) => [m[1], m[2]]));
   beforeAll(async () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mpw-sandbox-'));
     secret = path.join(dir, 'secret.txt');
@@ -44,7 +46,7 @@ x\\end{document}`, { output: 'pdf' });
 
   it('LuaTeX: no command execution, no sockets, no native libraries, no host files', async () => {
     const r = await mp.latex(String.raw`\documentclass{article}\begin{document}\directlua{
-local function t(name, f) local ok, a = pcall(f); texio.write_nl('PROBE ' .. name .. '=' .. (ok and tostring(a) or 'error')) end
+local function t(name, f) local ok, a = pcall(f); texio.write_nl('PROBE ' .. name .. '=' .. (ok and tostring(a) or 'error') .. ';') end
 t('shell_escape', function() return status.shell_escape end)
 t('os.execute', function() return os.execute('touch ${marker('execute')}') end)
 t('setenv-then-execute', function() os.setenv('shell_escape', 't'); texconfig.shell_escape = 't'; return os.execute('touch ${marker('setenv')}') end)

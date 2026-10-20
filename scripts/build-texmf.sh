@@ -199,15 +199,17 @@ done
 for d in soul; do t="$(tree_with "tex/generic/$d" || true)"; [ -n "$t" ] && cp -R "$t/tex/generic/$d" "$OUT/tex/generic/$d"; done
 # babel: the core (hyphen.cfg and luababel.def are here already, for the formats) and,
 # of its locale data, the directories of the 41 languages Clew offers (babel reads a
-# language's .ini even for an .ldf language): 0.8 of its 4.5 MB.
-BABEL_LOCALES="ca cs cy da de el en es et eu fi fr ga gl hr hu is it la lt lv nl nn no pl pt ro ru sk sl sv tr uk"
+# language's .ini even for an .ldf language): 0.8 of its 4.5 MB. From babel 26 (TeX Live
+# 2025's tlnet-final) the old names, ngerman, naustrian, classiclatin and the rest, are
+# mapped in locale/invalid/ rather than in their language's directory, so it comes too.
+BABEL_LOCALES="ca cs cy da de el en es et eu fi fr ga gl hr hu is it la lt lv nl nn no pl pt ro ru sk sl sv tr uk invalid"
 BABEL_LDFS="english german french spanish italian portuges dutch swedish danish norsk finnish icelandic polish czech slovak \
             hungarian romanian croatian slovenian turkish catalan galician basque irish welsh estonian latvian lithuanian latin \
             russian ukrainian greek"
 t="$(tree_with tex/generic/babel/babel.sty || true)"
 if [ -n "$t" ]; then
   find "$t/tex/generic/babel" -maxdepth 1 -type f -exec cp {} "$OUT/tex/generic/babel/" \;
-  for l in $BABEL_LOCALES; do mkdir -p "$OUT/tex/generic/babel/locale" && cp -R "$t/tex/generic/babel/locale/$l" "$OUT/tex/generic/babel/locale/$l"; done
+  for l in $BABEL_LOCALES; do [ -d "$t/tex/generic/babel/locale/$l" ] || continue; mkdir -p "$OUT/tex/generic/babel/locale" && cp -R "$t/tex/generic/babel/locale/$l" "$OUT/tex/generic/babel/locale/$l"; done
   for l in $BABEL_LDFS; do [ -d "$t/tex/generic/babel-$l" ] && cp -R "$t/tex/generic/babel-$l" "$OUT/tex/generic/babel-$l"; done
 else
   echo "  warning: babel not found in any TeX tree; the latex-doc bundle will have no languages" >&2
