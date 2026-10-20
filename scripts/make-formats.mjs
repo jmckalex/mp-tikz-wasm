@@ -28,12 +28,18 @@ async function runTex(args, engine = 'pdftex') {
   return { exitCode, out: out.join('\n') };
 }
 
+// TeX Live builds its etex and latex formats with cp227.tcx (fmtutil.cnf), which makes
+// the 8-bit characters, tab and line feed printable: TeX writes them to .aux, .idx and the
+// log as they are, not as ^^c3^^b6. TeX reads either back as the same characters, but
+// BibTeX and makeindex read those files literally (a UTF-8 citation key, an index entry's
+// sort order). The table is dumped in the format. plain.fmt is Knuth's tex, built without.
+const TCX = '-translate-file=cp227.tcx';
 const FORMATS = [
   { name: 'plain', args: ['-ini', '-jobname=plain', '-progname=tex', '-interaction=nonstopmode', 'tex.ini'] },
-  { name: 'etex',  args: ['-ini', '-etex', '-jobname=etex', '-progname=etex', '-interaction=nonstopmode', 'etex.ini'] },
-  { name: 'latex', args: ['-ini', '-etex', '-jobname=latex', '-progname=latex', '-interaction=nonstopmode', 'latex.ini'] },
+  { name: 'etex',  args: ['-ini', '-etex', TCX, '-jobname=etex', '-progname=etex', '-interaction=nonstopmode', 'etex.ini'] },
+  { name: 'latex', args: ['-ini', '-etex', TCX, '-jobname=latex', '-progname=latex', '-interaction=nonstopmode', 'latex.ini'] },
   // the pre-warmed TikZ snapshot: latex.fmt plus pgf, its libraries and pgfplots (needs latex.fmt first)
-  { name: 'tikz', args: ['-ini', '-etex', '-jobname=tikz', '-progname=latex', '-interaction=nonstopmode', 'tikz.ini'] },
+  { name: 'tikz', args: ['-ini', '-etex', TCX, '-jobname=tikz', '-progname=latex', '-interaction=nonstopmode', 'tikz.ini'] },
   // LuaTeX in DVI mode (TeX Live's dviluatex / dvilualatex), built by luatex.wasm
   { name: 'dviluatex', engine: 'luatex', args: ['-ini', '-jobname=dviluatex', '-progname=dviluatex', '-interaction=nonstopmode', 'dviluatex.ini'] },
   { name: 'dvilualatex', engine: 'luatex', args: ['-ini', '-jobname=dvilualatex', '-progname=dvilualatex', '-interaction=nonstopmode', 'dvilualatex.ini'] },

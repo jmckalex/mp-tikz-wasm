@@ -25,6 +25,9 @@ rm -rf "$OUT"
 mkdir -p "$OUT"/{web2c,tex/plain/base,tex/plain/config,tex/generic,tex/latex,fonts/tfm,fonts/vf,fonts/type1,fonts/map,fonts/enc,metapost/base}
 
 cp "$REPO/bundles/texmf.cnf" "$OUT/web2c/texmf.cnf"
+# the 8-bit printing table TeX Live's etex and latex formats are built with (make-formats.mjs);
+# dumped in the formats, so it never ships
+cp "$TEXMF/web2c/cp227.tcx" "$OUT/web2c/cp227.tcx"
 cp "$KEEP"/*.fmt "$OUT/web2c/" 2>/dev/null || true; rm -rf "$KEEP"
 
 # --- TeX macro packages -------------------------------------------------------
