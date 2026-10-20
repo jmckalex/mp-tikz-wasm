@@ -5,7 +5,7 @@
 
 export type BundleName =
   | 'core' | 'cm-tfm' | 'cm-type1' | 'tex-plain' | 'latex-core' | 'latex-extra'
-  | 'opentype' | 'otf-fonts' | 'classico' | 'ghostscript'
+  | 'opentype' | 'otf-fonts' | 'classico' | 'ghostscript' | 'latex-doc'
   | (string & {});
 
 export interface BundleSpec {
@@ -27,7 +27,7 @@ export type PrefetchKind = 'metapost' | 'latex' | 'lualatex' | 'plain';
 /** How much a run writes to the console; each level includes the ones before it. */
 export type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
 /** Who produced a log record: an engine's own output, the bundle loader, or the library itself. */
-export type LogSource = 'metapost' | 'tex' | 'dvisvgm' | 'bundle' | 'host';
+export type LogSource = 'metapost' | 'tex' | 'dvisvgm' | 'bibtex' | 'makeindex' | 'bundle' | 'host';
 export interface LogRecord {
   level: Exclude<LogLevel, 'silent'>;
   source: LogSource;
@@ -96,7 +96,7 @@ export interface MetaPostOptions {
   /** Where the Ghostscript module's gs.mjs and gs.wasm are; default `ghostscript/` beside index.js. */
   ghostscriptBaseUrl?: string;
   /** Pre-loaded Emscripten module factories (e.g. for a single-file build); in-process mode only. */
-  modules?: { mplib?: (opts?: Record<string, unknown>) => Promise<any>; tex?: (opts?: Record<string, unknown>) => Promise<any>; luatex?: (opts?: Record<string, unknown>) => Promise<any>; dvisvgm?: (opts?: Record<string, unknown>) => Promise<any>; ghostscript?: (opts?: Record<string, unknown>) => Promise<any> };
+  modules?: { mplib?: (opts?: Record<string, unknown>) => Promise<any>; tex?: (opts?: Record<string, unknown>) => Promise<any>; luatex?: (opts?: Record<string, unknown>) => Promise<any>; dvisvgm?: (opts?: Record<string, unknown>) => Promise<any>; ghostscript?: (opts?: Record<string, unknown>) => Promise<any>; bibtex?: (opts?: Record<string, unknown>) => Promise<any>; makeindex?: (opts?: Record<string, unknown>) => Promise<any> };
   /** Custom bundle I/O (e.g. files embedded in the page); in-process mode only. */
   bundleIO?: { fetch(url: string): Promise<Uint8Array>; fetchSync?: (url: string) => Uint8Array; fetchJson(url: string): Promise<unknown> };
   /** Run in-process instead of in a Web Worker (default: worker in browsers, in-process in Node). */
@@ -168,7 +168,7 @@ export interface RunStats {
 
 export interface Diagnostic {
   severity: 'error' | 'warning';
-  source: 'metapost' | 'tex' | 'bundle' | 'host';
+  source: 'metapost' | 'tex' | 'bundle' | 'host' | 'bibtex' | 'makeindex';
   message: string;
   help?: string[];
   file?: string;
@@ -288,6 +288,47 @@ export interface LatexResult {
    *  output and the .log. A file passed in `files` is among them when TeX wrote it again, so one
    *  pass's artifacts are the next pass's `files`, however many passes there are. */
   artifacts: Record<string, Uint8Array>;
+}
+
+// ---- BibTeX and makeindex (bibtex.wasm, makeindex.wasm) -------------------
+
+export interface BibtexOptions {
+  /** The .aux file's name without .aux, as `bibtex doc` takes it. Default 'doc', latex()'s default jobName. */
+  jobName?: string;
+  /** Files to place beside it: the .aux (latex()'s artifacts), the .bib databases, a .bst of the
+   *  document's own. They stay on the instance, as latex()'s `files` do, until removeFiles. The
+   *  styles TeX Live ships (plainnat, apalike, plain, unsrt, ...) come from the `latex-doc` bundle. */
+  files?: Record<string, string | Uint8Array>;
+  /** More command-line options, before the name: ['-min-crossrefs=3']. */
+  args?: string[];
+}
+
+export interface MakeindexOptions {
+  /** The index file to sort, as `makeindex doc.idx` takes it. Default 'doc.idx'; imakeidx's
+   *  \makeindex[name=authors] writes authors.idx. */
+  input?: string;
+  /** An index style (makeindex -s): a file passed in `files`, or one from the `latex-doc` bundle. */
+  style?: string;
+  /** Files to place beside it (the .idx: latex()'s artifacts); they stay on the instance, as latex()'s do. */
+  files?: Record<string, string | Uint8Array>;
+  /** More command-line options, before the input: ['-l'], ['-g'], ['-o', 'other.ind']. */
+  args?: string[];
+}
+
+export interface ToolResult {
+  /** 'ok'; 'warning' when the .blg or .ilg has warnings (or makeindex rejected entries), though
+   *  the program exited 0; 'error' when it stopped or reported errors (BibTeX exit 1 or 2,
+   *  makeindex exit 1); 'fatal' after one of BibTeX's fatal errors (exit 3). */
+  status: Status;
+  exitCode: number;
+  /** What the program printed. */
+  log: string;
+  /** The files it wrote: BibTeX doc.bbl and doc.blg, makeindex doc.ind and doc.ilg (or what -o and -t name).
+   *  Pass them to the next latex() run with the previous run's artifacts. */
+  artifacts: Record<string, Uint8Array>;
+  /** The .blg's or .ilg's warnings and errors, with the file and line they name. */
+  diagnostics: Diagnostic[];
+  stats: { totalMs: number };
 }
 
 /** The bundle manifest format (docs/06 §3). Paths are relative to the texmf root. */

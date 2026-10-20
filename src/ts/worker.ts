@@ -11,7 +11,7 @@ import { resolveBundleSpecs, DEFAULT_BUNDLES } from './bundles-config.js';
 import { Logger, DEFAULT_LOG_LEVEL } from './logger.js';
 import { isNode, nodeIO } from './node.js';
 import { ghostscriptLoader, ghostscriptWanted } from './ghostscript.js';
-import type { MetaPostOptions, RunOptions, LatexRunOptions, LogLevel } from './types.js';
+import type { MetaPostOptions, RunOptions, LatexRunOptions, LogLevel, BibtexOptions, MakeindexOptions } from './types.js';
 
 // Node worker_threads: give the rest of this file the Web Worker surface it uses
 // (self.onmessage, postMessage, close), backed by parentPort.
@@ -26,7 +26,7 @@ if (isNode) {
   }
 }
 
-export interface WorkerRequest { id: number; op: 'init' | 'run' | 'latex' | 'addFiles' | 'removeFiles' | 'clearCache' | 'preload' | 'prefetch' | 'setLogLevel' | 'dispose'; [k: string]: unknown }
+export interface WorkerRequest { id: number; op: 'init' | 'run' | 'latex' | 'bibtex' | 'makeindex' | 'addFiles' | 'removeFiles' | 'clearCache' | 'preload' | 'prefetch' | 'setLogLevel' | 'dispose'; [k: string]: unknown }
 export interface WorkerResponse { id: number; ok: boolean; result?: unknown; error?: string }
 export interface WorkerEvent { event: 'progress' | 'log' | 'record'; data: unknown }
 
@@ -71,8 +71,11 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         const ghostscript = dvisvgmFactory && ghostscriptWanted(options.ghostscript, options.bundles ?? DEFAULT_BUNDLES)
           ? ghostscriptLoader({ glueUrl: new URL('gs.mjs', gsBase).href, wasmUrl: new URL('gs.wasm', gsBase).href, fetch: (u) => io.fetch(u), log: (m) => logger?.info('host', m) })
           : undefined;
+        // bibtex.wasm and makeindex.wasm: imported on first use
+        const toolFactories = new Map<string, Promise<any>>();
+        const tools = (name: 'bibtex' | 'makeindex') => { let f = toolFactories.get(name); if (!f) toolFactories.set(name, f = glue(`./${name}.mjs`)); return f; };
         core = new MetaPostCore({
-          mplibFactory, texFactory, luatexFactory, dvisvgmFactory, ghostscript, bundles: texmfDir ? undefined : bundles, texmfDir, options, logger,
+          mplibFactory, texFactory, luatexFactory, dvisvgmFactory, ghostscript, tools, bundles: texmfDir ? undefined : bundles, texmfDir, options, logger,
           onProgress: (e) => post({ event: 'progress', data: e }),
           onLog: (line) => post({ event: 'log', data: line }),
         });
@@ -90,6 +93,8 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         post({ id: req.id, ok: true, result: r });
         break;
       }
+      case 'bibtex': post({ id: req.id, ok: true, result: await core!.bibtex(req.options as BibtexOptions) }); break;
+      case 'makeindex': post({ id: req.id, ok: true, result: await core!.makeindex(req.options as MakeindexOptions) }); break;
       case 'addFiles': core!.addFiles(req.files as Record<string, string | Uint8Array>); post({ id: req.id, ok: true }); break;
       case 'removeFiles': core!.removeFiles(req.names as string[] | undefined); post({ id: req.id, ok: true }); break;
       case 'clearCache': core!.clearCache(); post({ id: req.id, ok: true }); break;

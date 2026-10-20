@@ -13,9 +13,10 @@ import { listFiles, mkdirp, writeFileDeep, isUnloadedLazy, ensureLoaded, trackWr
 import { scanTexBlocks, scanInputs, type TexBlock } from './tex/scanner.js';
 import { TexBridge, MemorySnippetCache, resolveEngine, canonicalBody, type Snippet, type ResolvedEngine, type SnippetCache } from './tex/bridge.js';
 import { parseMetaPostLog } from './diagnostics.js';
+import { parseBibtexLog, parseMakeindexLog } from './texutils.js';
 import { postProcessSvg } from './render/svg.js';
 import { Logger, silentLogger, ms, plural } from './logger.js';
-import type { MetaPostOptions, RunOptions, RunResult, FigureResult, Diagnostic, RunStats, Figure, OutputFormat, ProgressEvent, LatexRunOptions, LatexResult } from './types.js';
+import type { MetaPostOptions, RunOptions, RunResult, FigureResult, Diagnostic, RunStats, Figure, OutputFormat, ProgressEvent, LatexRunOptions, LatexResult, BibtexOptions, MakeindexOptions, ToolResult, Status } from './types.js';
 
 /** TEXMFVAR in the bundled texmf.cnf — where luaotfload keeps its font cache. */
 const TEXMF_VAR = '/texmf-var';
@@ -73,6 +74,8 @@ export interface CoreEnv {
   dvisvgmFactory?: DvisvgmFactory;
   /** the Ghostscript module for dvisvgm's PostScript (ghostscript.ts), when enabled; null if it cannot be loaded */
   ghostscript?: () => Promise<Ghostscript | null>;
+  /** bibtex.wasm and makeindex.wasm, loaded on first use; undefined if this build has none */
+  tools?: (name: 'bibtex' | 'makeindex') => Promise<TexFactory | undefined>;
   /** bundles merged into /texmf (browser, or Node without texmfDir) */
   bundles?: BundleSet;
   /** Node: real directory mounted at /texmf with NODEFS */
@@ -585,6 +588,63 @@ export class MetaPostCore {
     return { status, pages, ...(pdf ? { pdf: pdf as Uint8Array } : {}), log: tex.log, texLog, dvisvgmLog, diagnostics, stats: { totalMs, texMs: tex.ms, dvisvgmMs, texSetupMs: tex.setupMs, texMainMs: tex.mainMs, instantiateMs: tex.ms - tex.setupMs - tex.mainMs }, format: fmt, artifacts };
   }
 
+  /**
+   * BibTeX (bibtex.wasm) on the .aux a latex() run wrote: doc.bbl and doc.blg come back in
+   * artifacts, for the next latex() run. Like latex(), a fresh module each time.
+   */
+  async bibtex(bo: BibtexOptions = {}): Promise<ToolResult> {
+    const job = bo.jobName ?? 'doc';
+    // BibTeX exits 0 after warnings (only a history above 1 reaches the exit status), 1 when it cannot start, 2 after errors, 3 after a fatal one
+    return this.runTool('bibtex', [...(bo.args ?? []), job], bo.files, job, (exit, ds) => (exit === 0 ? (ds.length ? 'warning' : 'ok') : exit < 3 ? 'error' : 'fatal'), (log) => {
+      const ds = parseBibtexLog(log);
+      for (const d of ds) if (/couldn't open style file/.test(d.message)) d.help = ["TeX Live's styles (plainnat, apalike, plain, unsrt, ...) are in the 'latex-doc' bundle; a document's own .bst goes in `files`"];
+      return ds;
+    });
+  }
+
+  /** makeindex (makeindex.wasm) on the .idx a latex() run wrote: doc.ind and doc.ilg come back in artifacts. */
+  async makeindex(mo: MakeindexOptions = {}): Promise<ToolResult> {
+    const input = mo.input ?? 'doc.idx';
+    const args = [...(mo.style ? ['-s', mo.style] : []), ...(mo.args ?? []), input];
+    return this.runTool('makeindex', args, mo.files, input, (exit, ds) => (exit !== 0 ? 'error' : ds.length ? 'warning' : 'ok'), parseMakeindexLog);
+  }
+
+  /** One run of a TeX Live utility: what it wrote in /work comes back, its transcript as diagnostics. */
+  private async runTool(name: 'bibtex' | 'makeindex', args: string[], files: Record<string, string | Uint8Array> | undefined, what: string,
+    statusOf: (exit: number, diagnostics: Diagnostic[]) => Status, parse: (transcript: string) => Diagnostic[]): Promise<ToolResult> {
+    const t0 = now();
+    const factory = await this.env.tools?.(name);
+    if (!factory) throw new Error(`mp-tikz-wasm: ${name}.wasm is not available in this build`);
+    if (files) this.addFiles(files);
+    this.progress({ phase: 'running', detail: name });
+    const artifacts: Record<string, Uint8Array> = {};
+    let wrote = new Set<string>();
+    const r = await runTex(factory, {
+      program: `/bin/${name}`,
+      args,
+      setup: (M) => { mkdirp(M.FS, '/work'); this.installTexmf(M.FS, M.NODEFS); this.copyUserFiles(M); M.FS.chdir('/work'); wrote = trackWrites(M.FS); },
+      collect: (M) => {
+        for (const p of wrote) {
+          if (!p.startsWith('/work/')) continue;
+          try { artifacts[p.slice('/work/'.length)] = M.FS.readFile(p, { encoding: 'binary' }) as Uint8Array; } catch { /* ignore */ }
+        }
+      },
+      onLine: (l) => { this.env.onLog?.(l); this.logger.debug(name, l); },
+    });
+    // the transcript (.blg, .ilg) says more than the terminal; a run that stopped before writing one has only the terminal
+    const transcript = Object.entries(artifacts).find(([n]) => n.endsWith(name === 'bibtex' ? '.blg' : '.ilg'))?.[1];
+    const diagnostics = parse(transcript ? new TextDecoder().decode(transcript) : r.log);
+    if (r.exitCode !== 0 && !diagnostics.some((d) => d.severity === 'error')) {
+      const said = r.log.split('\n').filter((l) => l.trim() && !/^(Usage:|This is )/.test(l)).slice(-3).join(' ');
+      diagnostics.push({ severity: 'error', source: name, message: said || `${name} failed (exit ${r.exitCode})` });
+    }
+    const status = statusOf(r.exitCode, diagnostics);
+    const totalMs = now() - t0;
+    this.report(diagnostics);
+    this.logger.info('host', `${name} ${what}: ${status}${r.exitCode ? ` (exit ${r.exitCode})` : ''}, ${plural(Object.keys(artifacts).length, 'file')} in ${ms(totalMs)}`);
+    return { status, exitCode: r.exitCode, log: r.log, artifacts, diagnostics, stats: { totalMs } };
+  }
+
   private hasSnapshot(): boolean {
     if (this.env.bundles) return this.env.bundles.files.has('web2c/tikz.fmt');
     if (this.env.texmfDir) { try { return this.M.FS.analyzePath(`${TEXMF_ROOT}/web2c/tikz.fmt`).exists; } catch { return false; } }
@@ -698,6 +758,18 @@ export function parseTexLogDocument(log: string, file: string): Diagnostic[] {
       for (; j < lines.length && j < i + 30; j++) { const lm = /^l\.(\d+)/.exec(lines[j]); if (lm) { line = Number(lm[1]); break; } if (/^! /.test(lines[j])) break; }
       if (line !== undefined) for (let k = j + 2; k < lines.length && k < i + 30; k++) { if (lines[k].trim() === '' || /^! |^l\.\d+/.test(lines[k])) break; help.push(lines[k]); }
       out.push({ severity: 'error', source: 'tex', message: m[1], help: help.length ? help : undefined, file, line });
+      continue;
+    }
+    // the PDF back ends' own errors: a font with no outline stops the PDF (no bitmap fonts here)
+    const e = /^!(pdfTeX|LuaTeX) error: (.*)$/.exec(lines[i]);
+    if (e) {
+      const font = /\(file ([^)]+)\): Font (\S+) at (\d+) not found/.exec(e[2]);
+      if (font) {
+        const ec = /^(ec|tc)[a-z]{2,4}\d{4}$/.test(font[2]);
+        out.push({ severity: 'error', source: 'tex', file, message: `font ${font[2]} has no outline here: ${e[1]} found no ${font[2]}.pfb (or other outline) to embed, and bitmap fonts cannot be made`,
+          help: ec ? ["T1-encoded Computer Modern (the EC fonts) needs cm-super's outlines, which are not bundled; \\usepackage{lmodern} sets the same design in Latin Modern, which is in the default bundles"]
+            : ["no bundle loaded here has an outline for it"] });
+      } else out.push({ severity: 'error', source: 'tex', file, message: `${e[1]}: ${e[2]}` });
       continue;
     }
     const w = /^(?:LaTeX|Package (\S+)|Class (\S+)) Warning: (.*)$/.exec(lines[i]);

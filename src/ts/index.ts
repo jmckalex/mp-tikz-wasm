@@ -2,7 +2,7 @@
  * mp-tikz-wasm — public API (docs/08). `MetaPost.create()` starts a Web
  * Worker in browsers and runs in-process in Node (or when `worker: false`).
  */
-import type { MetaPostOptions, RunOptions, RunResult, ProgressEvent, BundleName, LatexRunOptions, LatexResult, PrefetchKind, LogLevel, LogRecord } from './types.js';
+import type { MetaPostOptions, RunOptions, RunResult, ProgressEvent, BundleName, LatexRunOptions, LatexResult, PrefetchKind, LogLevel, LogRecord, BibtexOptions, MakeindexOptions, ToolResult } from './types.js';
 import { MetaPostCore } from './core.js';
 import { Logger, DEFAULT_LOG_LEVEL, LOG_LEVELS, isLogLevel, consoleSink } from './logger.js';
 import { BundleSet, browserIO } from './vfs/bundle.js';
@@ -27,6 +27,8 @@ interface Backend {
   init(): Promise<{ version: { metapost: string; tex: string; build: string } }>;
   run(source: string, options: RunOptions): Promise<RunResult>;
   latex(source: string, options: LatexRunOptions): Promise<LatexResult>;
+  bibtex(options: BibtexOptions): Promise<ToolResult>;
+  makeindex(options: MakeindexOptions): Promise<ToolResult>;
   addFiles(files: Record<string, string | Uint8Array>): Promise<void>;
   removeFiles(names?: string[]): Promise<void>;
   clearCache(): Promise<void>;
@@ -74,8 +76,15 @@ class InProcessBackend implements Backend {
     const ghostscript = dvisvgmFactory && ghostscriptWanted(o.ghostscript, o.bundles ?? DEFAULT_BUNDLES)
       ? ghostscriptLoader({ glueUrl: new URL('gs.mjs', gsBase).href, wasmUrl: new URL('gs.wasm', gsBase).href, fetch: (u) => io.fetch(u), factory: o.modules?.ghostscript as GhostscriptFactory | undefined, log: (m) => this.logger.info('host', m) })
       : undefined;
+    // bibtex.wasm and makeindex.wasm: imported on first use, so a host that never asks pays nothing
+    const toolFactories = new Map<string, Promise<any>>();
+    const tools = (name: 'bibtex' | 'makeindex') => {
+      let f = toolFactories.get(name);
+      if (!f) toolFactories.set(name, f = o.modules?.[name] ? Promise.resolve(o.modules[name]) : import(/* @vite-ignore */ new URL(`./${name}.mjs`, here).href).then((m) => m.default, () => undefined));
+      return f;
+    };
     this.core = new MetaPostCore({
-      mplibFactory, texFactory, luatexFactory, dvisvgmFactory, ghostscript, bundles: this.bundles, texmfDir, options: o, logger: this.logger,
+      mplibFactory, texFactory, luatexFactory, dvisvgmFactory, ghostscript, tools, bundles: this.bundles, texmfDir, options: o, logger: this.logger,
       onProgress: (e) => this.emit('progress', e),
       onLog: (l) => this.emit('log', l),
     });
@@ -84,6 +93,8 @@ class InProcessBackend implements Backend {
   }
   run(source: string, options: RunOptions) { return this.core.run(source, options); }
   latex(source: string, options: LatexRunOptions) { return this.core.latex(source, options); }
+  bibtex(options: BibtexOptions) { return this.core.bibtex(options); }
+  makeindex(options: MakeindexOptions) { return this.core.makeindex(options); }
   async addFiles(files: Record<string, string | Uint8Array>) { this.core.addFiles(files); }
   async removeFiles(names?: string[]) { this.core.removeFiles(names); }
   async clearCache() { this.core.clearCache(); }
@@ -164,6 +175,8 @@ class WorkerBackend implements Backend {
     const { signal, ...rest } = options;
     return this.call<LatexResult>('latex', { source, options: rest });
   }
+  bibtex(options: BibtexOptions) { return this.call<ToolResult>('bibtex', { options }); }
+  makeindex(options: MakeindexOptions) { return this.call<ToolResult>('makeindex', { options }); }
   addFiles(files: Record<string, string | Uint8Array>) { return this.call<void>('addFiles', { files }); }
   removeFiles(names?: string[]) { return this.call<void>('removeFiles', { names }); }
   clearCache() { return this.call<void>('clearCache'); }
@@ -253,6 +266,19 @@ export class MetaPost {
   /** Typeset a whole LaTeX/TikZ (or plain TeX) document to one SVG per page. */
   latex(source: string, options: LatexRunOptions = {}): Promise<LatexResult> {
     const task = () => this.failing(this.watchdog(this.backend.latex(source, options), 'latex'), 'latex');
+    const next = this.queue.then(task, task);
+    this.queue = next.catch(() => undefined);
+    return next;
+  }
+  /**
+   * BibTeX on the .aux a latex() run wrote (`files: result.artifacts`, plus the .bib databases):
+   * doc.bbl and doc.blg come back in `artifacts`, for the next latex() run. TeX Live's styles
+   * are in the `latex-doc` bundle. Serialised with run() and latex() on this instance.
+   */
+  bibtex(options: BibtexOptions = {}): Promise<ToolResult> { return this.serialise(() => this.failing(this.watchdog(this.backend.bibtex(options), 'bibtex'), 'bibtex')); }
+  /** makeindex on the .idx a latex() run wrote: doc.ind and doc.ilg come back in `artifacts`. */
+  makeindex(options: MakeindexOptions = {}): Promise<ToolResult> { return this.serialise(() => this.failing(this.watchdog(this.backend.makeindex(options), 'makeindex'), 'makeindex')); }
+  private serialise<T>(task: () => Promise<T>): Promise<T> {
     const next = this.queue.then(task, task);
     this.queue = next.catch(() => undefined);
     return next;

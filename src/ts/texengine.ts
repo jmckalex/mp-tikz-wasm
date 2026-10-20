@@ -57,7 +57,7 @@ export async function runTex(factory: TexFactory, opts: TexRunOptions): Promise<
   const proc = (globalThis as any).process;
   const savedExitCode = proc?.exitCode;
   try {
-    const r = M.callMain(opts.args);
+    const r = M.callMain([...opts.args]);   // Emscripten puts argv[0] in front of the array it is given
     if (typeof r === 'number') exitCode = r;
   } catch (e: any) {
     if (e && e.name === 'ExitStatus') exitCode = e.status;
