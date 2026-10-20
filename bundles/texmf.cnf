@@ -98,3 +98,13 @@ obj_tab_size = 1000
 pdf_mem_size = 10000
 dest_names_size = 131072
 pk_bin_files = 0
+% BibTeX and makeindex (bibtex.wasm, makeindex.wasm), as in TeX Live 2025's
+% texmf.cnf: databases, styles and index styles, and BibTeX's capacities.
+% max_strings.bibtex gives BibTeX TeX Live's hash_size and hash_prime (the
+% .blg reports them); the unqualified max_strings above stays TeX's.
+BIBINPUTS = $TEXMFDOTDIR;$TEXMF/bibtex/bib//
+BSTINPUTS = $TEXMFDOTDIR;$TEXMF/bibtex/{bst,csf}//
+INDEXSTYLE = $TEXMFDOTDIR;$TEXMF/makeindex//
+ent_str_size = 500
+glob_str_size = 200000
+max_strings.bibtex = 200000

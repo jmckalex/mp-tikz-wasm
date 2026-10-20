@@ -5,6 +5,13 @@
 # the generated config headers that scripts/build-tex-wasm.sh compiles with
 # emcc, plus a native pdftex binary from the exact pinned source.
 #
+# After pdftex it builds BibTeX (`make -C texk/web2c bibtex`: tangle and
+# convert generate bibtex.c and bibtex.h) and configures and builds
+# texk/makeindexk (for its generated c-auto.h). scripts/build-texutils-wasm.sh
+# compiles those with emcc; the native bibtex and makeindex binaries, from the
+# same pinned source, are what scripts/smoke-texutils.mjs can be checked
+# against besides TeX Live's own. Both steps leave pdftex alone.
+#
 # Only `make -C texk/web2c pdftex` is wanted; `--disable-all-pkgs` does not
 # disable the other web2c engines and a full `make` would build (and on macOS
 # fail on) xetex. The packages pdftex needs (kpathsea; zlib, libpng and xpdf;
@@ -33,3 +40,9 @@ native_configure texk/web2c
 native_build texk/web2c pdftex
 ls -l texk/web2c/pdftex texk/web2c/pdftex0.c
 echo "==> native pdftex: $(texk/web2c/pdftex --version | head -1)"
+echo "==> web2c: bibtex (generates bibtex.c and bibtex.h)"
+native_build texk/web2c bibtex
+echo "==> native bibtex: $(texk/web2c/bibtex --version | head -1)"
+echo "==> makeindexk (generates its c-auto.h)"
+native_package texk/makeindexk
+echo "==> native makeindex: $(texk/makeindexk/makeindex < /dev/null 2>&1 | head -1)"
