@@ -550,6 +550,12 @@ r = await mp.latex(doc, { engine: 'lualatex', output: 'pdf', files: r.artifacts 
 await mp.removeFiles();                                          // before the next document
 ```
 
+TeX's clock is fixed at 1 January 2025 (UTC) by default, so the same source
+always gives the same bytes. A document a person exports should carry today's
+date instead: pass `date: 'now'` to `latex()` for the clock in the local time zone,
+as a desktop TeX run has it (`\today`, `\time`, babel's dates, the PDF's
+CreationDate), or a `Date` (or milliseconds) for a particular instant, shown in UTC.
+
 `bibtex()` and `makeindex()` return `status`, `artifacts` and `diagnostics` (the
 `.blg`'s and `.ilg`'s warnings and errors, with file and line); `style` and
 `args` pass makeindex's `-s` and the programs' other options. Files passed to any

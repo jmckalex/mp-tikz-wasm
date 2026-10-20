@@ -39,6 +39,12 @@ and releasing wait for the owner's word, which Clew-boss asks for. Commits on
   case's first line) byte-identical to TeX Live; CI installs the packages.
 - 31ba338 README, docs/08 §3.0/§4.4, NOTICE.md, `licenses/COPYING.makeindex`,
   `licenses/OFL-1.1.txt`.
+- (after Clew-boss's check of dea2b59) `latex(doc, { date })`: `'fixed'` (default,
+  2025-01-01 UTC), `'now'` (the clock, local time zone: for exports a person makes),
+  or a Date/ms (that instant, UTC). LuaTeX now runs with `--utc` except under
+  `'now'`: it had shown the fixed date in the host's time zone (\time 780 in
+  Auckland, \today 31 December 2024 west of Greenwich); London's output is
+  unchanged (offset 0 on 1 January).
 
 Verified here: 308 vitest tests, MetaPost golden 15/15, TikZ 16/16, PDF 11/11,
 contract 48/48, smoke 17/17, check-nosystem 7/7; the other bundles' manifests

@@ -375,6 +375,15 @@ exits 1 when it stops (`error`), and rejected entries or warnings make
 for byte, and `scripts/golden-pdf.mjs` runs its cases' latex/bibtex/makeindex
 steps (named on each case's first line) on both sides.
 
+**Dates.** Every TeX run sees 1 January 2025, 00:00 UTC by default
+(`SOURCE_DATE_EPOCH` with `FORCE_SOURCE_DATE`), so output is reproducible.
+`latex(doc, { date })` changes that per call: `'now'` sets neither variable and
+the engines read the clock, in the local time zone, as a desktop run does; a
+`Date` or a number of milliseconds is that instant, `\today` and `\time`
+included, in UTC. LuaTeX is run with `--utc` except under `'now'`: without it,
+it showed a fixed date in the host's time zone (`\time` was 780 in Auckland, and
+`\today` read 31 December 2024 west of Greenwich), unlike pdfTeX.
+
 The pdfTeX formats are built with `cp227.tcx`, as TeX Live's are, so pdfTeX
 writes UTF-8 to the `.aux` and `.idx` as it is (not `^^c3^^b6`), which BibTeX
 and makeindex read literally: a UTF-8 citation key resolves, and UTF-8 index

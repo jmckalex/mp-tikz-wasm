@@ -264,6 +264,42 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
       }
     }, 120_000);
 
+    it('dates a document as asked: 2025-01-01 by default, the clock with date "now", or a given instant', async () => {
+      const doc = '\\documentclass{article}\\begin{document}\\typeout{TODAY=\\today}\\today\\end{document}';
+      const today = (r: any) => /TODAY=(.*)/.exec(r.texLog)?.[1];
+      const created = async (r: any) => /\/CreationDate\s*\(D:(\d{14})/.exec(await pdfText(r.pdf))?.[1];
+      for (const engine of ['latex', 'lualatex']) {
+        const fixed = await mp.latex(doc, { engine, output: 'pdf' });
+        expect([today(fixed), await created(fixed)]).toEqual(['January 1, 2025', '20250101000000']);
+        const given = await mp.latex(doc, { engine, output: 'pdf', date: new Date('2026-10-20T12:34:56Z') });
+        expect([today(given), await created(given)]).toEqual(['October 20, 2026', '20261020123456']);   // UTC
+        const ms = await mp.latex(doc, { engine, output: 'pdf', date: Date.UTC(2027, 0, 2, 3, 4, 5) });
+        expect([today(ms), await created(ms)]).toEqual(['January 2, 2027', '20270102030405']);
+        // the clock, in the local time zone, as a desktop TeX run
+        const before = new Date();
+        const now = await mp.latex(doc, { engine, output: 'pdf', date: 'now' });
+        const local = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        expect([local(before), local(new Date())]).toContain(today(now));
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const ymd = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+        expect([ymd(before), ymd(new Date())]).toContain((await created(now))?.slice(0, 8));
+      }
+      // a fixed date does not depend on the host's time zone (LuaTeX needs --utc for that)
+      const tz = process.env.TZ;
+      try {
+        for (const zone of ['Pacific/Auckland', 'America/New_York']) {
+          process.env.TZ = zone;
+          for (const engine of ['latex', 'lualatex']) {
+            const r = await mp.latex('\\documentclass{article}\\begin{document}\\typeout{TODAY=\\today, TIME=\\the\\time}x\\end{document}', { engine, output: 'pdf' });
+            expect([today(r), await created(r)]).toEqual(['January 1, 2025, TIME=0', '20250101000000']);
+            expect(await pdfText(r.pdf)).toMatch(/\/CreationDate\s*\(D:20250101000000Z\)/);
+          }
+        }
+      } finally {
+        if (tz === undefined) delete process.env.TZ; else process.env.TZ = tz;
+      }
+    }, 120_000);
+
     it('reports a failed document without a PDF, and leaves SVG output as it was', async () => {
       const bad = await mp.latex('\\documentclass{article}\\usepackage{nosuchpackage}\\begin{document}x\\end{document}', { output: 'pdf' });
       expect(bad.status).not.toBe('ok');

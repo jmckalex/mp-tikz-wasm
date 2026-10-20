@@ -23,6 +23,9 @@ export interface TexRunOptions {
   onLine?: (line: string) => void;
   /** argv[0] as the engine sees it; default '/bin/pdftex' (luatex.wasm: '/bin/luatex') */
   program?: string;
+  /** The time TeX sees (\today, \time, the PDF's dates): 'fixed' (default, 2025-01-01, so output is
+   *  reproducible), 'now' (the clock, in the local time zone), or an instant in seconds since 1970 (in UTC). */
+  date?: 'fixed' | 'now' | number;
 }
 
 export interface TexRunResult { exitCode: number; log: string; ms: number; setupMs: number; mainMs: number }
@@ -40,8 +43,12 @@ export async function runTex(factory: TexFactory, opts: TexRunOptions): Promise<
     thisProgram: opts.program ?? '/bin/pdftex',
     preRun: [(m: TexModule) => {
       m.ENV.TEXMFCNF = '/texmf/web2c';
-      m.ENV.SOURCE_DATE_EPOCH = FIXED_EPOCH;
-      m.ENV.FORCE_SOURCE_DATE = '1';
+      // SOURCE_DATE_EPOCH alone dates the PDF; FORCE_SOURCE_DATE makes \year, \month, \day and \time follow
+      // it too (in UTC). With neither, the engines read the clock, as a desktop TeX does.
+      if (opts.date !== 'now') {
+        m.ENV.SOURCE_DATE_EPOCH = typeof opts.date === 'number' ? String(Math.floor(opts.date)) : FIXED_EPOCH;
+        m.ENV.FORCE_SOURCE_DATE = '1';
+      }
       m.ENV.HOME = '/home';
       for (const [k, v] of Object.entries(opts.env ?? {})) m.ENV[k] = v;
     }],

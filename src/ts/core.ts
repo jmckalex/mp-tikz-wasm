@@ -449,12 +449,18 @@ export class MetaPostCore {
     // the files TeX opens for writing: a host's own .aux, passed back in for the next pass,
     // is still TeX's to return when TeX writes it again
     let texWrote = new Set<string>();
+    const date = lo.date instanceof Date ? lo.date.getTime() / 1000 : typeof lo.date === 'number' ? lo.date / 1000 : lo.date;
+    if (typeof date === 'number' && !Number.isFinite(date)) throw new Error('mp-tikz-wasm: latex(): date is not a valid time');
     const tex = await runTex(lua ? this.env.luatexFactory! : this.env.texFactory, {
       program: lua ? '/bin/luatex' : '/bin/pdftex',
+      date,
       // LuaTeX has no -parse-first-line option (%& lines are honoured through texmf.cnf instead)
       // -output-format=pdf switches pdfTeX (\pdfoutput) or LuaTeX (\outputmode) to PDF after the
       // format is loaded, so the same formats serve both outputs and the source is left untouched
-      args: [`-fmt=${fmt}`, `-progname=${progname}`, '-interaction=nonstopmode', ...(lua ? [] : ['-parse-first-line']), ...(pdfOut ? ['-output-format=pdf'] : []), `-jobname=${job}`, `${job}.tex`],
+      // LuaTeX shows a fixed date in the local time zone unless told --utc (pdfTeX, under
+      // FORCE_SOURCE_DATE, always uses UTC): without it a 'fixed' document's \time and PDF dates,
+      // and \today west of Greenwich, depended on the host's time zone. 'now' keeps local time.
+      args: [`-fmt=${fmt}`, `-progname=${progname}`, '-interaction=nonstopmode', ...(lua ? (date === 'now' ? [] : ['--utc']) : ['-parse-first-line']), ...(pdfOut ? ['-output-format=pdf'] : []), `-jobname=${job}`, `${job}.tex`],
       setup: (M) => { mkdirp(M.FS, '/work'); this.installTexmf(M.FS, M.NODEFS); if (lua) this.installTexmfVar(M.FS); this.copyUserFiles(M); writeFileDeep(M.FS, `/work/${job}.tex`, doc); M.FS.chdir('/work'); texWrote = trackWrites(M.FS); },
       collect: (M) => {
         if (lua) this.collectTexmfVar(M.FS);

@@ -255,6 +255,12 @@ export interface LatexRunOptions {
    *  'tikz' forces it, 'none' always uses plain latex.fmt. Requires the tikz-snapshot bundle.
    *  Never used with output 'pdf': the snapshot has PGF's dvisvgm driver built in. */
   snapshot?: 'auto' | 'tikz' | 'none';
+  /** The date and time TeX sees: \today, \time, babel's dates, the PDF's CreationDate and ModDate.
+   *  'fixed' (default): 1 January 2025, 00:00 UTC, so the same source always gives the same bytes
+   *  (what figures and tests want). 'now': the clock, in the local time zone, as a desktop TeX
+   *  run (what a person exporting a document wants). A Date, or milliseconds since 1970 as
+   *  Date.now() gives: that instant, \today included, in UTC. */
+  date?: 'fixed' | 'now' | Date | number;
   /** Files to place next to the document (images, .sty, .tex inputs, the previous pass's .aux).
    *  They stay on the instance for later runs, as addFiles' do, until removeFiles takes them off. */
   files?: Record<string, string | Uint8Array>;
