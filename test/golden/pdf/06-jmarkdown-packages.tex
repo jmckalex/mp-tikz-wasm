@@ -1,0 +1,45 @@
+% golden: latex bibtex makeindex latex latex
+% What jmarkdown's LaTeX output loads (the latex-doc bundle), with a bibliography and an index.
+\documentclass{article}\usepackage[utf8]{inputenc}\usepackage[T1]{fontenc}\usepackage{lmodern}\usepackage{amsmath,amssymb,amsthm,graphicx,xcolor,booktabs,longtable,geometry}\usepackage{tcolorbox}\usepackage{thmtools}\usepackage{natbib}\usepackage{bibentry}\usepackage{caption}\usepackage{subcaption}\usepackage[export]{adjustbox}\usepackage{soul}\usepackage{setspace}\usepackage{multirow}\usepackage{fancyhdr}\usepackage{csquotes}\usepackage{float}\usepackage{fvextra}\usepackage{imakeidx}\usepackage{sgame}\usepackage{tikz}\usepackage{attachfile2}\usepackage{hyperref}\usepackage{cleveref}
+\tcbuselibrary{skins,breakable}
+\declaretheorem[name=Theorem,numberwithin=section]{theorem}
+\declaretheorem[name=Lemma,sibling=theorem]{lemma}
+\crefname{theorem}{theorem}{theorems}
+\makeindex[intoc]
+\pagestyle{fancy}\fancyhf{}\fancyhead[L]{Header}\fancyfoot[C]{\thepage}
+\title{A Note}\author{Someone}\date{20 October 2026}
+\begin{document}
+\maketitle
+\tableofcontents
+\section{Introduction}\label{sec:intro}
+Organisation and hyphenation\index{hyphenation}: \enquote{quotes} and \enquote{\enquote{nested}}, office, affluent. See \cref{sec:more} and \Cref{thm:a}, \cref{fig:a,fig:b}. \citet{knuth84} and \citep[p.~3]{lamport94}; \citeauthor{knuth84}.
+\hl{highlighted} \st{struck} \ul{underlined} \so{spaced}.
+\begin{theorem}\label{thm:a} Every finite game has a mixed equilibrium.\index{equilibrium!mixed} \end{theorem}
+\begin{lemma} A lemma. \end{lemma}
+\begin{tcolorbox}[colframe=blue,colback=blue!8,title=Note]A box.\end{tcolorbox}
+\begin{tcolorbox}[enhanced, breakable, frame hidden, colback=red!5, borderline west={2pt}{0pt}{red}]A callout.\end{tcolorbox}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true]
+\textcolor{blue}{def} f(x):  # a very long comment that should wrap around because breaklines is on in fvextra here
+    \textbf{return} x * 2
+\end{Verbatim}
+\begin{figure}[H]\centering
+\begin{subfigure}{0.4\textwidth}\centering\rule{2cm}{1cm}\caption{One}\label{fig:a}\end{subfigure}
+\begin{subfigure}{0.4\textwidth}\centering\adjustbox{max width=\linewidth}{\rule{3cm}{1cm}}\caption{Two}\label{fig:b}\end{subfigure}
+\caption{Two rules}\end{figure}
+\begin{table}[h]\centering\begin{tabular}{lll}\toprule\multirow{2}{*}{A} & b & c\\ & d & e\\\bottomrule\end{tabular}\caption{A table}\end{table}
+\begin{spacing}{1.5}Spaced text.\end{spacing}
+\begin{game}{2}{2}[Row][Col]
+& $L$ & $R$\\
+$U$ & $1,1$ & $0,0$\\
+$D$ & $0,0$ & $1,1$
+\end{game}
+\begin{longtable}{ll}a&b\\\end{longtable}
+\section{More}\label{sec:more}
+More text\index{text}\index{alpha@$\alpha$}. \href{https://example.org}{A link}.
+\begin{itemize}\item One\item Two\begin{itemize}\item Inner\end{itemize}\end{itemize}
+\begin{quote}A quotation.\end{quote}
+\nocite{*}
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\printindex
+\end{document}

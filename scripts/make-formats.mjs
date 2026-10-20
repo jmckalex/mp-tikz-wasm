@@ -8,6 +8,12 @@ import path from 'node:path';
 const REPO = path.resolve(new URL('..', import.meta.url).pathname);
 const TEXMF = path.resolve(process.argv[2] ?? path.join(REPO, 'build/texmf'));
 const WORK = fs.mkdtempSync(path.join(REPO, 'build', 'fmt-'));
+// The formats load US English only. The tree's language.dat lists every language the
+// latex-doc bundle has patterns for (LuaLaTeX's babel loads them when a document asks), so
+// the format build reads the US English one from web2c/format-config/: the working
+// directory comes first on every search path (build-texmf.sh).
+const FORMAT_CONFIG = path.join(TEXMF, 'web2c', 'format-config');
+if (fs.existsSync(FORMAT_CONFIG)) for (const f of fs.readdirSync(FORMAT_CONFIG)) fs.copyFileSync(path.join(FORMAT_CONFIG, f), path.join(WORK, f));
 
 async function runTex(args, engine = 'pdftex') {
   const out = [];

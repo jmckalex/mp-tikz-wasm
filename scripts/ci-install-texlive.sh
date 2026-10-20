@@ -12,7 +12,9 @@
 # The package list is what owns the files in build/texmf according to TeX Live
 # 2025's texlive.tlpdb, plus kpathsea (kpsewhich, which build-texmf uses) and
 # texlive-scripts (tetex/ps2pk35.map, folded into mpost.map). If build-texmf
-# starts copying something new, add its package here.
+# starts copying something new, add its package here. The latex-doc bundle's
+# packages follow the first block (bibtex and makeindex also bring the native
+# programs smoke-texutils.mjs compares the wasm ones with).
 set -euo pipefail
 DEST="${1:?usage: ci-install-texlive.sh DIR}"
 [ -x "$DEST/bin/"*/kpsewhich ] 2>/dev/null && { echo "==> TeX Live 2025 already in $DEST"; exit 0; }
@@ -36,7 +38,19 @@ PACKAGES="kpathsea texlive-scripts
   pst-plot pst-text pst-tools pst-tree pstricks pstricks-add
   rerunfilecheck roundrect shapes simplekv spath3 splines standalone stringenc symbol
   tex-ini-files tikz-3dplot tikz-cd times todonotes tools unicode-data unicode-math
-  uniquecounter url varwidth xcolor xkeyval zapfchan zapfding"
+  uniquecounter url varwidth xcolor xkeyval zapfchan zapfding
+  adjustbox attachfile2 bibtex caption carlisle cleveref collectbox csquotes ebgaramond enumitem environ
+  fancyhdr fancyvrb float fvextra garamond-math greek-fontenc ifoddpage lineno makeindex microtype multirow
+  natbib pdfcol setspace sgame soul tcolorbox thmtools tikzfill titlesec titling trimspaces upquote
+  babel-basque babel-catalan babel-croatian babel-czech babel-danish babel-dutch babel-english babel-estonian
+  babel-finnish babel-french babel-galician babel-german babel-greek babel-hungarian babel-icelandic babel-irish
+  babel-italian babel-latin babel-latvian babel-lithuanian babel-norsk babel-polish babel-portuges babel-romanian
+  babel-russian babel-slovak babel-slovenian babel-spanish babel-swedish babel-turkish babel-ukrainian babel-welsh
+  hyphen-basque hyphen-catalan hyphen-croatian hyphen-czech hyphen-danish hyphen-dutch hyphen-english
+  hyphen-estonian hyphen-finnish hyphen-french hyphen-galician hyphen-german hyphen-hungarian hyphen-icelandic
+  hyphen-irish hyphen-italian hyphen-latin hyphen-latvian hyphen-lithuanian hyphen-norwegian hyphen-polish
+  hyphen-portuguese hyphen-romanian hyphen-russian hyphen-slovak hyphen-slovenian hyphen-spanish hyphen-swedish
+  hyphen-turkish hyphen-ukrainian hyphen-welsh"
 
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 REPO=""

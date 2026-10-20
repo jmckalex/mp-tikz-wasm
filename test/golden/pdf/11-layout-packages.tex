@@ -1,0 +1,32 @@
+% golden: latex latex
+% Clew's and jmarkdown's layout packages under pdfLaTeX: microtype (protrusion and
+% expansion), titlesec, titling, enumitem, setspace, fancyhdr, csquotes, caption and
+% subcaption, multirow, float, adjustbox, cleveref and thmtools.
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}\usepackage[T1]{fontenc}\usepackage{lmodern}
+\usepackage[a4paper,textwidth=31pc,top=30mm,bottom=32mm]{geometry}
+\usepackage{microtype}\usepackage{titlesec}\usepackage{titling}\usepackage{enumitem}\usepackage{setspace}
+\usepackage{fancyhdr}\usepackage{csquotes}\usepackage{caption}\usepackage{subcaption}\usepackage{multirow}
+\usepackage{float}\usepackage[export]{adjustbox}\usepackage{amsthm}\usepackage{thmtools}\usepackage{booktabs}
+\usepackage{hyperref}\usepackage{cleveref}
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{0.8em}{}
+\titlespacing*{\section}{0pt}{3ex plus 1ex minus .2ex}{1.2ex plus .2ex}
+\setlist{itemsep=0.35\baselineskip,topsep=0.5\baselineskip}
+\pretitle{\begin{center}\LARGE}\posttitle{\par\end{center}\vskip 1.2em}
+\pagestyle{fancy}\fancyhf{}\fancyhead[L]{\leftmark}\fancyfoot[C]{\thepage}\setlength{\headheight}{15pt}
+\declaretheorem[name=Theorem]{theorem}
+\title{Layout}\author{Someone}\date{1 January 2025}
+\begin{document}
+\maketitle
+\section{Text}\label{sec:text}
+\begin{onehalfspace}
+\enquote{Quoted \enquote{and nested}} text, set with protrusion and expansion so that the margins look straight; the paragraph is long enough to have several lines and to need a little font expansion here and there, which microtype does in pdfTeX. See \cref{sec:text,thm:one,fig:both,tab:t}.
+\end{onehalfspace}
+\begin{theorem}\label{thm:one}A theorem.\end{theorem}
+\begin{itemize}\item One\item Two\begin{itemize}\item Inner\end{itemize}\end{itemize}
+\begin{figure}[H]\centering
+\begin{subfigure}{0.45\textwidth}\centering\adjustbox{max width=\linewidth,frame}{\rule{6cm}{1cm}}\caption{Framed}\end{subfigure}
+\begin{subfigure}{0.45\textwidth}\centering\rule{2cm}{1cm}\caption{Plain}\end{subfigure}
+\caption{Both}\label{fig:both}\end{figure}
+\begin{table}[H]\centering\begin{tabular}{lll}\toprule\multirow{2}{*}{Rows} & a & b\\ & c & d\\\bottomrule\end{tabular}\caption{A table}\label{tab:t}\end{table}
+\end{document}

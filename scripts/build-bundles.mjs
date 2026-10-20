@@ -41,15 +41,31 @@ const isFontDb = (p) => p.startsWith('luaotfload/');
 // cm-tfm / cm-type1, lm-fonts (fonts/enc/), latex-extra and otf-fonts (truetype).
 const isClassico = (p) => p.startsWith('tex/latex/classico/') || /^fonts\/(tfm|vf|type1)\/(URWClassico-|uop)/.test(p)
   || /^fonts\/enc\/clsc_/.test(p) || p.startsWith('fonts/truetype/urw/classico/');
-const SKIP = (p) => (p.startsWith('tex/generic/unicode-data/') && !isUnicodeRuntime(p)) || p === 'fonts/map/texfonts.map' || p.startsWith('tex/generic/config/');
+const SKIP = (p) => (p.startsWith('tex/generic/unicode-data/') && !isUnicodeRuntime(p)) || p === 'fonts/map/texfonts.map' || (p.startsWith('tex/generic/config/') && p !== RUNTIME_LANGUAGE_DAT);
 // PostScript support (the opt-in `ghostscript` bundle): dvips's headers and the
 // PSTricks family (build-texmf.sh); ahead of tex-plain and latex-extra, which
 // would otherwise claim tex/generic/ and tex/latex/ wholesale. The Ghostscript
 // module itself is not a bundle file: dist/ghostscript/ (build-ghostscript.sh).
 const isPostScript = (p) => p.startsWith('dvips/') || /^tex\/(generic|latex)\/(pstricks|pstricks-add|pst-[^/]+|multido)\//.test(p);
+// Whole documents (the opt-in `latex-doc` bundle): what a note exported as LaTeX loads --
+// jmarkdown's packages, Clew's export style, babel with 41 languages and their hyphenation,
+// BibTeX's and makeindex's styles, EB Garamond and Garamond-Math (build-texmf.sh). Ahead of
+// tex-plain, latex-extra and otf-fonts, which would claim tex/generic/, tex/latex/ and
+// fonts/opentype/ wholesale. babel's hyphen.cfg and luababel.def stay where they were (in
+// tex-plain: the formats load them). The full language.dat is the one file of
+// tex/generic/config/ that ships: LuaLaTeX's babel reads it to load a language's patterns;
+// the formats are built from the US English one (web2c/format-config/, which never ships).
+const RUNTIME_LANGUAGE_DAT = 'tex/generic/config/language.dat';
+const LATEX_DOC_LATEX = 'tcolorbox|tikzfill|pdfcol|environ|trimspaces|cleveref|thmtools|natbib|caption|adjustbox|collectbox|ifoddpage|setspace|multirow|fancyhdr|csquotes|float|fvextra|fancyvrb|upquote|lineno|microtype|enumitem|titlesec|titling|sgame|attachfile2|greek-fontenc|carlisle';
+const isLatexDoc = (p) => new RegExp(`^tex/latex/(${LATEX_DOC_LATEX})/`).test(p)
+  || /^tex\/generic\/(soul|babel-[a-z]+|hyph-utf8)\//.test(p)
+  || (p.startsWith('tex/generic/babel/') && p !== 'tex/generic/babel/hyphen.cfg' && p !== 'tex/generic/babel/luababel.def')
+  || p === RUNTIME_LANGUAGE_DAT || p.startsWith('bibtex/') || p.startsWith('makeindex/')
+  || /^fonts\/opentype\/public\/(ebgaramond|garamond-math)\//.test(p);
 const RECIPES = [
   ['classico',   isClassico],
   ['ghostscript', isPostScript],
+  ['latex-doc',  isLatexDoc],
   ['core',       (p) => p.startsWith('web2c/texmf.cnf') || p.startsWith('metapost/') || p.startsWith('fonts/map/')],
   // the 35 standard PostScript fonts: psnfss metrics/virtual fonts (p??*), URW Type 1 (u??*), the 8r encoding
   ['ps-fonts',   (p) => /^fonts\/(tfm|vf)\/p[a-z]{2}[a-z0-9]*\.(tfm|vf)$/.test(p) || /^fonts\/type1\/u[a-z]{2}[a-z0-9]*\.pfb$/.test(p) || p === 'fonts/enc/8r.enc'],

@@ -1,0 +1,18 @@
+% golden: latex makeindex:doc.idx makeindex:authors.idx latex latex
+% imakeidx with two indexes, as jmarkdown's @index{name=...} makes them, in the contents.
+\documentclass{article}
+\usepackage[utf8]{inputenc}\usepackage[T1]{fontenc}\usepackage{lmodern}
+\usepackage{imakeidx}
+\makeindex[intoc]
+\makeindex[name=authors,title=Authors,intoc]
+\usepackage{hyperref}
+\begin{document}
+\tableofcontents
+\section{Games}
+Games\index{game}, equilibria\index{equilibrium!Nash}\index{equilibrium!mixed|see{mixed strategy}} and
+strategies\index{mixed strategy}\index{alpha@$\alpha$-strategy}\index{Gödel numbering}\index{Ölfeld}\index{Zermelo}. Nash\index[authors]{Nash, John}, Gödel\index[authors]{Gödel, Kurt}.
+\newpage Again\index{game}\index{equilibrium!Nash|(} on page two.\newpage
+Three\index{equilibrium!Nash|)}, Skyrms\index[authors]{Skyrms, Brian} and Nash\index[authors]{Nash, John}.
+\printindex
+\printindex[authors]
+\end{document}

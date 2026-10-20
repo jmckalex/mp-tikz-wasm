@@ -12,10 +12,18 @@
 //
 // pdfTeX only: LuaTeX's PDF output is covered by test/e2e (no native LuaTeX of the
 // same version to compare with here).
+//
+// A case may name the runs it needs on its first line, as latexmk would make them:
+//   % golden: latex bibtex makeindex latex latex
+// (bibtex:NAME and makeindex:FILE.idx for another .aux or index). Both sides run
+// the same steps, the wasm side through mp.latex(), mp.bibtex() and mp.makeindex(),
+// each step handed the files the steps before it wrote; the final PDFs are compared.
+// The cases' .bib files are given to both. Without the line a case is one latex run.
+// The wasm side loads the latex-doc bundle, which the default bundles' cases do not need.
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { MetaPost } from '../dist/index.js';
+import { MetaPost, DEFAULT_BUNDLES } from '../dist/index.js';
 
 const REPO = path.resolve(new URL('..', import.meta.url).pathname);
 const CASES = path.join(REPO, 'test/golden/pdf');
@@ -27,8 +35,9 @@ const only = argv.filter((a) => !a.startsWith('--'));
 
 // the version appears as /Producer (pdfTeX-1.40.NN) and in /PTEX.Fullbanner; same length either way
 const mask = (buf) => Buffer.from(buf.toString('latin1').replace(/(pdfTeX-1\.40\.)\d\d/g, '$1xx').replace(/(-2\.6-1\.40\.)\d\d/g, '$1xx'), 'latin1');
-const images = fs.readdirSync(CASES).filter((f) => /\.(png|jpe?g)$/i.test(f));
+const images = fs.readdirSync(CASES).filter((f) => /\.(png|jpe?g|bib)$/i.test(f));
 const plainCase = (src) => /\\bye\b/.test(src);
+const recipe = (src) => (/^% golden: (.*)$/m.exec(src.split('\n')[0])?.[1] ?? 'latex').trim().split(/\s+/);
 const DRIVER = '\\def\\pgfsysdriver{pgfsys-pdftex.def}';   // what the library prepends for pdfTeX PDF output
 
 function oracle(file) {
@@ -38,14 +47,18 @@ function oracle(file) {
   fs.writeFileSync(path.join(dir, 'doc.tex'), DRIVER + src);
   for (const i of images) fs.copyFileSync(path.join(CASES, i), path.join(dir, i));
   const env = { ...process.env, SOURCE_DATE_EPOCH: '1735689600', FORCE_SOURCE_DATE: '1' };
-  try { execFileSync(plainCase(src) ? 'etex' : 'latex', ['-interaction=nonstopmode', '-output-format=pdf', 'doc.tex'], { cwd: dir, stdio: 'ignore', env }); } catch { /* errors are part of some cases */ }
+  for (const step of recipe(src)) {
+    const [tool, arg] = step.split(':');
+    const args = tool === 'latex' ? ['-interaction=nonstopmode', '-output-format=pdf', 'doc.tex'] : tool === 'bibtex' ? [arg ?? 'doc'] : [arg ?? 'doc.idx'];
+    try { execFileSync(tool === 'latex' && plainCase(src) ? 'etex' : tool, args, { cwd: dir, stdio: 'ignore', env }); } catch { /* errors are part of some cases */ }
+  }
   const f = path.join(dir, 'doc.pdf');
   const pdf = fs.existsSync(f) ? fs.readFileSync(f) : null;
   fs.rmSync(dir, { recursive: true, force: true });
   return pdf;
 }
 
-const mp = mode === '--update' ? null : await MetaPost.create({ logLevel: 'silent' });
+const mp = mode === '--update' ? null : await MetaPost.create({ logLevel: 'silent', bundles: [...DEFAULT_BUNDLES, 'latex-doc'] });
 const files = Object.fromEntries(images.map((i) => [i, fs.readFileSync(path.join(CASES, i))]));
 fs.mkdirSync(EXPECTED, { recursive: true });
 let passed = 0, failed = 0;
@@ -62,7 +75,15 @@ for (const f of fs.readdirSync(CASES).filter((f) => f.endsWith('.tex')).sort()) 
     if (mode === '--update') { console.log(`wrote ${name}.pdf (${expected.length} bytes)`); continue; }
   }
   const t0 = performance.now();
-  const r = await mp.latex(src, { engine: plainCase(src) ? 'plain' : 'latex', output: 'pdf', files });
+  // each run on a clean instance state: the previous case's .aux must not be read
+  await mp.removeFiles();
+  let r, carry = { ...files };
+  for (const step of recipe(src)) {
+    const [tool, arg] = step.split(':');
+    const out = tool === 'latex' ? (r = await mp.latex(src, { engine: plainCase(src) ? 'plain' : 'latex', output: 'pdf', files: carry }))
+      : tool === 'bibtex' ? await mp.bibtex({ jobName: arg ?? 'doc', files: carry }) : await mp.makeindex({ input: arg ?? 'doc.idx', files: carry });
+    carry = { ...carry, ...out.artifacts };
+  }
   const ms = Math.round(performance.now() - t0);
   const got = r.pdf ? Buffer.from(r.pdf) : null;
   if (got && Buffer.compare(mask(got), mask(expected)) === 0) { console.log(`ok   ${name} (${got.length} bytes, ${r.status}, ${ms} ms)`); passed++; }

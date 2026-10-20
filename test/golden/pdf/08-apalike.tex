@@ -1,0 +1,9 @@
+% golden: latex bibtex latex latex
+% The standard styles: apalike (author-year, without natbib).
+\documentclass{article}
+\usepackage[utf8]{inputenc}\usepackage[T1]{fontenc}\usepackage{lmodern}\usepackage{url}
+\begin{document}
+As \cite{nash50} showed, and \cite{knuth84,skyrms96} after. \nocite{*}
+\bibliographystyle{apalike}
+\bibliography{refs}
+\end{document}

@@ -1,0 +1,14 @@
+% golden: latex bibtex latex latex
+% natbib with numerical citations, sorted and compressed (unsrtnat), and bibentry.
+\documentclass{article}
+\usepackage[utf8]{inputenc}\usepackage[T1]{fontenc}\usepackage{lmodern}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{bibentry}\nobibliography*
+\usepackage{hyperref}
+\begin{document}
+Numbers \citep{nash50,knuth84,lamport94}, \citet{skyrms96}, \citep[see][ch.~2]{alexander99}, \citeauthor{web}, \citeyear{gödel}.
+
+In full: \bibentry{nash50}.
+\bibliographystyle{unsrtnat}
+\bibliography{refs}
+\end{document}

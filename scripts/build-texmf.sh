@@ -183,6 +183,73 @@ done
 for top in tex/generic tex/latex; do
   t="$(tree_with "$top/multido" || true)"; [ -n "$t" ] && mkdir -p "$OUT/$top" && cp -R "$t/$top/multido" "$OUT/$top/multido"
 done
+# --- whole documents: the opt-in `latex-doc` bundle -----------------------------
+# What a note exported as LaTeX loads (jmarkdown's output, Clew's export style),
+# so that latex(doc, { output: 'pdf' }) typesets it as TeX Live does: the
+# packages, babel with the languages Clew offers and their hyphenation, BibTeX's
+# and makeindex's styles, and EB Garamond with Garamond-Math. The list is what
+# TeX Live's own lualatex and pdflatex read (-recorder) for documents that use
+# all of them, and every language, plus their dependencies not already here.
+for d in tcolorbox tikzfill pdfcol environ trimspaces cleveref thmtools natbib caption adjustbox collectbox ifoddpage \
+         setspace multirow fancyhdr csquotes float fvextra fancyvrb upquote lineno microtype enumitem titlesec titling \
+         sgame attachfile2 greek-fontenc carlisle; do
+  t="$(tree_with "tex/latex/$d" || true)"
+  if [ -n "$t" ]; then cp -R "$t/tex/latex/$d" "$OUT/tex/latex/$d"; else echo "  warning: tex/latex/$d not found in any TeX tree; the latex-doc bundle will lack it" >&2; fi
+done
+for d in soul; do t="$(tree_with "tex/generic/$d" || true)"; [ -n "$t" ] && cp -R "$t/tex/generic/$d" "$OUT/tex/generic/$d"; done
+# babel: the core (hyphen.cfg and luababel.def are here already, for the formats) and,
+# of its locale data, the directories of the 41 languages Clew offers (babel reads a
+# language's .ini even for an .ldf language): 0.8 of its 4.5 MB.
+BABEL_LOCALES="ca cs cy da de el en es et eu fi fr ga gl hr hu is it la lt lv nl nn no pl pt ro ru sk sl sv tr uk"
+BABEL_LDFS="english german french spanish italian portuges dutch swedish danish norsk finnish icelandic polish czech slovak \
+            hungarian romanian croatian slovenian turkish catalan galician basque irish welsh estonian latvian lithuanian latin \
+            russian ukrainian greek"
+t="$(tree_with tex/generic/babel/babel.sty || true)"
+if [ -n "$t" ]; then
+  find "$t/tex/generic/babel" -maxdepth 1 -type f -exec cp {} "$OUT/tex/generic/babel/" \;
+  for l in $BABEL_LOCALES; do mkdir -p "$OUT/tex/generic/babel/locale" && cp -R "$t/tex/generic/babel/locale/$l" "$OUT/tex/generic/babel/locale/$l"; done
+  for l in $BABEL_LDFS; do [ -d "$t/tex/generic/babel-$l" ] && cp -R "$t/tex/generic/babel-$l" "$OUT/tex/generic/babel-$l"; done
+else
+  echo "  warning: babel not found in any TeX tree; the latex-doc bundle will have no languages" >&2
+fi
+# Hyphenation for those languages under LuaLaTeX, which loads patterns as a language
+# is first used (pdfLaTeX cannot: its format has US English only). babel reads
+# language.dat at that point -- the full one, which build-bundles.mjs ships in
+# latex-doc; the formats are built from the US English one in web2c/format-config/
+# (make-formats.mjs puts it first). Its lines are TeX Live's, for the loaders here.
+HYPH="ca cs cy da de-1996 el-monoton el-polyton en-gb es et eu fi fr ga gl hr hu is it la lt lv nb nl nn no pl pt ro ru sk sl sv tr uk"
+t="$(tree_with tex/generic/hyph-utf8/loadhyph || true)"
+if [ -n "$t" ]; then
+  H="$OUT/tex/generic/hyph-utf8"; mkdir -p "$H/loadhyph" "$H/patterns/tex" "$H/patterns/quote"
+  for c in $HYPH; do
+    [ -f "$t/tex/generic/hyph-utf8/loadhyph/loadhyph-$c.tex" ] && cp "$t/tex/generic/hyph-utf8/loadhyph/loadhyph-$c.tex" "$H/loadhyph/"
+    [ -f "$t/tex/generic/hyph-utf8/patterns/tex/hyph-$c.tex" ] && cp "$t/tex/generic/hyph-utf8/patterns/tex/hyph-$c.tex" "$H/patterns/tex/"
+    [ -f "$t/tex/generic/hyph-utf8/patterns/quote/hyph-quote-$c.tex" ] && cp "$t/tex/generic/hyph-utf8/patterns/quote/hyph-quote-$c.tex" "$H/patterns/quote/"
+  done
+  mkdir -p "$OUT/web2c/format-config"
+  mv "$OUT/tex/generic/config/language.dat" "$OUT/web2c/format-config/language.dat"
+  # a language line ("name loader") is kept when its loader is here, with the =synonyms after it
+  awk -v dir="$H/loadhyph" 'BEGIN { keep = 0 }
+    /^[ \t]*%/ || /^[ \t]*$/ { next }
+    /^=/ { if (keep) print; next }
+    { f = $2; keep = (f == "hyphen.tex") || (system("test -f \"" dir "/" f "\"") == 0); if (keep) print }' \
+    "$(kpsewhich language.dat)" > "$OUT/tex/generic/config/language.dat"
+else
+  echo "  warning: hyph-utf8 not found in any TeX tree; LuaLaTeX will hyphenate every language as US English" >&2
+fi
+# BibTeX's styles (natbib's plainnat, abbrvnat, unsrtnat; the standard plain, alpha,
+# abbrv, unsrt, apalike, ...) and makeindex's, found through BSTINPUTS and INDEXSTYLE
+for d in bibtex/bst/base bibtex/bst/natbib makeindex/base makeindex/latex; do
+  t="$(tree_with "$d" || true)"; [ -n "$t" ] && mkdir -p "$OUT/$d" && cp -R "$t/$d/." "$OUT/$d/"
+done
+# EB Garamond (Clew's export face) and Garamond-Math, under the SIL Open Font License:
+# the four faces fontspec's Regular/Italic/Bold/BoldItalic name, of the twelve
+for f in Regular Italic Bold BoldItalic; do
+  t="$(tree_with "fonts/opentype/public/ebgaramond/EBGaramond-$f.otf" || true)"
+  [ -n "$t" ] && mkdir -p "$OUT/fonts/opentype/public/ebgaramond" && cp "$t/fonts/opentype/public/ebgaramond/EBGaramond-$f.otf" "$OUT/fonts/opentype/public/ebgaramond/"
+done
+t="$(tree_with fonts/opentype/public/garamond-math/Garamond-Math.otf || true)"
+[ -n "$t" ] && mkdir -p "$OUT/fonts/opentype/public/garamond-math" && cp "$t/fonts/opentype/public/garamond-math/Garamond-Math.otf" "$OUT/fonts/opentype/public/garamond-math/"
 # drop documentation-ish files that are never input
 find "$OUT/tex" \( -name '*.dtx' -o -name '*.ins' -o -name '*.pdf' -o -name 'README*' -o -name 'CHANGES*' \) -delete
 

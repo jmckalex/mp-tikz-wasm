@@ -1,0 +1,19 @@
+% golden: latex latex
+% jmarkdown's callouts (tcolorbox, skins and breakable, across a page break) and its
+% minted stand-in: fvextra Verbatim with commandchars, coloured from JavaScript.
+\documentclass{article}
+\usepackage[utf8]{inputenc}\usepackage[T1]{fontenc}\usepackage{lmodern}
+\usepackage{xcolor}\usepackage{tcolorbox}\tcbuselibrary{skins,breakable}
+\usepackage{fvextra}\usepackage{soul}\usepackage{enumitem}
+\definecolor{kw}{HTML}{0000AA}\definecolor{str}{HTML}{AA5500}\definecolor{com}{HTML}{777777}
+\begin{document}
+\begin{tcolorbox}[colframe=blue,colback=blue!8,title=Note]A box with a title.\end{tcolorbox}
+\begin{tcolorbox}[enhanced, breakable, frame hidden, colback=red!5, borderline west={2pt}{0pt}{red}, title=Warning, coltitle=red!60!black, fonttitle=\bfseries]
+\foreach \i in {1,...,60} {Line \i\ of a callout long enough to break across pages.\par}
+\end{tcolorbox}
+\begin{Verbatim}[commandchars=\\\{\},breaklines=true,fontsize=\small,numbers=left]
+\textcolor{kw}{def} greet(name):   \textcolor{com}{# a comment long enough that fvextra has to break the line to fit it in the text width}
+    \textcolor{kw}{return} \textcolor{str}{"Hello, "} + name
+\end{Verbatim}
+\begin{enumerate}[label=(\alph*)]\item \hl{highlighted} \item \st{struck} \item \ul{underlined}\end{enumerate}
+\end{document}
