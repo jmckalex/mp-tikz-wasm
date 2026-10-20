@@ -313,7 +313,7 @@ details.source pre { margin: 0; border-radius: 0; max-height: 360px; }
   </g>
 </svg>
 </div>
-    <div class="eyebrow">mp-tikz-wasm · version 0.4.0 · MetaPost 2.11, pdfTeX 1.40, LuaTeX 1.21, dvisvgm 3.4.3</div>
+    <div class="eyebrow">mp-tikz-wasm · version 0.5.0 · MetaPost 2.11, pdfTeX 1.40, LuaTeX 1.21, dvisvgm 3.4.3</div>
   </div>
   <div class="thesis">
     <div>
@@ -335,7 +335,7 @@ details.source pre { margin: 0; border-radius: 0; max-height: 360px; }
 <p>Two ways. The prebuilt archive is what most people want: it contains the compiled engines, the JavaScript and the font, format and package bundles, and needs neither TeX Live nor Emscripten.</p>
 <h3>1. Prebuilt release</h3>
 <ol class="steps">
-  <li><span>Download <code>mp-tikz-wasm-0.4.0.tar.gz</code> (or <code>.zip</code>) from the <a href="https://github.com/jmckalex/mp-tikz-wasm/releases">releases page</a> and unpack it.</span></li>
+  <li><span>Download <code>mp-tikz-wasm-0.5.0.tar.gz</code> (or <code>.zip</code>) from the <a href="https://github.com/jmckalex/mp-tikz-wasm/releases">releases page</a> and unpack it.</span></li>
   <li><span>Host the <code>dist/</code> folder on any static web server (the files are plain; nothing needs special headers). To try it locally: <code>node serve.mjs 8080</code> inside the unpacked folder, then open <code>http://localhost:8080/site/</code>.</span></li>
   <li><span>Add one line to your page — see <a href="#tags">Drop-in tags</a> — or <code>import { MetaPost } from '/path/to/dist/index.js'</code>.</span></li>
 </ol>
@@ -11583,7 +11583,7 @@ Maths typed in Unicode, set in the OpenType maths font:
 <tr><td class="mono">npm run build:fontdb</td><td>luaotfload's font-name database, built by <code>luatex.wasm</code> against <code>build/texmf</code>, for the <code>opentype</code> bundle</td></tr>
 <tr><td class="mono">node scripts/build-bundles.mjs</td><td><code>dist/bundles/*</code>: manifests and files per bundle</td></tr>
 <tr><td class="mono">npm run build:hot</td><td><code>dist/bundles/hot.json</code>: the files a first run of each kind touches, prefetched in parallel (after any bundle rebuild, which deletes it)</td></tr>
-<tr><td class="mono">npm run package</td><td><code>release/mp-tikz-wasm-0.4.0.tar.gz</code> and <code>.zip</code>: the prebuilt distribution for a GitHub release</td></tr>
+<tr><td class="mono">npm run package</td><td><code>release/mp-tikz-wasm-0.5.0.tar.gz</code> and <code>.zip</code>: the prebuilt distribution for a GitHub release</td></tr>
 <tr><td class="mono">npm run build:guide, build:standalone</td><td>this page, and the single-file demo with everything inlined</td></tr>
 </tbody></table></div>
 <p>The design documents in <code>docs/</code> record every decision; <code>docs/14-implementation-notes.md</code> records what was learned building it, including the upstream defects.</p>
