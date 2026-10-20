@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
-# check-nosystem.sh FILE.wasm — fail if the wasm module imports or defines any
-# process-spawning symbol (docs/02 §5.3, docs/10 §3).
-set -euo pipefail
-WASM="$1"
+# check-nosystem.sh FILE.wasm... — fail if a wasm module imports any
+# process-spawning function (docs/02 §5.3, docs/10 §3). A module can only start
+# a process through its JavaScript glue, so its imports are what counts; they
+# are read with Node's WebAssembly.Module.imports, which needs no other tool.
 # Emscripten imports system() as _emscripten_system (which spawns through
-# child_process in Node), so names may carry leading underscores
-BAD='system|emscripten_system|popen|execvp|execv|execl|fork|vfork|posix_spawn'
-if command -v wasm-objdump >/dev/null 2>&1; then
-  if wasm-objdump -x "$WASM" | grep -E "\\b_*($BAD)\\b" ; then
-    echo "error: process-spawning symbol found in $WASM" >&2; exit 1
-  fi
-else
-  # Fall back to scanning the import/export name strings in the binary.
-  if strings "$WASM" | grep -xE "_*($BAD)" ; then
-    echo "error: process-spawning symbol found in $WASM" >&2; exit 1
-  fi
-fi
-echo "ok: no process-spawning symbols in $WASM"
+# child_process in Node), so names may carry leading underscores.
+set -euo pipefail
+[ $# -ge 1 ] || { echo "usage: check-nosystem.sh FILE.wasm..." >&2; exit 2; }
+node - "$@" <<'JS'
+const fs = require('fs');
+const BAD = /^_*(system|emscripten_system|popen|execvp|execve|execv|execl|fork|vfork|posix_spawn)$/;
+let failed = 0;
+for (const file of process.argv.slice(2)) {
+  const imports = WebAssembly.Module.imports(new WebAssembly.Module(fs.readFileSync(file)));
+  const bad = imports.filter((i) => i.kind === 'function' && BAD.test(i.name)).map((i) => `${i.module}.${i.name}`);
+  if (bad.length) { console.error(`error: ${file} imports ${bad.join(', ')}`); failed++; }
+  else console.log(`ok: no process-spawning imports in ${file} (${imports.length} imports)`);
+}
+process.exit(failed ? 1 : 0);
+JS

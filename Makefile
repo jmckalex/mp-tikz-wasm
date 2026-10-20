@@ -156,7 +156,7 @@ wasm: $(DIST)/mplib.mjs
 wasm-debug: $(DIST)/mplib-debug.mjs
 
 check-nosystem: $(DIST)/mplib.mjs
-	@$(REPO)/scripts/check-nosystem.sh $(DIST)/mplib.wasm
+	@$(REPO)/scripts/check-nosystem.sh $(wildcard $(DIST)/*.wasm $(DIST)/ghostscript/gs.wasm)
 
 # --------------------------------------------------------------------- clean
 clean:

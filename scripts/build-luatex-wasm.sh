@@ -87,6 +87,7 @@ add "libmd5-md5" "$W2C/libmd5/md5.c" "$W2CFLAGS -I$W2C/libmd5"
 for f in mp psout tfmin mpmath mpmathdouble mpmathdecimal mpstrings; do add "mplib-$f" "$GEN/$f.c" "$W2CFLAGS -I$GEN -I$PATCHED -I$W2C/mplibdir -I$REPO/src/c/include/stub"; done
 for f in avl decNumber decContext; do add "mputil-$f" "$PATCHED/$f.c" "$W2CFLAGS -I$PATCHED -I$W2C/mplibdir"; done
 add "stub-ffi" "$REPO/src/c/luatex/ffi-stub.c" "$LUADEFS"
+add "stub-nosystem" "$REPO/src/c/nosystem.c" ""   # system() that never spawns (src/c/nosystem.c)
 
 # ---- compile ----------------------------------------------------------------
 TOTAL=$(wc -l < "$OUT/compile-list.tsv" | tr -d ' ')

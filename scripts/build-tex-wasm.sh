@@ -37,7 +37,7 @@ SRCS=()
 for f in $KPSE;   do SRCS+=("$TL/texk/kpathsea/$f.c"); done
 for f in $LIB;    do SRCS+=("$W2C/lib/$f.c"); done
 for f in $PDFTEX; do SRCS+=("$W2C/pdftexdir/$f.c"); done
-SRCS+=("$W2C/libmd5/md5.c" "$W2C/synctexdir/synctex.c" "$REPO/src/c/tex/pdftoepdf-stub.c")
+SRCS+=("$W2C/libmd5/md5.c" "$W2C/synctexdir/synctex.c" "$REPO/src/c/tex/pdftoepdf-stub.c" "$REPO/src/c/nosystem.c")
 SRCS+=("$NB/texk/web2c/pdftexini.c" "$NB/texk/web2c/pdftex0.c" "$NB/texk/web2c/pdftex-pool.c")
 
 echo "==> compiling $((${#SRCS[@]})) files with $EMCC ($OPT)"
