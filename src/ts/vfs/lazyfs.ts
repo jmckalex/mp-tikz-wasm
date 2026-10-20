@@ -110,6 +110,24 @@ export function writeFileDeep(FS: EmscriptenFS, path: string, data: Uint8Array |
   FS.writeFile(path, data);
 }
 
+/**
+ * Record every file opened for writing from now on (absolute paths, into the
+ * returned set). The engine's open syscall reaches the filesystem through
+ * FS.open, so wrapping it sees TeX's \openout and LuaTeX's io.open alike;
+ * install it after the host's own setup writes, or they count too.
+ */
+export function trackWrites(FS: EmscriptenFS): Set<string> {
+  const written = new Set<string>();
+  const open = FS.open;
+  FS.open = function (path: string, flags: number | string, mode?: number) {
+    const stream = open.call(this, path, flags, mode);
+    // O_WRONLY or O_RDWR (numeric), or any mode string but plain 'r'
+    if (typeof flags === 'string' ? flags !== 'r' : (flags & 3) !== 0) written.add(stream.path);
+    return stream;
+  };
+  return written;
+}
+
 /** Recursively collect regular files under `dir` (used to harvest artifacts). */
 export function listFiles(FS: EmscriptenFS, dir: string): string[] {
   const out: string[] = [];

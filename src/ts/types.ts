@@ -255,7 +255,8 @@ export interface LatexRunOptions {
    *  'tikz' forces it, 'none' always uses plain latex.fmt. Requires the tikz-snapshot bundle.
    *  Never used with output 'pdf': the snapshot has PGF's dvisvgm driver built in. */
   snapshot?: 'auto' | 'tikz' | 'none';
-  /** Files to place next to the document (images, .sty, .tex inputs). */
+  /** Files to place next to the document (images, .sty, .tex inputs, the previous pass's .aux).
+   *  They stay on the instance for later runs, as addFiles' do, until removeFiles takes them off. */
   files?: Record<string, string | Uint8Array>;
   jobName?: string;                          // default 'doc'
   /** Which DVI pages to convert: 'all' or a 1-based page number. Default 'all'. */
@@ -283,6 +284,9 @@ export interface LatexResult {
   stats: { totalMs: number; texMs: number; dvisvgmMs: number; texSetupMs: number; texMainMs: number; instantiateMs: number };
   /** The format that ran the document ('latex', 'tikz', 'etex', 'plain', 'dvilualatex', 'dviluatex'). */
   format: string;
+  /** The files TeX wrote beside the document (.aux, .toc, .out, .idx, ...), apart from the
+   *  output and the .log. A file passed in `files` is among them when TeX wrote it again, so one
+   *  pass's artifacts are the next pass's `files`, however many passes there are. */
   artifacts: Record<string, Uint8Array>;
 }
 

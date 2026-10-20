@@ -26,7 +26,7 @@ if (isNode) {
   }
 }
 
-export interface WorkerRequest { id: number; op: 'init' | 'run' | 'latex' | 'addFiles' | 'clearCache' | 'preload' | 'prefetch' | 'setLogLevel' | 'dispose'; [k: string]: unknown }
+export interface WorkerRequest { id: number; op: 'init' | 'run' | 'latex' | 'addFiles' | 'removeFiles' | 'clearCache' | 'preload' | 'prefetch' | 'setLogLevel' | 'dispose'; [k: string]: unknown }
 export interface WorkerResponse { id: number; ok: boolean; result?: unknown; error?: string }
 export interface WorkerEvent { event: 'progress' | 'log' | 'record'; data: unknown }
 
@@ -91,6 +91,7 @@ self.onmessage = async (ev: MessageEvent<WorkerRequest>) => {
         break;
       }
       case 'addFiles': core!.addFiles(req.files as Record<string, string | Uint8Array>); post({ id: req.id, ok: true }); break;
+      case 'removeFiles': core!.removeFiles(req.names as string[] | undefined); post({ id: req.id, ok: true }); break;
       case 'clearCache': core!.clearCache(); post({ id: req.id, ok: true }); break;
       case 'preload': {
         const names = req.bundles as string[];

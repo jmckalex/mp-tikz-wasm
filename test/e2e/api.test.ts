@@ -222,6 +222,48 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
       expect(pageCount(await pdfText(l.pdf!))).toBe(1);
     }, 60_000);
 
+    it('returns what TeX wrote on every pass, files passed back in included, and removeFiles forgets them', async () => {
+      // a contents list two pages long moves every section on, so the page numbers it
+      // shows are right only on the third pass: .aux and .toc have to come back from the second
+      const { MetaPost } = await import(path.join(REPO, 'dist/index.js'));
+      const own = await MetaPost.create({ logLevel: 'silent' });
+      try {
+        let body = '';
+        for (let i = 1; i <= 70; i++) body += `\\section{Section ${i}}\\label{s${i}}Text.\\clearpage\n`;
+        const doc = `\\documentclass{article}\\begin{document}\\tableofcontents\\clearpage\n${body}See page~\\pageref{s70}.\\end{document}`;
+        const text = (b?: Uint8Array) => (b ? new TextDecoder().decode(b) : undefined);
+        const passes: any[] = [];
+        let files: Record<string, Uint8Array> = { 'unused.txt': new TextEncoder().encode('read by nobody') };
+        for (let i = 0; i < 3; i++) {
+          const r = await own.latex(doc, { output: 'pdf', files });
+          expect(r.status).toBe('ok');
+          passes.push(r);
+          files = r.artifacts;
+        }
+        const [p1, p2, p3] = passes;
+        expect(Object.keys(p1.artifacts).sort()).toEqual(['doc.aux', 'doc.toc']);
+        expect(Object.keys(p2.artifacts).sort()).toEqual(['doc.aux', 'doc.toc']);   // passed in, and written again
+        expect(text(p2.artifacts['doc.toc'])).not.toBe(text(p1.artifacts['doc.toc']));  // the sections moved on
+        expect(text(p3.artifacts['doc.toc'])).toBe(text(p2.artifacts['doc.toc']));      // and now stay put
+        expect(text(p3.artifacts['doc.aux'])).toBe(text(p2.artifacts['doc.aux']));
+        // the instance still holds the last files passed; removeFiles() takes them off, and the
+        // document starts again from nothing, as on the first pass
+        await own.removeFiles();
+        const again = await own.latex(doc, { output: 'pdf' });
+        expect(text(again.artifacts['doc.toc'])).toBe(text(p1.artifacts['doc.toc']));
+        expect(Buffer.from(again.pdf!).equals(Buffer.from(p1.pdf!))).toBe(true);
+        expect(again.texLog).toMatch(/Reference `s70' on page \d+ undefined/);
+        // by name: only the file named goes, so the reference still resolves from the .aux kept
+        await own.latex(doc, { output: 'pdf', files: p3.artifacts });
+        await own.removeFiles(['doc.toc']);
+        const kept = await own.latex(doc, { output: 'pdf' });
+        expect(kept.texLog).not.toMatch(/Reference `s70' on page \d+ undefined/);
+        expect(text(kept.artifacts['doc.toc'])).toBe(text(p1.artifacts['doc.toc']));   // no contents list read
+      } finally {
+        own.dispose();
+      }
+    }, 120_000);
+
     it('reports a failed document without a PDF, and leaves SVG output as it was', async () => {
       const bad = await mp.latex('\\documentclass{article}\\usepackage{nosuchpackage}\\begin{document}x\\end{document}', { output: 'pdf' });
       expect(bad.status).not.toBe('ok');

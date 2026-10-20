@@ -9,7 +9,7 @@ import { runDvisvgm, type DvisvgmFactory } from './dvisvgm.js';
 import { dviSpecials, describeLostPostScript } from './postscript.js';
 import type { Ghostscript } from './ghostscript.js';
 import { BundleSet, TEXMF_ROOT } from './vfs/bundle.js';
-import { listFiles, mkdirp, writeFileDeep, isUnloadedLazy, ensureLoaded, type EmscriptenFS } from './vfs/lazyfs.js';
+import { listFiles, mkdirp, writeFileDeep, isUnloadedLazy, ensureLoaded, trackWrites, type EmscriptenFS } from './vfs/lazyfs.js';
 import { scanTexBlocks, scanInputs, type TexBlock } from './tex/scanner.js';
 import { TexBridge, MemorySnippetCache, resolveEngine, canonicalBody, type Snippet, type ResolvedEngine, type SnippetCache } from './tex/bridge.js';
 import { parseMetaPostLog } from './diagnostics.js';
@@ -287,6 +287,19 @@ export class MetaPostCore {
     }
   }
 
+  /**
+   * Take files off this instance that addFiles (or a run's `files`) put there, named as they were
+   * given; with no names, all of them. They otherwise stay for the instance's lifetime, so a host
+   * typesetting one document after another would hand the first one's .aux to the next.
+   */
+  removeFiles(names?: string[]): void {
+    const paths = names ? names.map((n) => (n.startsWith('/') ? n : `/work/${n}`)) : [...this.userFiles];
+    for (const p of paths) {
+      if (!this.userFiles.delete(p)) continue;
+      try { this.M.FS.unlink(p); } catch { /* ignore */ }
+    }
+  }
+
   clearCache(): void { this.cache.clear(); }
 
   async run(source: string, ro: RunOptions = {}): Promise<RunResult> {
@@ -430,13 +443,16 @@ export class MetaPostCore {
     const outName = `${job}.${pdfOut ? 'pdf' : 'dvi'}`;
     let texLog = '';
     const artifacts: Record<string, Uint8Array> = {};
+    // the files TeX opens for writing: a host's own .aux, passed back in for the next pass,
+    // is still TeX's to return when TeX writes it again
+    let texWrote = new Set<string>();
     const tex = await runTex(lua ? this.env.luatexFactory! : this.env.texFactory, {
       program: lua ? '/bin/luatex' : '/bin/pdftex',
       // LuaTeX has no -parse-first-line option (%& lines are honoured through texmf.cnf instead)
       // -output-format=pdf switches pdfTeX (\pdfoutput) or LuaTeX (\outputmode) to PDF after the
       // format is loaded, so the same formats serve both outputs and the source is left untouched
       args: [`-fmt=${fmt}`, `-progname=${progname}`, '-interaction=nonstopmode', ...(lua ? [] : ['-parse-first-line']), ...(pdfOut ? ['-output-format=pdf'] : []), `-jobname=${job}`, `${job}.tex`],
-      setup: (M) => { mkdirp(M.FS, '/work'); this.installTexmf(M.FS, M.NODEFS); if (lua) this.installTexmfVar(M.FS); this.copyUserFiles(M); writeFileDeep(M.FS, `/work/${job}.tex`, doc); M.FS.chdir('/work'); },
+      setup: (M) => { mkdirp(M.FS, '/work'); this.installTexmf(M.FS, M.NODEFS); if (lua) this.installTexmfVar(M.FS); this.copyUserFiles(M); writeFileDeep(M.FS, `/work/${job}.tex`, doc); M.FS.chdir('/work'); texWrote = trackWrites(M.FS); },
       collect: (M) => {
         if (lua) this.collectTexmfVar(M.FS);
         let out: Uint8Array | null;
@@ -445,7 +461,8 @@ export class MetaPostCore {
         try { texLog = M.FS.readFile(`/work/${job}.log`, { encoding: 'utf8' }) as string; } catch { texLog = ''; }
         for (const p of listFiles(M.FS, '/work')) {
           const name = p.slice('/work/'.length);
-          if (name === `${job}.tex` || name === outName || name === `${job}.log` || this.userFiles.has(p)) continue;
+          // a file the host passed in comes back only if TeX wrote it (doc.aux on the third pass)
+          if (name === `${job}.tex` || name === outName || name === `${job}.log` || (this.userFiles.has(p) && !texWrote.has(p))) continue;
           try { artifacts[name] = M.FS.readFile(p, { encoding: 'binary' }) as Uint8Array; } catch { /* ignore */ }
         }
       },

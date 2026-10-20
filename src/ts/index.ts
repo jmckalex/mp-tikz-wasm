@@ -28,6 +28,7 @@ interface Backend {
   run(source: string, options: RunOptions): Promise<RunResult>;
   latex(source: string, options: LatexRunOptions): Promise<LatexResult>;
   addFiles(files: Record<string, string | Uint8Array>): Promise<void>;
+  removeFiles(names?: string[]): Promise<void>;
   clearCache(): Promise<void>;
   preload(bundles: BundleName[]): Promise<void>;
   prefetch(kinds: PrefetchKind[]): Promise<number>;
@@ -84,6 +85,7 @@ class InProcessBackend implements Backend {
   run(source: string, options: RunOptions) { return this.core.run(source, options); }
   latex(source: string, options: LatexRunOptions) { return this.core.latex(source, options); }
   async addFiles(files: Record<string, string | Uint8Array>) { this.core.addFiles(files); }
+  async removeFiles(names?: string[]) { this.core.removeFiles(names); }
   async clearCache() { this.core.clearCache(); }
   async preload(bundles: BundleName[]) {
     if (!this.bundles) return;
@@ -163,6 +165,7 @@ class WorkerBackend implements Backend {
     return this.call<LatexResult>('latex', { source, options: rest });
   }
   addFiles(files: Record<string, string | Uint8Array>) { return this.call<void>('addFiles', { files }); }
+  removeFiles(names?: string[]) { return this.call<void>('removeFiles', { names }); }
   clearCache() { return this.call<void>('clearCache'); }
   preload(bundles: BundleName[]) { return this.call<void>('preload', { bundles }); }
   prefetch(kinds: PrefetchKind[]) { return this.call<number>('prefetch', { kinds }); }
@@ -255,6 +258,13 @@ export class MetaPost {
     return next;
   }
   addFiles(files: Record<string, string | Uint8Array>): Promise<void> { return this.backend.addFiles(files); }
+  /**
+   * Take off this instance files that addFiles or a run's `files` put there, named as they were
+   * given (all of them with no names). Passed files otherwise stay for the instance's lifetime:
+   * a host typesetting several documents should remove one document's .aux, .toc, .bbl before
+   * the next, or the next one reads them.
+   */
+  removeFiles(names?: string[]): Promise<void> { return this.backend.removeFiles(names); }
   preload(bundles: BundleName[]): Promise<void> { return this.backend.preload(bundles); }
   /** Fetch in parallel the files a first run of these kinds needs (see `MetaPostOptions.prefetch`). Resolves to the number fetched. */
   prefetch(kinds: PrefetchKind[]): Promise<number> { return this.backend.prefetch(kinds); }
