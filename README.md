@@ -73,8 +73,11 @@ not supported. pdfTeX's PDFs are byte-identical to TeX Live's
 `latex -output-format=pdf` apart from the version number in the producer string
 (`npm run test:golden:pdf`). Each call is one TeX pass: for cross-references, a
 table of contents or hyperref's outlines, run twice, handing the first run's
-`artifacts` (the `.aux`, `.out`, `.toc` files) back as `files`. SVG remains the
-default, and nothing about it changed.
+`artifacts` (the `.aux`, `.out`, `.toc` files) back as `files`; each run's
+artifacts are the next one's files, however many runs a document needs. SVG
+remains the default, and nothing about it changed. Whole documents — a
+bibliography through BibTeX, an index through makeindex, babel's languages —
+take the opt-in `latex-doc` bundle (see "Whole documents" below).
 
 For web pages, a single script tag is enough. It finds
 `<script type="text/tikz">`, `<script type="text/metapost">`, `<tikz-diagram>`
@@ -439,7 +442,10 @@ PostScript (PSTricks, EPS images, raw `\special{ps: …}`, and graphicx's
 `\rotatebox`/`\scalebox` under its default dvips driver) needs the opt-in
 `ghostscript` bundle and the Ghostscript module (see below). Without them
 dvisvgm skips it, and `latex()` adds a warning when that loses part of the
-picture. No `\write18`, no interactive error recovery.
+picture. No `\write18` (no engine module can start a process at all:
+`npm run check-nosystem`; `test/e2e/sandbox.test.ts` tries every way out a
+document has), no interactive error recovery, no minted (it needs Python), no
+biber (BibTeX and natbib, or a `thebibliography` the host writes, instead).
 The `runScript` and `makeText` callbacks force in-process mode. XeTeX is not
 included — OpenType fonts come from LuaTeX instead, see below. OpenType
 shaping is luaotfload's Lua `mode=node`, not HarfBuzz (this is `luatex`, not
@@ -519,6 +525,42 @@ Stock TeX Live cannot typeset that to DVI — luaotfload's DVI module needs a
 shipout hook that only the LaTeX kernel provides — so the bundled
 `luaotfload.sty` carries a small patch that adds the hook for plain TeX
 (`patches/texmf/0001`, below).
+
+### Whole documents: bibliographies, indexes, languages
+
+The opt-in `latex-doc` bundle (9.6 MB, 576 files, each fetched when a document
+reads it) carries what a document written for a desktop TeX Live usually loads
+beyond the default bundles: tcolorbox, cleveref, thmtools, natbib and bibentry,
+caption and subcaption, adjustbox, soul, setspace, multirow, fancyhdr, csquotes,
+float, fvextra and fancyvrb, microtype, enumitem, titlesec, titling, babel with
+41 languages and their hyphenation, BibTeX's and makeindex's styles, and
+EB Garamond with Garamond-Math. BibTeX 0.99d and makeindex 2.17 are wasm
+modules too (`bibtex.wasm`, `makeindex.wasm`, 69 KB and 54 KB gzipped, loaded on
+first use), and their output is byte-identical to TeX Live's
+(`node scripts/smoke-texutils.mjs`). A document is compiled as latexmk would:
+
+```js
+const mp = await MetaPost.create({ bundles: [...DEFAULT_BUNDLES, 'opentype', 'latex-doc'] });
+let r = await mp.latex(doc, { engine: 'lualatex', output: 'pdf', files: { 'refs.bib': bib } });
+const b = await mp.bibtex({ files: r.artifacts });               // doc.aux -> doc.bbl, doc.blg
+const i = await mp.makeindex({ input: 'doc.idx', files: r.artifacts });   // -> doc.ind, doc.ilg
+let files = { ...r.artifacts, ...b.artifacts, ...i.artifacts };
+r = await mp.latex(doc, { engine: 'lualatex', output: 'pdf', files });
+r = await mp.latex(doc, { engine: 'lualatex', output: 'pdf', files: r.artifacts });
+await mp.removeFiles();                                          // before the next document
+```
+
+`bibtex()` and `makeindex()` return `status`, `artifacts` and `diagnostics` (the
+`.blg`'s and `.ilg`'s warnings and errors, with file and line); `style` and
+`args` pass makeindex's `-s` and the programs' other options. Files passed to any
+call stay on the instance until `removeFiles()` takes them off (all of them, or
+the ones named). With pdfTeX, documents using these packages, BibTeX and
+makeindex give PDFs byte-identical to TeX Live's (`npm run test:golden:pdf`);
+under LuaLaTeX every one of the 41 languages hyphenates and dates as TeX Live's
+does. pdfLaTeX's format has US English hyphenation only (LuaLaTeX loads a
+language's patterns when it is first used), and T1-encoded Computer Modern needs
+cm-super's outlines, which are not bundled: `\usepackage{lmodern}` sets the same
+design in Latin Modern, and a run without it names the missing font.
 
 ## Building from source
 

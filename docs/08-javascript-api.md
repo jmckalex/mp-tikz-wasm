@@ -128,7 +128,15 @@ not an error.
 `mp.latex(source, options)` returns a `LatexResult`: `status` (`ok` | `error` |
 `fatal`), `pages` (one SVG per page), `pdf` (with `output: 'pdf'`), `log`,
 `texLog`, `dvisvgmLog`, `diagnostics`, `stats`, `format` and `artifacts` (every
-other file the run wrote: `.aux`, `.out`, `.toc`, …).
+other file the run wrote: `.aux`, `.out`, `.toc`, …). A file passed in `files` is
+in `artifacts` when TeX wrote it again (the `.aux` from the second pass on): the
+library watches the engine's opens for writing, and a passed-in file TeX only
+read stays out. So one pass's `artifacts` are the next pass's `files`, for as
+many passes as a document takes; up to 0.4 a passed-in file never came back,
+and a third pass read the first pass's `.aux`. Passed files stay on the instance
+(as `addFiles()`'s do) until `removeFiles(names?)` takes them off: the named
+ones, or with no names every one, which a host typesetting one document after
+another should do between them.
 
 `output: 'pdf'` (default `'svg'`) runs the engine with `-output-format=pdf`, so
 pdfTeX (`\pdfoutput`) or LuaTeX (`\outputmode`) writes the PDF itself after
@@ -325,6 +333,52 @@ directory, and an EPS kept inside that tree is out of its reach (pass it in
 `files`).
 Without Ghostscript, `latex()` warns when skipped PostScript carried part of
 the picture, naming what was lost; status stays `ok`.
+
+### 4.4 Whole documents: the `latex-doc` bundle, `bibtex()` and `makeindex()`
+
+`bundles: [...DEFAULT_BUNDLES, 'opentype', 'latex-doc']` adds what a document
+exported from a desktop TeX Live typically loads (jmarkdown's output and Clew's
+export style were the measure): tcolorbox, cleveref, thmtools, natbib, caption,
+adjustbox, soul, setspace, multirow, fancyhdr, csquotes, float, fvextra,
+microtype, enumitem, titlesec, titling, sgame, attachfile2; babel with the 41
+languages Clew offers, their locale data and their hyphenation patterns; BibTeX's
+and makeindex's styles; EB Garamond (four faces) and Garamond-Math. 576 files,
+9.6 MB, fetched one at a time as documents read them. Without it nothing
+changes: the other bundles are as they were apart from luaotfload's name
+database, which lists the five new faces (a face whose bundle is not loaded is
+never opened, and `\IfFontExistsTF` still says no).
+
+Hyphenation: LuaLaTeX loads a language's patterns when babel first selects it,
+reading the full `language.dat` the bundle ships; the formats themselves are
+built with US English only, from `web2c/format-config/language.dat`, so they
+are unchanged. pdfLaTeX cannot load patterns after its format is made, so under
+pdfLaTeX every language hyphenates as US English.
+
+```ts
+mp.bibtex(options?: { jobName?: string; files?: Record<string, string | Uint8Array>; args?: string[] }): Promise<ToolResult>
+mp.makeindex(options?: { input?: string; style?: string; files?: …; args?: string[] }): Promise<ToolResult>
+// ToolResult: { status: 'ok' | 'warning' | 'error' | 'fatal'; exitCode; log; artifacts; diagnostics; stats: { totalMs } }
+```
+
+`bibtex()` runs `bibtex <jobName>` (default `doc`) on the `.aux` in `files`
+(latex()'s artifacts) and returns `doc.bbl` and `doc.blg`; `makeindex()` runs
+`makeindex [-s style] <input>` (default `doc.idx`) and returns `doc.ind` and
+`doc.ilg`. Both are fresh module instances per call, like TeX, and are imported
+on first use; `modules.bibtex` and `modules.makeindex` supply the factories to a
+bundler. Diagnostics come from the transcripts, with file and line: BibTeX's
+`Warning--…` and `…---line N of file F` errors, makeindex's `!! Input index
+error` and `## Warning` paragraphs. Status: BibTeX exits 0 after warnings
+(`warning` here), 1 or 2 after errors (`error`), 3 after a fatal one; makeindex
+exits 1 when it stops (`error`), and rejected entries or warnings make
+`warning`. A missing `.bst` gets a hint to load `latex-doc`. Fidelity:
+`scripts/smoke-texutils.mjs` compares 17 cases with TeX Live's programs byte
+for byte, and `scripts/golden-pdf.mjs` runs its cases' latex/bibtex/makeindex
+steps (named on each case's first line) on both sides.
+
+The pdfTeX formats are built with `cp227.tcx`, as TeX Live's are, so pdfTeX
+writes UTF-8 to the `.aux` and `.idx` as it is (not `^^c3^^b6`), which BibTeX
+and makeindex read literally: a UTF-8 citation key resolves, and UTF-8 index
+entries sort as on TeX Live.
 
 ## 5. The CLI
 

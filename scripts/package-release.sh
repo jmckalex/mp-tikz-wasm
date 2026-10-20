@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # package-release.sh — build the prebuilt distribution archive for a GitHub
-# release: dist/ (the three wasm engines, the JavaScript, auto.js, and the
+# release: dist/ (the wasm engines and utilities, the JavaScript, auto.js, and the
 # bundles) plus the demo pages, so users need neither TeX Live nor Emscripten.
 #
 #   scripts/package-release.sh            -> release/mp-tikz-wasm-<version>.tar.gz and .zip
@@ -15,7 +15,7 @@ VERSION="$(node -p "require('$REPO/package.json').version")"
 NAME="mp-tikz-wasm-$VERSION"
 OUT="$REPO/release"
 STAGE="$OUT/$NAME"
-for f in dist/mplib.wasm dist/tex.wasm dist/dvisvgm.wasm dist/index.js dist/auto.js dist/bundles/index.json; do
+for f in dist/mplib.wasm dist/tex.wasm dist/luatex.wasm dist/dvisvgm.wasm dist/bibtex.wasm dist/makeindex.wasm dist/index.js dist/auto.js dist/bundles/index.json; do
   [ -f "$REPO/$f" ] || { echo "error: $f missing — run npm run build first" >&2; exit 1; }
 done
 rm -rf "$STAGE"; mkdir -p "$STAGE"
@@ -32,7 +32,8 @@ cat > "$STAGE/START.md" <<'TXT'
 mp-tikz-wasm — prebuilt distribution
 
   dist/           the library: index.js (API), auto.js (drop-in tags), worker.js,
-                  mplib.wasm, tex.wasm, dvisvgm.wasm, bundles/ (fonts, formats, packages)
+                  mplib.wasm, tex.wasm, luatex.wasm, dvisvgm.wasm, bibtex.wasm,
+                  makeindex.wasm, bundles/ (fonts, formats, packages)
   site/           the demo pages (index.html, tags.html, guide.html, minimal.html, live.html)
   serve.mjs       node serve.mjs 8080  ->  http://localhost:8080/site/
 
