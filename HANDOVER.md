@@ -4,13 +4,61 @@ Written 2026-09-13 (third session), revised 2026-09-15 (fourth and fifth
 sessions), 2026-09-16 (sixth), 2026-09-17 (seventh, eighth and ninth),
 2026-09-18 (tenth, consolidated), 2026-09-24 to 2026-09-29 (eleventh: the
 0.3.0 release and what followed), 2026-10-03 (twelfth: PDF output) and
-2026-10-06 (thirteenth: `main` caught up; TrueType Collections fixed). This file lives at the repository root; until session 5 it was
+2026-10-06 (thirteenth: `main` caught up; TrueType Collections fixed) and
+2026-10-20 (fourteenth: whole documents, BibTeX, makeindex). This file lives at the repository root; until session 5 it was
 `docs/15-handover.md`. Everything below is verified unless marked otherwise.
 Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State now (session 13, 2026-10-10): v0.4.0 is released**
+**State now (session 14, 2026-10-20): whole documents for Clew's iPad PDF
+export, on the local branch `latex-doc` (not pushed, not released).** The owner
+approved it through Clew-boss ("tex yes, pdf yes, 1a 2a 3 allow 4 ok"); pushing
+and releasing wait for the owner's word, which Clew-boss asks for. Commits on
+`next` (9d19ab1), oldest first:
+
+- 03320ca `latex()` returns every file TeX wrote, passed-in ones included (FS.open
+  watched after setup), so pass 3 works; `removeFiles(names?)`.
+- 83d3d65 `test/e2e/sandbox.test.ts`: no command, socket, native library or host
+  file is reachable from pdfTeX, LuaTeX or MetaPost (run in Node, the harder case).
+- 0a2e93a, 7b9a410 `src/c/nosystem.c` linked into tex.wasm and luatex.wasm (the
+  `_emscripten_system` import is gone; output byte-identical, 11 documents old vs
+  new plus all goldens); `check-nosystem.sh` reads real imports, covers every module.
+- 82d425f bibtex.wasm and makeindex.wasm (`scripts/build-texutils-wasm.sh`; the
+  native pass in `native-texlive.sh`); `scripts/smoke-texutils.mjs` 17/17 identical
+  to TeX Live's programs.
+- f7069f8 `mp.bibtex()`, `mp.makeindex()` (`src/ts/texutils.ts` parses the .blg/.ilg);
+  a PDF run missing a font's outline names the font.
+- 3a28a80 etex/latex/tikz formats built with `cp227.tcx`, as TeX Live's are (UTF-8
+  in .aux/.idx written raw; BibTeX and makeindex read it literally).
+- 1a39d99 the opt-in `latex-doc` bundle (576 files, 9.8 MB, 3.9 MB gzipped):
+  jmarkdown's packages, Clew's style, babel + 41 languages with LuaLaTeX
+  hyphenation (full `language.dat` at run time; the formats use
+  `web2c/format-config/language.dat`), BibTeX/makeindex styles, EB Garamond
+  (4 faces) + Garamond-Math. Golden PDF cases 06–11 (multi-step recipes on each
+  case's first line) byte-identical to TeX Live; CI installs the packages.
+- 31ba338 README, docs/08 §3.0/§4.4, NOTICE.md, `licenses/COPYING.makeindex`,
+  `licenses/OFL-1.1.txt`.
+
+Verified here: 308 vitest tests, MetaPost golden 15/15, TikZ 16/16, PDF 11/11,
+contract 48/48, smoke 17/17, check-nosystem 7/7; the other bundles' manifests
+unchanged apart from `texmf.cnf` and luaotfload's name database (now listing the
+five new faces; without latex-doc a Clew-style document is byte-identical). Real
+jmarkdown exports (from its branch `latex-highlightjs`): a Clew-style note
+(LuaLaTeX, ngerman, natbib, imakeidx, 5 steps) and a LuaLaTeX docs page with an
+index match native TeX Live in pages, text and fonts; the default pdfLaTeX docs
+page needs cm-super, and with `\usepackage{lmodern}` is byte-identical to TeX Live.
+Per pass: pdfLaTeX 0.2–0.6 s, 128 MiB; LuaLaTeX with Latin Modern 1–1.3 s,
+154 MiB; with EB Garamond 4.7–5.1 s, **551 MiB**; bibtex/makeindex ~30 ms, 16 MiB.
+
+Open: **cm-super** (jmarkdown's pdfLaTeX default is T1 without lmodern; a ~5 MB
+subset or the full 58 MB as its own bundle) is with the owner via Clew-boss, held;
+the LuaLaTeX formats are not byte-reproducible (two builds of the same tree differ;
+the shipped ones were kept); CI has not run these changes (the branch is unpushed:
+first push will rebuild CI's TeX Live cache with the new package list); a file
+copied into build/texmf by hand is invisible to kpathsea until ls-R lists it.
+
+**Before that (session 13, 2026-10-10): v0.4.0 is released**
 (<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.4.0>, tag on
 f473f4f, which is `main` and `next`; CI green on both). Clew-boss decided to
 fold 0.3.2 into it (99c4a60, never tagged), so there was one release and one
