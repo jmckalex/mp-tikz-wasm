@@ -10,6 +10,7 @@
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-$REPO/build/texmf}"
+. "$REPO/scripts/babel-locales.sh"
 TEXMF="$(kpsewhich -var-value TEXMFDIST)"
 [ -d "$TEXMF" ] || { echo "error: no TeX Live found" >&2; exit 1; }
 echo "==> assembling $OUT from $TEXMF"
@@ -209,7 +210,7 @@ BABEL_LDFS="english german french spanish italian portuges dutch swedish danish 
 t="$(tree_with tex/generic/babel/babel.sty || true)"
 if [ -n "$t" ]; then
   find "$t/tex/generic/babel" -maxdepth 1 -type f -exec cp {} "$OUT/tex/generic/babel/" \;
-  for l in $BABEL_LOCALES; do [ -d "$t/tex/generic/babel/locale/$l" ] || continue; mkdir -p "$OUT/tex/generic/babel/locale" && cp -R "$t/tex/generic/babel/locale/$l" "$OUT/tex/generic/babel/locale/$l"; done
+  copy_babel_locales "$t/tex/generic/babel/locale" "$OUT/tex/generic/babel/locale" $BABEL_LOCALES
   for l in $BABEL_LDFS; do [ -d "$t/tex/generic/babel-$l" ] && cp -R "$t/tex/generic/babel-$l" "$OUT/tex/generic/babel-$l"; done
 else
   echo "  warning: babel not found in any TeX tree; the latex-doc bundle will have no languages" >&2
