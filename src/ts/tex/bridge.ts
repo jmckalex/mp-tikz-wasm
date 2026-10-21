@@ -185,6 +185,19 @@ export class TexBridge {
 }
 
 /**
+ * The message of the `! ...` error on lines[i]. A package's or class's error goes on over
+ * lines prefixed `(name)`; fontspec's first line is empty and the whole message is on them.
+ */
+export function texErrorMessage(lines: string[], i: number): string {
+  const first = lines[i].slice(2);
+  const pkg = /^(?:Package|Class) (\S+) Error:/.exec(first);
+  if (!pkg) return first;
+  const parts = [first.trimEnd()];
+  for (let j = i + 1; j < lines.length && lines[j].startsWith(`(${pkg[1]}) `); j++) parts.push(lines[j].slice(pkg[1].length + 2).trim());
+  return parts.join(' ');
+}
+
+/**
  * Map TeX errors back to btex blocks: the generated .tex has one
  * `\mpxshipout% line N file` wrapper line per block; a TeX `l.<n>` line number
  * inside [wrapper, \stopmpxshipout] belongs to that block.
@@ -216,7 +229,7 @@ export function parseTexLog(log: string, tex: string, blocks: { block: TexBlock;
     if (texLine !== undefined) {
       for (let b = 0; b < starts.length; b++) if (starts[b] < texLine) blockIdx = b;
     }
-    const d: Diagnostic = { severity: 'error', source: 'tex', message: m[1], help: help.length ? help : undefined };
+    const d: Diagnostic = { severity: 'error', source: 'tex', message: texErrorMessage(lines, i), help: help.length ? help : undefined };
     if (blockIdx >= 0 && blocks[blockIdx]) {
       d.file = blocks[blockIdx].snippet.file;
       d.line = blocks[blockIdx].snippet.line;

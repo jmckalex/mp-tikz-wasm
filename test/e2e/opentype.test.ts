@@ -303,5 +303,7 @@ Page two.
     const r = await mp.latex(`${preamble}\\setmainfont{NoSuchFontExistsHere}${body}`, { engine: 'lualatex' });
     expect(r.status).not.toBe('ok');
     expect(r.diagnostics.length).toBeGreaterThan(0);
+    // fontspec's first line is empty: its message is on the "(fontspec)" lines
+    expect(r.diagnostics.map((d: any) => d.message)).toContainEqual(expect.stringMatching(/^Package fontspec Error: The font "NoSuchFontExistsHere" cannot be found;/));
   }, 120_000);
 });

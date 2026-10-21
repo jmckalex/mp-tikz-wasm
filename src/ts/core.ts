@@ -11,7 +11,7 @@ import type { Ghostscript } from './ghostscript.js';
 import { BundleSet, TEXMF_ROOT } from './vfs/bundle.js';
 import { listFiles, mkdirp, writeFileDeep, isUnloadedLazy, ensureLoaded, trackWrites, type EmscriptenFS } from './vfs/lazyfs.js';
 import { scanTexBlocks, scanInputs, type TexBlock } from './tex/scanner.js';
-import { TexBridge, MemorySnippetCache, resolveEngine, canonicalBody, type Snippet, type ResolvedEngine, type SnippetCache } from './tex/bridge.js';
+import { TexBridge, MemorySnippetCache, resolveEngine, canonicalBody, texErrorMessage, type Snippet, type ResolvedEngine, type SnippetCache } from './tex/bridge.js';
 import { parseMetaPostLog } from './diagnostics.js';
 import { parseBibtexLog, parseMakeindexLog } from './texutils.js';
 import { postProcessSvg } from './render/svg.js';
@@ -763,7 +763,7 @@ export function parseTexLogDocument(log: string, file: string): Diagnostic[] {
       let line: number | undefined; const help: string[] = []; let j = i + 1;
       for (; j < lines.length && j < i + 30; j++) { const lm = /^l\.(\d+)/.exec(lines[j]); if (lm) { line = Number(lm[1]); break; } if (/^! /.test(lines[j])) break; }
       if (line !== undefined) for (let k = j + 2; k < lines.length && k < i + 30; k++) { if (lines[k].trim() === '' || /^! |^l\.\d+/.test(lines[k])) break; help.push(lines[k]); }
-      out.push({ severity: 'error', source: 'tex', message: m[1], help: help.length ? help : undefined, file, line });
+      out.push({ severity: 'error', source: 'tex', message: texErrorMessage(lines, i), help: help.length ? help : undefined, file, line });
       continue;
     }
     // the PDF back ends' own errors: a font with no outline stops the PDF (no bitmap fonts here)
