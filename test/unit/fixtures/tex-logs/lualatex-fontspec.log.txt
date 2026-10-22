@@ -1,0 +1,110 @@
+luaotfload | db : Reload initiated (formats: otf,ttf,ttc); reason: Font "NoSuchF
+ontAnywhere" not found.
+
+! Package fontspec Error: 
+(fontspec)                The font "NoSuchFontAnywhere" cannot be found;
+(fontspec)                this may be but usually is not a fontspec bug.
+(fontspec)                Either there is a typo in the font name/file, the
+(fontspec)                font is not installed (correctly), or there is a
+(fontspec)                bug in the underlying font loading engine
+(fontspec)                (XeTeX/luaotfload).
+
+For immediate help type H <return>.
+ ...                                              
+                                                  
+l.4 \begin
+          {document}
+
+A font might not be found for many reasons.
+ Check the spelling, where the font is installed etc. etc.
+
+ When in doubt, ask someone for help!
+
+
+luaotfload | aux : no font with id 0
+luaotfload | aux : no font with id 0
+
+Package fontspec Info: 
+(fontspec)             Could not resolve font "NoSuchFontAnywhere/BI" (it
+(fontspec)             probably doesn't exist).
+
+
+Package fontspec Info: 
+(fontspec)             Could not resolve font "NoSuchFontAnywhere/B" (it
+(fontspec)             probably doesn't exist).
+
+
+Package fontspec Info: 
+(fontspec)             Could not resolve font "NoSuchFontAnywhere/I" (it
+(fontspec)             probably doesn't exist).
+
+
+! Package fontspec Error: 
+(fontspec)                The font "NoSuchFontAnywhere" cannot be found;
+(fontspec)                this may be but usually is not a fontspec bug.
+(fontspec)                Either there is a typo in the font name/file, the
+(fontspec)                font is not installed (correctly), or there is a
+(fontspec)                bug in the underlying font loading engine
+(fontspec)                (XeTeX/luaotfload).
+
+For immediate help type H <return>.
+ ...                                              
+                                                  
+l.4 \begin
+          {document}
+
+A font might not be found for many reasons.
+ Check the spelling, where the font is installed etc. etc.
+
+ When in doubt, ask someone for help!
+
+
+
+! Package fontspec Error: 
+(fontspec)                The font "NoSuchFontAnywhere" cannot be found;
+(fontspec)                this may be but usually is not a fontspec bug.
+(fontspec)                Either there is a typo in the font name/file, the
+(fontspec)                font is not installed (correctly), or there is a
+(fontspec)                bug in the underlying font loading engine
+(fontspec)                (XeTeX/luaotfload).
+
+For immediate help type H <return>.
+ ...                                              
+                                                  
+l.4 \begin
+          {document}
+
+A font might not be found for many reasons.
+ Check the spelling, where the font is installed etc. etc.
+
+ When in doubt, ask someone for help!
+
+
+luaotfload | aux : no font with id 0
+luaotfload | aux : no font with id 0
+luaotfload | aux : no font with id 0
+luaotfload | aux : no font with id 0
+
+Package fontspec Info: 
+(fontspec)             Font family 'NoSuchFontAnywhere(0)' created for font
+(fontspec)             'NoSuchFontAnywhere' with options [Ligatures=TeX].
+(fontspec)              
+(fontspec)              This font family consists of the following NFSS
+(fontspec)             series/shapes:
+(fontspec)              
+(fontspec)             - 'normal' (m/n) with NFSS spec.:
+(fontspec)             <->"name:NoSuchFontAnywhere:mode=node;language=dflt;+tli
+g;"
+
+! Font \TU/NoSuchFontAnywhere(0)/m/n/10=name:NoSuchFontAnywhere:mode=node;langua
+ge=dflt;+tlig; at 10pt not loadable: metric data not found or bad.
+<to be read again> 
+                   relax 
+l.4 \begin
+          {document}
+I wasn't able to read the size data for this font,
+so I will ignore the font specification.
+[Wizards can fix TFM files using TFtoPL/PLtoTF.]
+You might try inserting a different font spec;
+e.g., type `I\font<same font id>=<substitute font name>'.
+

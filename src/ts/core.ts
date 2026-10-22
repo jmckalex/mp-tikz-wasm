@@ -11,7 +11,7 @@ import type { Ghostscript } from './ghostscript.js';
 import { BundleSet, TEXMF_ROOT } from './vfs/bundle.js';
 import { listFiles, mkdirp, writeFileDeep, isUnloadedLazy, ensureLoaded, trackWrites, type EmscriptenFS } from './vfs/lazyfs.js';
 import { scanTexBlocks, scanInputs, type TexBlock } from './tex/scanner.js';
-import { TexBridge, MemorySnippetCache, resolveEngine, canonicalBody, texErrorMessage, type Snippet, type ResolvedEngine, type SnippetCache } from './tex/bridge.js';
+import { TexBridge, MemorySnippetCache, resolveEngine, canonicalBody, texErrorMessage, texErrorHelp, texLogLine, type Snippet, type ResolvedEngine, type SnippetCache } from './tex/bridge.js';
 import { parseMetaPostLog } from './diagnostics.js';
 import { parseBibtexLog, parseMakeindexLog } from './texutils.js';
 import { postProcessSvg } from './render/svg.js';
@@ -760,14 +760,14 @@ export function parseTexLogDocument(log: string, file: string): Diagnostic[] {
   for (let i = 0; i < lines.length; i++) {
     const m = /^! (.*)$/.exec(lines[i]);
     if (m) {
-      let line: number | undefined; const help: string[] = []; let j = i + 1;
+      let line: number | undefined; let j = i + 1;
       for (; j < lines.length && j < i + 30; j++) { const lm = /^l\.(\d+)/.exec(lines[j]); if (lm) { line = Number(lm[1]); break; } if (/^! /.test(lines[j])) break; }
-      if (line !== undefined) for (let k = j + 2; k < lines.length && k < i + 30; k++) { if (lines[k].trim() === '' || /^! |^l\.\d+/.test(lines[k])) break; help.push(lines[k]); }
+      const help = line !== undefined ? texErrorHelp(lines, i, j + 2, i + 30) : [];
       out.push({ severity: 'error', source: 'tex', message: texErrorMessage(lines, i), help: help.length ? help : undefined, file, line });
       continue;
     }
     // the PDF back ends' own errors: a font with no outline stops the PDF (no bitmap fonts here)
-    const e = /^!(pdfTeX|LuaTeX) error: (.*)$/.exec(lines[i]);
+    const e = lines[i].startsWith('!') ? /^!(pdfTeX|LuaTeX) error: (.*)$/.exec(texLogLine(lines, i).text) : null;
     if (e) {
       const font = /\(file ([^)]+)\): Font (\S+) at (\d+) not found/.exec(e[2]);
       if (font) {
@@ -778,10 +778,11 @@ export function parseTexLogDocument(log: string, file: string): Diagnostic[] {
       } else out.push({ severity: 'error', source: 'tex', file, message: `${e[1]}: ${e[2]}` });
       continue;
     }
-    const w = /^(?:LaTeX|Package (\S+)|Class (\S+)) Warning: (.*)$/.exec(lines[i]);
-    if (w) {
-      let msg = w[3]; let j = i + 1;
-      while (j < lines.length && lines[j].startsWith('(') && /^\([^)]*\) /.test(lines[j])) { msg += ' ' + lines[j].replace(/^\([^)]*\)\s*/, ''); j++; }
+    const wl = lines[i].includes(' Warning: ') ? texLogLine(lines, i) : undefined;
+    const w = wl && /^(?:LaTeX|Package (\S+)|Class (\S+)) Warning: (.*)$/.exec(wl.text);
+    if (wl && w) {
+      let msg = w[3]; let j = wl.last + 1;
+      while (j < lines.length && lines[j].startsWith('(') && /^\([^)]*\) /.test(lines[j])) { const l = texLogLine(lines, j); msg += ' ' + l.text.replace(/^\([^)]*\)\s*/, ''); j = l.last + 1; }
       const lm = /on input line (\d+)/.exec(msg);
       out.push({ severity: 'warning', source: 'tex', message: (w[1] ? w[1] + ': ' : w[2] ? w[2] + ': ' : '') + msg, file, line: lm ? Number(lm[1]) : undefined });
     }

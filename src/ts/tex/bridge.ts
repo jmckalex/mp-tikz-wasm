@@ -189,12 +189,53 @@ export class TexBridge {
  * lines prefixed `(name)`; fontspec's first line is empty and the whole message is on them.
  */
 export function texErrorMessage(lines: string[], i: number): string {
-  const first = lines[i].slice(2);
+  const head = texLogLine(lines, i);
+  const first = head.text.slice(2);
   const pkg = /^(?:Package|Class) (\S+) Error:/.exec(first);
   if (!pkg) return first;
   const parts = [first.trimEnd()];
-  for (let j = i + 1; j < lines.length && lines[j].startsWith(`(${pkg[1]}) `); j++) parts.push(lines[j].slice(pkg[1].length + 2).trim());
+  for (let j = head.last + 1; j < lines.length && lines[j].startsWith(`(${pkg[1]}) `);) {
+    const l = texLogLine(lines, j);
+    parts.push(l.text.slice(pkg[1].length + 2).trim());
+    j = l.last + 1;
+  }
   return parts.join(' ');
+}
+
+const utf8 = new TextEncoder();
+
+/**
+ * lines[i] with the lines TeX broke it into, and the index of the last of them. TeX ends a log line
+ * after max_print_line (79) bytes and goes on in the next; LuaTeX, in what it prints from C or Lua (a
+ * font's error, luaotfload's messages), after 80. A line can also end at that length by itself, so an
+ * empty next line, or one that opens an error's context (`l.N`, `<to be read again>`), is not joined.
+ */
+export function texLogLine(lines: string[], i: number): { text: string; last: number } {
+  let text = lines[i];
+  for (let n = utf8.encode(lines[i]).length; (n === 79 || n === 80) && i + 1 < lines.length && lines[i + 1] !== '' && !/^(l\.\d+ |<[^>]+>)/.test(lines[i + 1]); n = utf8.encode(lines[i]).length) text += lines[++i];
+  return { text, last: i };
+}
+
+/**
+ * The help TeX prints after an error's context: lines[i] is the error, lines[k] the first line after its
+ * context. It follows the context at once and ends at an empty line; but a LaTeX3 message's (fontspec's:
+ * "For immediate help type H <return>.") opens with an empty line and goes on over paragraphs, each ended
+ * by one, to two empty lines. A paragraph break is an empty string.
+ */
+export function texErrorHelp(lines: string[], i: number, k: number, end: number): string[] {
+  const help: string[] = [];
+  if (lines[k]?.trim() === '' && lines.slice(i + 1, k).includes('For immediate help type H <return>.')) {
+    for (k++, end = k + 40; k < lines.length && k < end && !/^! |^l\.\d+/.test(lines[k]); k++) {
+      if (lines[k].trim() === '' && (k + 1 >= lines.length || lines[k + 1].trim() === '' || /^! /.test(lines[k + 1]))) break;
+      help.push(lines[k].trim() === '' ? '' : lines[k]);
+    }
+    return help;
+  }
+  for (; k < lines.length && k < end; k++) {
+    if (lines[k].trim() === '' || /^! /.test(lines[k]) || /^l\.\d+/.test(lines[k])) break;
+    help.push(lines[k]);
+  }
+  return help;
 }
 
 /**
@@ -213,7 +254,6 @@ export function parseTexLog(log: string, tex: string, blocks: { block: TexBlock;
     const m = /^! (.*)$/.exec(lines[i]);
     if (!m) continue;
     let texLine: number | undefined;
-    const help: string[] = [];
     let j = i + 1;
     for (; j < lines.length && j < i + 40; j++) {
       const lm = /^l\.(\d+)/.exec(lines[j]);
@@ -221,10 +261,7 @@ export function parseTexLog(log: string, tex: string, blocks: { block: TexBlock;
       if (/^! /.test(lines[j])) break;
     }
     // help paragraph follows the context lines
-    for (let k = (texLine !== undefined ? j + 2 : i + 1); k < lines.length && k < i + 40; k++) {
-      if (lines[k].trim() === '' || /^! /.test(lines[k]) || /^l\.\d+/.test(lines[k])) break;
-      help.push(lines[k]);
-    }
+    const help = texErrorHelp(lines, i, texLine !== undefined ? j + 2 : i + 1, i + 40);
     let blockIdx = -1;
     if (texLine !== undefined) {
       for (let b = 0; b < starts.length; b++) if (starts[b] < texLine) blockIdx = b;

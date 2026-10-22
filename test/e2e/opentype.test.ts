@@ -305,5 +305,8 @@ Page two.
     expect(r.diagnostics.length).toBeGreaterThan(0);
     // fontspec's first line is empty: its message is on the "(fontspec)" lines
     expect(r.diagnostics.map((d: any) => d.message)).toContainEqual(expect.stringMatching(/^Package fontspec Error: The font "NoSuchFontExistsHere" cannot be found;/));
+    // its help comes after an empty line; LuaTeX broke the font's own error after 80 bytes
+    expect(r.diagnostics.find((d: any) => /^Package fontspec Error/.test(d.message)).help).toContain('A font might not be found for many reasons.');
+    expect(r.diagnostics.map((d: any) => d.message)).toContain(String.raw`Font \TU/NoSuchFontExistsHere(0)/m/n/10=name:NoSuchFontExistsHere:mode=node;language=dflt;+tlig; at 10pt not loadable: metric data not found or bad.`);
   }, 120_000);
 });
