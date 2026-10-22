@@ -11,7 +11,7 @@ import type { Ghostscript } from './ghostscript.js';
 import { BundleSet, TEXMF_ROOT } from './vfs/bundle.js';
 import { listFiles, mkdirp, writeFileDeep, isUnloadedLazy, ensureLoaded, trackWrites, type EmscriptenFS } from './vfs/lazyfs.js';
 import { scanTexBlocks, scanInputs, type TexBlock } from './tex/scanner.js';
-import { TexBridge, MemorySnippetCache, resolveEngine, canonicalBody, texErrorMessage, texErrorHelp, texLogLine, type Snippet, type ResolvedEngine, type SnippetCache } from './tex/bridge.js';
+import { TexBridge, MemorySnippetCache, resolveEngine, canonicalBody, texErrorMessage, texErrorHelp, texLogLine, logLines, logText, type Snippet, type ResolvedEngine, type SnippetCache } from './tex/bridge.js';
 import { parseMetaPostLog } from './diagnostics.js';
 import { parseBibtexLog, parseMakeindexLog } from './texutils.js';
 import { postProcessSvg } from './render/svg.js';
@@ -445,6 +445,7 @@ export class MetaPostCore {
     let pdf: Uint8Array | null = null;
     const outName = `${job}.${pdfOut ? 'pdf' : 'dvi'}`;
     let texLog = '';
+    let texLogBytes: Uint8Array | undefined;
     const artifacts: Record<string, Uint8Array> = {};
     // the files TeX opens for writing: a host's own .aux, passed back in for the next pass,
     // is still TeX's to return when TeX writes it again
@@ -468,6 +469,7 @@ export class MetaPostCore {
         try { out = M.FS.readFile(`/work/${outName}`, { encoding: 'binary' }) as Uint8Array; } catch { out = null; }
         if (pdfOut) pdf = out; else dvi = out;
         try { texLog = M.FS.readFile(`/work/${job}.log`, { encoding: 'utf8' }) as string; } catch { texLog = ''; }
+        try { texLogBytes = M.FS.readFile(`/work/${job}.log`, { encoding: 'binary' }) as Uint8Array; } catch { texLogBytes = undefined; }
         for (const p of listFiles(M.FS, '/work')) {
           const name = p.slice('/work/'.length);
           // a file the host passed in comes back only if TeX wrote it (doc.aux on the third pass)
@@ -479,7 +481,8 @@ export class MetaPostCore {
     });
     const written = (pdfOut ? pdf : dvi) as Uint8Array | null;
     this.logger.info('host', `TeX: ${written ? `${written.length}-byte ${pdfOut ? 'PDF' : 'DVI'}` : `no ${pdfOut ? 'PDF' : 'DVI'}`} in ${ms(tex.ms)}${tex.exitCode ? `, exit ${tex.exitCode}` : ''}`);
-    const diagnostics = parseTexLogDocument(texLog || tex.log, `${job}.tex`).filter((d) => {
+    // the log's bytes, where TeX broke a line inside a letter (texLog has lost it)
+    const diagnostics = parseTexLogDocument(texLogBytes?.length ? texLogBytes : texLog || tex.log, `${job}.tex`).filter((d) => {
       // environmental noise, not the document's doing: there is never a shell here
       if (/^shellesc: Shell escape disabled/.test(d.message)) return false;
       if (/^epstopdf: Shell escape feature is not enabled/.test(d.message)) return false;   // PDF output: graphics' epstopdf
@@ -772,10 +775,10 @@ function noOutputDiagnostic(what: 'DVI' | 'PDF', exitCode: number, terminal: str
   return { severity: 'error', source: 'tex', message: `TeX produced no ${what} (exit ${exitCode})` };
 }
 
-/** Errors (`! ...` + `l.N`) and package warnings from a TeX transcript, attributed to the document. */
-export function parseTexLogDocument(log: string, file: string): Diagnostic[] {
+/** Errors (`! ...` + `l.N`) and package warnings from a TeX transcript (the .log's bytes, or text), attributed to the document. */
+export function parseTexLogDocument(log: string | Uint8Array, file: string): Diagnostic[] {
   const out: Diagnostic[] = [];
-  const lines = log.split('\n');
+  const lines = logLines(log);
   for (let i = 0; i < lines.length; i++) {
     const m = /^! (.*)$/.exec(lines[i]);
     if (m) {
@@ -786,7 +789,7 @@ export function parseTexLogDocument(log: string, file: string): Diagnostic[] {
       continue;
     }
     // the PDF back ends' own errors: a font with no outline stops the PDF (no bitmap fonts here)
-    const e = lines[i].startsWith('!') ? /^!(pdfTeX|LuaTeX) error: (.*)$/.exec(texLogLine(lines, i).text) : null;
+    const e = lines[i].startsWith('!') ? /^!(pdfTeX|LuaTeX) error: (.*)$/.exec(logText(texLogLine(lines, i).text)) : null;
     if (e) {
       const font = /\(file ([^)]+)\): Font (\S+) at (\d+) not found/.exec(e[2]);
       if (font) {
@@ -803,7 +806,7 @@ export function parseTexLogDocument(log: string, file: string): Diagnostic[] {
       let msg = w[3]; let j = wl.last + 1;
       while (j < lines.length && lines[j].startsWith('(') && /^\([^)]*\) /.test(lines[j])) { const l = texLogLine(lines, j); msg += ' ' + l.text.replace(/^\([^)]*\)\s*/, ''); j = l.last + 1; }
       const lm = /on input line (\d+)/.exec(msg);
-      out.push({ severity: 'warning', source: 'tex', message: (w[1] ? w[1] + ': ' : w[2] ? w[2] + ': ' : '') + msg, file, line: lm ? Number(lm[1]) : undefined });
+      out.push({ severity: 'warning', source: 'tex', message: logText((w[1] ? w[1] + ': ' : w[2] ? w[2] + ': ' : '') + msg), file, line: lm ? Number(lm[1]) : undefined });
     }
   }
   return out;

@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseTexLogDocument } from '../../src/ts/core.js';
-import { texErrorMessage, texLogLine } from '../../src/ts/tex/bridge.js';
+import { logLines, logText, texErrorMessage, texLogLine } from '../../src/ts/tex/bridge.js';
 import { repoRoot } from './oracle.js';
 
 const log = (name: string): string => readFileSync(join(repoRoot, 'test', 'unit', 'fixtures', 'tex-logs', `${name}.log.txt`), 'utf8');
@@ -69,6 +69,31 @@ describe('texLogLine', () => {
     expect(texLogLine(['! ' + x(77), '<to be read again> '], 0)).toEqual({ text: '! ' + x(77), last: 0 });
     expect(texLogLine([x(78), 'y'], 0)).toEqual({ text: x(78), last: 0 });
     expect(texLogLine([x(81), 'y'], 0)).toEqual({ text: x(81), last: 0 });
+  });
+  // a log as bytes: TeX's lines, from the .log's bytes or from text
+  const bytes = (...parts: (string | number[])[]) => Uint8Array.from(parts.flatMap((p) => (typeof p === 'string' ? [...new TextEncoder().encode(p)] : p)));
+  const joined = (log: Uint8Array | string) => { const l = logLines(log); const r = texLogLine(l, 0); return { text: logText(r.text), last: r.last }; };
+  it("joins pdfTeX's letter split at the 79th byte, from the log's bytes", () => {
+    // ü is C3 BC: pdfTeX wrote C3 as the line's 79th byte and BC first on the next
+    const log = bytes(x(78), [0xc3, 0x0a, 0xbc], 'yz\n');
+    expect(joined(log)).toEqual({ text: x(78) + 'üyz', last: 1 });
+    expect(new TextDecoder().decode(log)).toBe(x(78) + '\ufffd\n\ufffdyz\n');   // what texLog has: the letter is lost
+  });
+  it("joins LuaTeX's line ended early: a letter of k bytes that would end on byte 79 or later", () => {
+    expect(joined(`${x(77)}\nüyz`)).toEqual({ text: x(77) + 'üyz', last: 1 });     // 77 + 2 = 79
+    expect(joined(`${x(78)}\nüyz`)).toEqual({ text: x(78) + 'üyz', last: 1 });
+    expect(joined(`${x(76)}\n€yz`)).toEqual({ text: x(76) + '€yz', last: 1 });     // 76 + 3
+    expect(joined(`${x(75)}\n𝄞yz`)).toEqual({ text: x(75) + '𝄞yz', last: 1 });    // 75 + 4
+    expect(joined(`${x(76)}\nüyz`)).toEqual({ text: x(76), last: 0 });             // 76 + 2: ü fitted
+    expect(joined(`${x(77)}\nayz`)).toEqual({ text: x(77), last: 0 });             // an ASCII letter fitted
+    expect(joined(`ä${x(76)}\nüyz`)).toEqual({ text: `ä${x(76)}üyz`, last: 1 });  // 2 + 76 = 78 bytes, 77 letters
+  });
+  it('reads text as its UTF-8 bytes, and gives text back', () => {
+    expect(logLines('a\nb')).toEqual(['a', 'b']);
+    expect(logText(logLines('Größe — ok')[0])).toBe('Größe — ok');
+    expect(logLines('ä')[0]).toHaveLength(2);
+    const [e] = parseTexLogDocument('! Undefined control sequence.\nl.3 \\Größe\n\nDie Größe ist unbekannt.\n\n', 'doc.tex');
+    expect(e).toMatchObject({ message: 'Undefined control sequence.', line: 3, help: ['Die Größe ist unbekannt.'] });
   });
 });
 

@@ -66,6 +66,13 @@ describe.skipIf(!built)('mp-tikz-wasm end to end', () => {
     expect(r.figures[0].svg).toContain('GLYPH');
   }, 30_000);
 
+  it("reads btex's log as bytes: a TeX error with a letter pdfTeX split at the line's end", async () => {
+    const text = 'x'.repeat(76) + 'üyz';   // after "! " and 76 x, ü's first byte is the line's 79th
+    const r = await mp.run(`verbatimtex \\documentclass{article}\\begin{document} etex\nbeginfig(1); label(btex \\errmessage{${text}} etex, origin); endfig; end.`);
+    expect(r.diagnostics.find((d: any) => d.source === 'tex' && d.severity === 'error')?.message).toBe(`${text}.`);
+    expect(r.texLog).toContain('\ufffd');   // the decoded log has lost it
+  }, 30_000);
+
   it('reports MetaPost errors as diagnostics with help text', async () => {
     const r = await mp.run('beginfig(1); draw z1--z2; endfig; end.');
     expect(r.status).toBe('error');
@@ -361,6 +368,23 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     }
     expect((await mp.latex(doc, { engine: 'plain' })).texLog).toContain('[etex:yes]');
   }, 60_000);
+
+  it('reads the log as bytes: missing paths with ä, ö, ü and é come back whole, under both engines', async () => {
+    // Clew-app's document. TeX breaks a log line after 79 bytes: pdfTeX broke one of these paths inside
+    // ü, whose bytes texLog (a decoded string) has lost; LuaTeX moved a letter that would end on byte
+    // 79 to the next line, leaving lines of 77 and 78 bytes
+    const paths = [0, 1, 2, 3].map((n) => `/Users/me/${'x'.repeat(n)}Größe Bilder/Übersicht der Ergebnisse/äöü-abbildung-nummer-eins-ééééééééééééééééééé.png`);
+    const doc = ['\\documentclass{article}', '\\usepackage{graphicx}', '\\begin{document}', ...paths.map((p) => `\\includegraphics{${p}}`), '\\end{document}', ''].join('\n');
+    for (const engine of ['latex', 'lualatex']) {
+      const r = await mp.latex(doc, { engine, output: 'pdf' });
+      expect(r.pdf?.length, engine).toBeGreaterThan(0);
+      const warnings = r.diagnostics.filter((d: any) => d.severity === 'warning' && /not found/.test(d.message));
+      expect(warnings.map((d: any) => [d.message, d.line]), engine).toEqual(paths.map((p, i) => [`File \`${p}' not found on input line ${i + 4}.`, i + 4]));
+      const def = engine === 'latex' ? 'pdftex' : 'luatex';
+      expect(r.diagnostics.filter((d: any) => d.severity === 'error').map((d: any) => d.message), engine).toEqual(paths.map((p) => `Package ${def}.def Error: File \`${p}' not found: using draft setting.`));
+      if (engine === 'latex') expect(r.texLog).toContain('\ufffd');
+    }
+  }, 120_000);
 
   it('names an engine it does not know, and a format whose bundle is not loaded, instead of "TeX produced no PDF"', async () => {
     // TeX that cannot load its format stops before it writes a log: only the terminal says why

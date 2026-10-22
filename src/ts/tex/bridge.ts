@@ -133,6 +133,7 @@ export class TexBridge {
     const { fmt, progname } = PROG[engine];
     let dvi: Uint8Array | null = null;
     let logFile = '';
+    let logBytes: Uint8Array | undefined;
     const r = await runTex(this.o.texFactory, {
       args: [`-fmt=${fmt}`, `-progname=${progname}`, '-interaction=nonstopmode', '-parse-first-line', `${name}.tex`],
       setup: (M) => {
@@ -143,11 +144,13 @@ export class TexBridge {
       collect: (M) => {
         try { dvi = M.FS.readFile(`/work/${name}.dvi`, { encoding: 'binary' }) as Uint8Array; } catch { dvi = null; }
         try { logFile = M.FS.readFile(`/work/${name}.log`, { encoding: 'utf8' }) as string; } catch { logFile = r?.log ?? ''; }
+        try { logBytes = M.FS.readFile(`/work/${name}.log`, { encoding: 'binary' }) as Uint8Array; } catch { logBytes = undefined; }
       },
       onLine: this.o.onLine,
     });
     const texLog = logFile || r.log;
-    const diagnostics = parseTexLog(texLog, tex, lineOf);
+    // the bytes, where TeX broke a line inside a letter
+    const diagnostics = parseTexLog(logBytes?.length ? logBytes : texLog, tex, lineOf);
     let pages = 0, resolved = 0;
     if (dvi) {
       const M = this.o.mplib;
@@ -185,39 +188,73 @@ export class TexBridge {
 }
 
 /**
- * The message of the `! ...` error on lines[i]. A package's or class's error goes on over
+ * The message of the `! ...` error on lines[i] (logLines). A package's or class's error goes on over
  * lines prefixed `(name)`; fontspec's first line is empty and the whole message is on them.
  */
 export function texErrorMessage(lines: string[], i: number): string {
   const head = texLogLine(lines, i);
   const first = head.text.slice(2);
   const pkg = /^(?:Package|Class) (\S+) Error:/.exec(first);
-  if (!pkg) return first;
+  if (!pkg) return logText(first);
   const parts = [first.trimEnd()];
   for (let j = head.last + 1; j < lines.length && lines[j].startsWith(`(${pkg[1]}) `);) {
     const l = texLogLine(lines, j);
     parts.push(l.text.slice(pkg[1].length + 2).trim());
     j = l.last + 1;
   }
-  return parts.join(' ');
+  return logText(parts.join(' '));
 }
 
 const utf8 = new TextEncoder();
+const utf8Text = new TextDecoder();
 
 /**
- * lines[i] with the lines TeX broke it into, and the index of the last of them. TeX ends a log line
- * after max_print_line (79) bytes and goes on in the next; LuaTeX, in what it prints from C or Lua (a
- * font's error, luaotfload's messages), after 80. A line can also end at that length by itself, so an
- * empty next line, or one that opens an error's context (`l.N`, `<to be read again>`), is not joined.
+ * A TeX log's lines as bytes, the way TeX counts them when it breaks a line: one UTF-16 unit per byte,
+ * ASCII as itself and a byte from 0x80 up as U+F700 + byte (a private-use character, which no trim or
+ * \s touches). pdfTeX breaks inside a letter (its 79th byte the first of two), and a decoded string
+ * has lost the letter; here the lines join back into its bytes. logText decodes what is read from them.
  */
-export function texLogLine(lines: string[], i: number): { text: string; last: number } {
-  let text = lines[i];
-  for (let n = utf8.encode(lines[i]).length; (n === 79 || n === 80) && i + 1 < lines.length && lines[i + 1] !== '' && !/^(l\.\d+ |<[^>]+>)/.test(lines[i + 1]); n = utf8.encode(lines[i]).length) text += lines[++i];
-  return { text, last: i };
+export function logLines(log: string | Uint8Array): string[] {
+  if (typeof log === 'string' && !/[^\x00-\x7f]/.test(log)) return log.split('\n');
+  const b = typeof log === 'string' ? utf8.encode(log) : log;
+  const u = new Uint16Array(b.length);
+  for (let i = 0; i < b.length; i++) u[i] = b[i] < 0x80 ? b[i] : 0xf700 + b[i];
+  let s = '';
+  for (let i = 0; i < u.length; i += 8192) s += String.fromCharCode(...u.subarray(i, i + 8192));
+  return s.split('\n');
+}
+
+/** Text from logLines' lines, decoded as UTF-8 (bytes that are not UTF-8 as U+FFFD, as texLog has them). */
+export function logText(s: string): string {
+  if (!/[-]/.test(s)) return s;
+  const b = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); b[i] = c >= 0xf780 ? c - 0xf700 : c; }
+  return utf8Text.decode(b);
 }
 
 /**
- * The help TeX prints after an error's context: lines[i] is the error, lines[k] the first line after its
+ * lines[i] (logLines) with the lines TeX broke it into, and the index of the last of them. TeX ends a
+ * log line after max_print_line (79) bytes and goes on in the next; LuaTeX, in what it prints from C
+ * or Lua (a font's error, luaotfload's messages), after 80. pdfTeX breaks inside a letter; LuaTeX
+ * moves a letter of k bytes that would end on byte 79 or later to the next line, so its line has
+ * 79 - k to 78. A line can also end at that length by itself, so an empty next line, or one that
+ * opens an error's context (`l.N`, `<to be read again>`), is not joined.
+ */
+export function texLogLine(lines: string[], i: number): { text: string; last: number } {
+  let text = lines[i];
+  while (i + 1 < lines.length && texLineGoesOn(lines[i], lines[i + 1])) text += lines[++i];
+  return { text, last: i };
+}
+
+function texLineGoesOn(line: string, next: string): boolean {
+  if (next === '' || /^(l\.\d+ |<[^>]+>)/.test(next)) return false;
+  const n = line.length, b = next.charCodeAt(0) - 0xf700;
+  const k = b >= 0xf8 ? 1 : b >= 0xf0 ? 4 : b >= 0xe0 ? 3 : b >= 0xc0 ? 2 : 1;   // the next line's first letter, in bytes
+  return n === 79 || n === 80 || (k > 1 && n < 79 && n + k >= 79);
+}
+
+/**
+ * The help TeX prints after an error's context: lines (logLines), lines[i] the error, lines[k] the first line after its
  * context. It follows the context at once and ends at an empty line; but a LaTeX3 message's (fontspec's:
  * "For immediate help type H <return>.") opens with an empty line and goes on over paragraphs, each ended
  * by one, to two empty lines. A paragraph break is an empty string.
@@ -227,13 +264,13 @@ export function texErrorHelp(lines: string[], i: number, k: number, end: number)
   if (lines[k]?.trim() === '' && lines.slice(i + 1, k).includes('For immediate help type H <return>.')) {
     for (k++, end = k + 40; k < lines.length && k < end && !/^! |^l\.\d+/.test(lines[k]); k++) {
       if (lines[k].trim() === '' && (k + 1 >= lines.length || lines[k + 1].trim() === '' || /^! /.test(lines[k + 1]))) break;
-      help.push(lines[k].trim() === '' ? '' : lines[k]);
+      help.push(lines[k].trim() === '' ? '' : logText(lines[k]));
     }
     return help;
   }
   for (; k < lines.length && k < end; k++) {
     if (lines[k].trim() === '' || /^! /.test(lines[k]) || /^l\.\d+/.test(lines[k])) break;
-    help.push(lines[k]);
+    help.push(logText(lines[k]));
   }
   return help;
 }
@@ -243,13 +280,13 @@ export function texErrorHelp(lines: string[], i: number, k: number, end: number)
  * `\mpxshipout% line N file` wrapper line per block; a TeX `l.<n>` line number
  * inside [wrapper, \stopmpxshipout] belongs to that block.
  */
-export function parseTexLog(log: string, tex: string, blocks: { block: TexBlock; snippet: Snippet }[]): Diagnostic[] {
+export function parseTexLog(log: string | Uint8Array, tex: string, blocks: { block: TexBlock; snippet: Snippet }[]): Diagnostic[] {
   const out: Diagnostic[] = [];
   const texLines = tex.split('\n');
   // wrapper line index (0-based) for each btex block, in order of appearance
   const starts: number[] = [];
   texLines.forEach((l, i) => { if (l.startsWith('\\mpxshipout%')) starts.push(i); });
-  const lines = log.split('\n');
+  const lines = logLines(log);
   for (let i = 0; i < lines.length; i++) {
     const m = /^! (.*)$/.exec(lines[i]);
     if (!m) continue;
