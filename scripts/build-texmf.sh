@@ -211,7 +211,7 @@ t="$(tree_with tex/generic/babel/babel.sty || true)"
 if [ -n "$t" ]; then
   find "$t/tex/generic/babel" -maxdepth 1 -type f -exec cp {} "$OUT/tex/generic/babel/" \;
   copy_babel_locales "$t/tex/generic/babel/locale" "$OUT/tex/generic/babel/locale" $BABEL_LOCALES
-  for l in $BABEL_LDFS; do [ -d "$t/tex/generic/babel-$l" ] && cp -R "$t/tex/generic/babel-$l" "$OUT/tex/generic/babel-$l"; done
+  copy_babel_languages "$t/tex/generic" "$OUT/tex/generic" $BABEL_LDFS
 else
   echo "  warning: babel not found in any TeX tree; the latex-doc bundle will have no languages" >&2
 fi
