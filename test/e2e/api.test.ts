@@ -362,6 +362,26 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     expect((await mp.latex(doc, { engine: 'plain' })).texLog).toContain('[etex:yes]');
   }, 60_000);
 
+  it('names an engine it does not know, and a format whose bundle is not loaded, instead of "TeX produced no PDF"', async () => {
+    // TeX that cannot load its format stops before it writes a log: only the terminal says why
+    const doc = '\\documentclass{article}\\begin{document}x\\end{document}';
+    for (const output of ['svg', 'pdf']) {
+      const r = await mp.latex(doc, { engine: 'pdflatex', output });
+      expect(r.status).toBe('fatal');
+      expect(r.diagnostics.map((d: any) => d.message)).toEqual(["engine 'pdflatex' is not one of 'latex', 'plain', 'etex', 'tex', 'lualatex', 'luatex', 'auto': TeX found no format pdflatex.fmt"]);
+      expect(r.diagnostics[0].help[0]).toMatch(/^pdfLaTeX is engine 'latex'/);
+    }
+    const { MetaPost, DEFAULT_BUNDLES } = await import(path.join(REPO, 'dist/index.js'));
+    const bare = await MetaPost.create({ logLevel: 'silent', bundles: DEFAULT_BUNDLES.filter((b: string) => b !== 'latex-core') });
+    try {
+      const r = await bare.latex(doc, { output: 'pdf' });
+      expect(r.status).toBe('fatal');
+      expect(r.diagnostics.map((d: any) => d.message)).toEqual(["TeX found no format latex.fmt: the 'latex-core' bundle, which has it, is not loaded"]);
+    } finally {
+      bare.dispose();
+    }
+  }, 60_000);
+
   it('LuaTeX in DVI mode ships rules: math and text, under both formats', async () => {
     // The DVI back-end's rule slot took three arguments while the ship-out passes four;
     // native C drops the extra one, WebAssembly's call_indirect traps on the mismatch. So

@@ -503,7 +503,7 @@ export class MetaPostCore {
     if (pdfOut) {
       if (!pdf) {
         status = diagnostics.some((d) => d.severity === 'error') ? 'error' : 'fatal';
-        if (!diagnostics.length) diagnostics.push({ severity: 'error', source: 'tex', message: `TeX produced no PDF (exit ${tex.exitCode})` });
+        if (!diagnostics.length) diagnostics.push(noOutputDiagnostic('PDF', tex.exitCode, tex.log, engine, fmt));
       }
     } else if (dvi) {
       const dviBytes: Uint8Array = dvi;
@@ -584,7 +584,7 @@ export class MetaPostCore {
       }
     } else {
       status = diagnostics.some((d) => d.severity === 'error') ? 'error' : 'fatal';
-      if (!diagnostics.length) diagnostics.push({ severity: 'error', source: 'tex', message: `TeX produced no DVI (exit ${tex.exitCode})` });
+      if (!diagnostics.length) diagnostics.push(noOutputDiagnostic('DVI', tex.exitCode, tex.log, engine, fmt));
     }
     const totalMs = now() - t0;
     this.report(diagnostics);
@@ -752,6 +752,25 @@ export class MetaPostCore {
 function now(): number { return typeof performance !== 'undefined' ? performance.now() : Date.now(); }
 
 function ftypeName(t: number): string { return t === MPX_FTYPE_TFM ? 'tfm' : t === MPX_FTYPE_VF ? 'vf' : MP_FTYPE_NAMES[t] ?? String(t); }
+
+/** latex()'s engine names (LatexRunOptions.engine), and the bundle that has each format. */
+const LATEX_ENGINES = ['latex', 'plain', 'etex', 'tex', 'lualatex', 'luatex', 'auto'];
+const FORMAT_BUNDLE: Record<string, string> = { latex: 'latex-core', etex: 'tex-plain', plain: 'tex-plain', dvilualatex: 'luatex', dviluatex: 'luatex', tikz: 'tikz-snapshot' };
+
+/**
+ * The error for a TeX run that wrote no DVI or PDF and logged no error. TeX that cannot load its
+ * format stops before it opens a log and says so only on the terminal: the engine is a name
+ * latex() does not know (the format is the name, `pdflatex.fmt` for 'pdflatex'), or the bundle
+ * with the format is not loaded.
+ */
+function noOutputDiagnostic(what: 'DVI' | 'PDF', exitCode: number, terminal: string, engine: string, fmt: string): Diagnostic {
+  if (/^I can't find the format file `[^']*'!$/m.test(terminal)) {
+    if (!LATEX_ENGINES.includes(engine)) return { severity: 'error', source: 'tex', message: `engine '${engine}' is not one of ${LATEX_ENGINES.map((e) => `'${e}'`).join(', ')}: TeX found no format ${fmt}.fmt`,
+      help: ["pdfLaTeX is engine 'latex' (with output: 'pdf' for a PDF) and LuaLaTeX is 'lualatex'; there is no XeTeX here"] };
+    return { severity: 'error', source: 'tex', message: `TeX found no format ${fmt}.fmt: ${FORMAT_BUNDLE[fmt] ? `the '${FORMAT_BUNDLE[fmt]}' bundle, which has it, is not loaded` : 'no bundle loaded here has it'}` };
+  }
+  return { severity: 'error', source: 'tex', message: `TeX produced no ${what} (exit ${exitCode})` };
+}
 
 /** Errors (`! ...` + `l.N`) and package warnings from a TeX transcript, attributed to the document. */
 export function parseTexLogDocument(log: string, file: string): Diagnostic[] {
