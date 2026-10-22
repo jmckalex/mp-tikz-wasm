@@ -5,17 +5,35 @@ sessions), 2026-09-16 (sixth), 2026-09-17 (seventh, eighth and ninth),
 2026-09-18 (tenth, consolidated), 2026-09-24 to 2026-09-29 (eleventh: the
 0.3.0 release and what followed), 2026-10-03 (twelfth: PDF output) and
 2026-10-06 (thirteenth: `main` caught up; TrueType Collections fixed) and
-2026-10-20 (fourteenth: whole documents, BibTeX, makeindex). This file lives at the repository root; until session 5 it was
+2026-10-20 to 2026-10-22 (fourteenth: whole documents, BibTeX, makeindex; the 0.5.0 release). This file lives at the repository root; until session 5 it was
 `docs/15-handover.md`. Everything below is verified unless marked otherwise.
 Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State now (session 14, 2026-10-20): whole documents for Clew's iPad PDF
-export, on the local branch `latex-doc` (not pushed, not released).** The owner
-approved it through Clew-boss ("tex yes, pdf yes, 1a 2a 3 allow 4 ok"); pushing
-and releasing wait for the owner's word, which Clew-boss asks for. Commits on
-`next` (9d19ab1), oldest first:
+**State now (session 14, 2026-10-22): v0.5.0 is released**
+(<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.5.0>, annotated tag
+on d44aeeb, which is `main` and `next`; CI green on `latex-doc`, `next`, `main`
+and the tag, every job). It is 0.4.0 plus whole documents for Clew's iPad PDF
+export: the owner approved the work through Clew-boss ("tex yes, pdf yes, 1a 2a
+3 allow 4 ok") and typed the release in this session's window. Five assets,
+GitHub's numbers, each equal to the local build's (notes in
+`release/notes-0.5.0.md`):
+
+- `mp-tikz-wasm-0.5.0.tar.gz`, **50,933,680 bytes, sha256
+  76b5591a83adfb96e8087b8560fd993c6ebba475ad15a63269a8aa47517dd575**, and `.zip`
+  (53,571,784 bytes, 5be95293…6d71);
+- `mp-tikz-wasm-ghostscript-0.5.0.tar.gz` (AGPL, apart; the module is 0.4.0's),
+  **8,629,227 bytes, sha256
+  d820e4544892681a6a04cd018b42ad1d5818b8ab6a8b35c0c298e5ce0e6b7181**, and `.zip`
+  (8,631,917 bytes, 21ec7d85…9ff3);
+- `mp-tikz-wasm-ghostscript-0.5.0-source.tar.gz`, the same git archive of the
+  port at e8c528b as 0.4.0's, **90,111,919 bytes, sha256
+  2096e4fc00b79ec80d11a3984009c606907cadb92456f93ed62e56d0d494f84a**.
+
+The site (jmckalex.org and eschatolog.ist `/software/mp-tikz-wasm/`) serves
+0.5.0, byte-identical on both; the mirrors hold no archives (the guide links to
+GitHub's releases page). Commits in 0.5.0 since `next` was 9d19ab1, oldest first:
 
 - 03320ca `latex()` returns every file TeX wrote, passed-in ones included (FS.open
   watched after setup), so pass 3 works; `removeFiles(names?)`.
@@ -45,24 +63,57 @@ and releasing wait for the owner's word, which Clew-boss asks for. Commits on
   `'now'`: it had shown the fixed date in the host's time zone (\time 780 in
   Auckland, \today 31 December 2024 west of Greenwich); London's output is
   unchanged (offset 0 on 1 January).
+- 863a758 Release 0.5.0 (version strings only).
+- d44aeeb CI's two failures. CI builds its bundles from TeX Live 2025's
+  tlnet-final (babel 26.3), releases come from the dev machine's TeX Live
+  (babel 25.12): babel 26 moved ngerman and the other old names to
+  `locale/invalid/`, now copied when it exists (0.5.0's bundles are identical
+  either way), and the sandbox test's probes end with `;`.
 
-Verified here: 308 vitest tests, MetaPost golden 15/15, TikZ 16/16, PDF 11/11,
-contract 48/48, smoke 17/17, check-nosystem 7/7; the other bundles' manifests
-unchanged apart from `texmf.cnf` and luaotfload's name database (now listing the
-five new faces; without latex-doc a Clew-style document is byte-identical). Real
-jmarkdown exports (from its branch `latex-highlightjs`): a Clew-style note
-(LuaLaTeX, ngerman, natbib, imakeidx, 5 steps) and a LuaLaTeX docs page with an
-index match native TeX Live in pages, text and fonts; the default pdfLaTeX docs
-page needs cm-super, and with `\usepackage{lmodern}` is byte-identical to TeX Live.
-Per pass: pdfLaTeX 0.2–0.6 s, 128 MiB; LuaLaTeX with Latin Modern 1–1.3 s,
-154 MiB; with EB Garamond 4.7–5.1 s, **551 MiB**; bibtex/makeindex ~30 ms, 16 MiB.
+Verified for 0.5.0: 309 vitest tests, MetaPost golden 15/15, TikZ 16/16, PDF
+11/11, contract 48/48, smoke 17/17, `make check-nosystem` 7/7 (`npm run
+check-nosystem` covers the six in `dist/`, not Ghostscript's); the other
+bundles' manifests unchanged apart from `texmf.cnf` and luaotfload's name
+database (now listing the five new faces; without latex-doc a Clew-style
+document is byte-identical). Real jmarkdown exports (from its branch
+`latex-highlightjs`): a Clew-style note (LuaLaTeX, ngerman, natbib, imakeidx, 5
+steps) and a LuaLaTeX docs page with an index match native TeX Live in pages,
+text and fonts; the default pdfLaTeX docs page needs cm-super, and with
+`\usepackage{lmodern}` is byte-identical to TeX Live. Per pass: pdfLaTeX
+0.2–0.6 s, 128 MiB; LuaLaTeX with Latin Modern 1–1.3 s, 154 MiB; with EB
+Garamond 4.7–5.1 s, **551 MiB**; bibtex/makeindex ~30 ms, 16 MiB.
 
-Open: **cm-super** (jmarkdown's pdfLaTeX default is T1 without lmodern; a ~5 MB
-subset or the full 58 MB as its own bundle) is with the owner via Clew-boss, held;
-the LuaLaTeX formats are not byte-reproducible (two builds of the same tree differ;
-the shipped ones were kept); CI has not run these changes (the branch is unpushed:
-first push will rebuild CI's TeX Live cache with the new package list); a file
-copied into build/texmf by hand is invisible to kpathsea until ls-R lists it.
+**After 0.5.0, on `latex-doc` (not released; `next` and `main` stay at
+d44aeeb).** Four fixes Clew-boss asked for and verified on a clean copy; no
+correct output changes:
+
+- fe8d535 a Package's or Class's error message goes on over its `(name)` lines:
+  fontspec's missing font had come back as "Package fontspec Error: " and
+  nothing more (`texErrorMessage` in `src/ts/tex/bridge.ts`, used by `latex()`
+  and btex).
+- 69ff913, 1cf3697 `build-texmf.sh` copies babel's locales and languages with
+  `scripts/babel-locales.sh`, which warns for a directory TeX Live lacks (except
+  `locale/invalid/`, babel 26's) where d44aeeb's loop skipped it in silence.
+- 948b02f `texLogLine` joins the log lines TeX broke after 79 bytes (80 for
+  LuaTeX's C and Lua output, such as its font error), and `texErrorHelp` keeps a
+  LaTeX3 message's help, which follows an empty line, in paragraphs. Fixtures
+  in `test/unit/fixtures/tex-logs/` are TeX Live 2025 log excerpts.
+
+Verified: 322 tests (272 passed, 50 skipped), goldens 15/15, 16/16, 11/11
+unchanged; a build/texmf from the new script is identical to 0.5.0's apart from
+the formats' ls-R entries and luaotfload's name database; each fix's test fails
+when the fix is undone. Clew's iPad shows a diagnostic's message only, so the
+help fontspec now gets is not on screen there yet.
+
+Open: **cm-super** is not bundled (the owner chose (a), 2026-10-20): T1 Computer
+Modern needs `\usepackage{lmodern}`. Clew needs default + `opentype` +
+`otf-fonts` + `latex-doc`, since unicode-math's default, `latinmodern-math.otf`,
+is only in `otf-fonts`. LuaLaTeX with EB Garamond at 551 MiB a pass may be too
+much for the iPad. Whether releases should be built from tlnet-final, as CI's
+bundles are, is the owner's call. MetaPost's `diagnostics.ts` has the same
+79-byte wrap and is left alone. The LuaLaTeX formats are not byte-reproducible
+(two builds of the same tree differ; the shipped ones were kept); a file copied
+into build/texmf by hand is invisible to kpathsea until ls-R lists it.
 
 **Before that (session 13, 2026-10-10): v0.4.0 is released**
 (<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.4.0>, tag on
