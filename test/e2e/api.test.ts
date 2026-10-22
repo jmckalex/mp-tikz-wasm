@@ -350,6 +350,18 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
     expect(r.pages).toHaveLength(1);
   }, 60_000);
 
+  it("runs Knuth's plain TeX with engine 'tex': plain.fmt, without e-TeX", async () => {
+    // make-formats.mjs dumps that format as plain.fmt; asking for tex.fmt had failed every run
+    const doc = '\\message{[etex:\\ifx\\eTeXversion\\undefined no\\else yes\\fi]}Knuth.\\bye';
+    for (const output of ['svg', 'pdf']) {
+      const r = await mp.latex(doc, { engine: 'tex', output });
+      expect(r.status, JSON.stringify(r.diagnostics)).toBe('ok');
+      expect(r.format).toBe('plain');
+      expect(r.texLog).toContain('[etex:no]');
+    }
+    expect((await mp.latex(doc, { engine: 'plain' })).texLog).toContain('[etex:yes]');
+  }, 60_000);
+
   it('LuaTeX in DVI mode ships rules: math and text, under both formats', async () => {
     // The DVI back-end's rule slot took three arguments while the ship-out passes four;
     // native C drops the extra one, WebAssembly's call_indirect traps on the mismatch. So

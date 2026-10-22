@@ -416,9 +416,9 @@ export class MetaPostCore {
     const lua = engine === 'lualatex' || engine === 'luatex';
     if (lua && !this.env.luatexFactory) throw new Error('mp-tikz-wasm: luatex.wasm is not available in this build');
     // 'plain' is plain TeX with e-TeX (TeX Live's etex), which PGF requires;
-    // 'tex' is Knuth-compatible plain.fmt without it; the LuaTeX engines use
-    // TeX Live's DVI-mode formats dvilualatex / dviluatex.
-    let fmt: string = engine === 'plain' ? 'etex' : engine === 'lualatex' ? 'dvilualatex' : engine === 'luatex' ? 'dviluatex' : engine;
+    // 'tex' is Knuth-compatible plain.fmt without it (make-formats.mjs dumps it as plain.fmt,
+    // progname tex); the LuaTeX engines use TeX Live's DVI-mode formats dvilualatex / dviluatex.
+    let fmt: string = engine === 'plain' ? 'etex' : engine === 'tex' ? 'plain' : engine === 'lualatex' ? 'dvilualatex' : engine === 'luatex' ? 'dviluatex' : engine;
     const progname = engine === 'plain' ? 'etex' : lua ? fmt : engine;
     // the pre-warmed snapshot: latex.fmt with pgf/pgfplots/tikz-cd preloaded
     const snapshot = lo.snapshot ?? this.env.options.snapshot ?? 'auto';
