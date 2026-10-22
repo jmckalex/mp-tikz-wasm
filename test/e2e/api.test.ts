@@ -382,6 +382,7 @@ describe.skipIf(!built || !fs.existsSync(path.join(REPO, 'dist/dvisvgm.wasm')))(
       expect(warnings.map((d: any) => [d.message, d.line]), engine).toEqual(paths.map((p, i) => [`File \`${p}' not found on input line ${i + 4}.`, i + 4]));
       const def = engine === 'latex' ? 'pdftex' : 'luatex';
       expect(r.diagnostics.filter((d: any) => d.severity === 'error').map((d: any) => d.message), engine).toEqual(paths.map((p) => `Package ${def}.def Error: File \`${p}' not found: using draft setting.`));
+      expect(new TextDecoder().decode(r.texLogBytes), engine).toBe(r.texLog);
       if (engine === 'latex') expect(r.texLog).toContain('\ufffd');
     }
   }, 120_000);

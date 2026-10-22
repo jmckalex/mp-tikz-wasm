@@ -127,8 +127,14 @@ not an error.
 
 `mp.latex(source, options)` returns a `LatexResult`: `status` (`ok` | `error` |
 `fatal`), `pages` (one SVG per page), `pdf` (with `output: 'pdf'`), `log`,
-`texLog`, `dvisvgmLog`, `diagnostics`, `stats`, `format` and `artifacts` (every
-other file the run wrote: `.aux`, `.out`, `.toc`, …). A file passed in `files` is
+`texLog`, `texLogBytes`, `dvisvgmLog`, `diagnostics`, `stats`, `format` and `artifacts` (every
+other file the run wrote: `.aux`, `.out`, `.toc`, …). `texLogBytes` is the `.log`
+as TeX wrote it, a `Uint8Array` (absent when TeX wrote no log). TeX ends a
+log line after 79 bytes, and pdfTeX does so inside a letter: `ü` is two bytes, one at
+the end of a line and one at the start of the next, which `texLog`, a decoded string,
+shows as two U+FFFD. To read a message over its lines, join them as bytes and then
+decode, as the library does for `diagnostics`; LuaTeX instead moves a letter that
+would end on the 79th byte or later to the next line. A file passed in `files` is
 in `artifacts` when TeX wrote it again (the `.aux` from the second pass on): the
 library watches the engine's opens for writing, and a passed-in file TeX only
 read stays out. So one pass's `artifacts` are the next pass's `files`, for as

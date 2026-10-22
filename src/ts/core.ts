@@ -594,7 +594,7 @@ export class MetaPostCore {
     this.logger.info('host', pdfOut
       ? `latex ${job}.tex: ${status}, ${pdf ? `${(pdf as Uint8Array).length}-byte PDF` : 'no PDF'} in ${ms(totalMs)}`
       : `latex ${job}.tex: ${status}, ${plural(pages.length, 'page')} in ${ms(totalMs)} (TeX ${ms(tex.ms)}, dvisvgm ${ms(dvisvgmMs)})`);
-    return { status, pages, ...(pdf ? { pdf: pdf as Uint8Array } : {}), log: tex.log, texLog, dvisvgmLog, diagnostics, stats: { totalMs, texMs: tex.ms, dvisvgmMs, texSetupMs: tex.setupMs, texMainMs: tex.mainMs, instantiateMs: tex.ms - tex.setupMs - tex.mainMs }, format: fmt, artifacts };
+    return { status, pages, ...(pdf ? { pdf: pdf as Uint8Array } : {}), log: tex.log, texLog, ...(texLogBytes ? { texLogBytes } : {}), dvisvgmLog, diagnostics, stats: { totalMs, texMs: tex.ms, dvisvgmMs, texSetupMs: tex.setupMs, texMainMs: tex.mainMs, instantiateMs: tex.ms - tex.setupMs - tex.mainMs }, format: fmt, artifacts };
   }
 
   /**

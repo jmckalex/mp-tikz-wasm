@@ -285,6 +285,10 @@ export interface LatexResult {
   pdf?: Uint8Array;
   log: string;             // TeX terminal transcript
   texLog: string;          // the .log file
+  /** The .log file's bytes, as TeX wrote them (absent when TeX wrote none). TeX breaks a log line after
+   *  79 bytes, and pdfTeX inside a letter, which texLog, a decoded string, has lost: join the lines as
+   *  bytes, then decode. */
+  texLogBytes?: Uint8Array;
   dvisvgmLog: string;
   diagnostics: Diagnostic[];
   stats: { totalMs: number; texMs: number; dvisvgmMs: number; texSetupMs: number; texMainMs: number; instantiateMs: number };
