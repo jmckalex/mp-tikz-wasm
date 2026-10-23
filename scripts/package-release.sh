@@ -43,7 +43,15 @@ Host dist/ on any static server and add to your page:
 See guide.html for everything else.
 TXT
 sed -i '' "s#path.resolve(new URL('..', import.meta.url).pathname)#path.resolve(new URL('.', import.meta.url).pathname)#" "$STAGE/serve.mjs" 2>/dev/null || sed -i "s#path.resolve(new URL('..', import.meta.url).pathname)#path.resolve(new URL('.', import.meta.url).pathname)#" "$STAGE/serve.mjs"
-(cd "$OUT" && tar -czf "$NAME.tar.gz" "$NAME" && rm -f "$NAME.zip" && zip -qr "$NAME.zip" "$NAME")
+# macOS's tar stores each file's extended attributes (com.apple.provenance) as an
+# AppleDouble `._name` twin and pax xattr headers, which GNU tar unpacks as stray
+# files with a warning each; keep them out (GNU tar stores none by default).
+TAR_FLAGS=()
+if tar --version 2>/dev/null | grep -q bsdtar; then
+  export COPYFILE_DISABLE=1
+  TAR_FLAGS=(--no-xattrs --no-mac-metadata --no-acls --no-fflags)
+fi
+(cd "$OUT" && tar ${TAR_FLAGS[@]+"${TAR_FLAGS[@]}"} -czf "$NAME.tar.gz" "$NAME" && rm -f "$NAME.zip" && zip -qr "$NAME.zip" "$NAME")
 du -sh "$OUT/$NAME.tar.gz" "$OUT/$NAME.zip" | awk '{print "  " $2 "  " $1}'
 if [ -d "$REPO/dist/ghostscript" ]; then
   GSNAME="mp-tikz-wasm-ghostscript-$VERSION"
@@ -67,7 +75,7 @@ Then enable PostScript with the \`ghostscript\` bundle:
 Ghostscript is licensed under the GNU AGPL v3 (dist/ghostscript/COPYING); see
 dist/ghostscript/SOURCE.md for its corresponding source.
 TXT
-  (cd "$OUT" && tar -czf "$GSNAME.tar.gz" "$GSNAME" && rm -f "$GSNAME.zip" && zip -qr "$GSNAME.zip" "$GSNAME")
+  (cd "$OUT" && tar ${TAR_FLAGS[@]+"${TAR_FLAGS[@]}"} -czf "$GSNAME.tar.gz" "$GSNAME" && rm -f "$GSNAME.zip" && zip -qr "$GSNAME.zip" "$GSNAME")
   du -sh "$OUT/$GSNAME.tar.gz" "$OUT/$GSNAME.zip" | awk '{print "  " $2 "  " $1}'
   # its corresponding source (AGPL section 6), from the same place
   if [ -f "$REPO/vendor/ghostscript/source.tar.gz" ]; then
