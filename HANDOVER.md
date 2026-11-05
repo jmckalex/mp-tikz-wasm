@@ -5,13 +5,81 @@ sessions), 2026-09-16 (sixth), 2026-09-17 (seventh, eighth and ninth),
 2026-09-18 (tenth, consolidated), 2026-09-24 to 2026-09-29 (eleventh: the
 0.3.0 release and what followed), 2026-10-03 (twelfth: PDF output) and
 2026-10-06 (thirteenth: `main` caught up; TrueType Collections fixed) and
-2026-10-20 to 2026-10-22 (fourteenth: whole documents, BibTeX, makeindex; the 0.5.0 release). This file lives at the repository root; until session 5 it was
+2026-10-20 to 2026-11-05 (fourteenth: whole documents, BibTeX, makeindex; the 0.5.0 and 0.5.1 releases). This file lives at the repository root; until session 5 it was
 `docs/15-handover.md`. Everything below is verified unless marked otherwise.
 Read this before `docs/14` if you are picking the project up cold. The
 repository is `~/Source/mp-tikz-wasm`, remote
 <https://github.com/jmckalex/mp-tikz-wasm> (`origin`, branch `main`).
 
-**State now (session 14, 2026-10-22): v0.5.0 is released**
+**State now (session 14, 2026-11-05): v0.5.1 is released**
+(<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.5.1>, annotated tag
+on 596c278, which is `main` and `next`). The owner approved it
+through Clew-boss ("all recommendations": 0.5.1 before Clew 0.12.1, the TeX Live
+update after it) and typed the release in this session's window. 0.5.1 is 0.5.0
+plus the fixes listed under "After 0.5.0" below and Clew-app's (ddab435 engine
+`'tex'` on plain.fmt; c0c64d4 the engine or bundle named when TeX finds no
+format; 662aae9 the log read as bytes, so a line TeX broke at a non-ASCII letter
+joins whole; 190ccb1 `result.texLogBytes`), then 5dd9f4e "Release 0.5.1"
+(version strings only) and 596c278 (archives without macOS metadata). Only five
+files of `dist/` differ from 0.5.0's (core.js, core.d.ts, tex/bridge.js,
+tex/bridge.d.ts, types.d.ts); the wasm modules, formats and bundles are 0.5.0's,
+from the same TeX Live (no tlmgr). Five assets, GitHub's numbers, each equal to
+the local build's (notes in `release/notes-0.5.1.md`):
+
+- `mp-tikz-wasm-0.5.1.tar.gz`, **50,311,695 bytes, sha256
+  af79f8cab30248a36e0ac88a859a8f733d8eb02443c7f66d75a716fd08cdb077**, and `.zip`
+  (53,575,086 bytes, dabe4b11d1729d2fe5f79d964b04c5fa3fbedd4b0197c937dbaf7fefee67f9fe);
+- `mp-tikz-wasm-ghostscript-0.5.1.tar.gz` (AGPL, apart; the module is 0.4.0's),
+  **8,628,028 bytes, sha256
+  80a1bad555598b587cb1bf2ee73bf985ace4ce549ee7bb399e9bb7014de7119a**, and `.zip`
+  (8,631,917 bytes, 7a2e778ed09c3f4dd909c463e6a598684962b2bc10172dffddf6f5f00b865e93);
+- `mp-tikz-wasm-ghostscript-0.5.1-source.tar.gz`, the same git archive of the
+  port at e8c528b as 0.4.0's and 0.5.0's, **90,111,919 bytes, sha256
+  2096e4fc00b79ec80d11a3984009c606907cadb92456f93ed62e56d0d494f84a**.
+
+The tarballs carry no macOS metadata (596c278, asked for by Clew-boss):
+`package-release.sh` runs bsdtar with `COPYFILE_DISABLE=1 --no-xattrs
+--no-mac-metadata --no-acls --no-fflags`. 0.5.0's main tarball had 11100
+members, an AppleDouble `._` twin with xattr pax headers for each of 5550 files,
+which GNU tar unpacks as stray files with a warning each; 0.5.1's has 5550, none
+`._`, none with a pax header. The zips never had `__MACOSX/`. The source
+archive's only pax header is git's global commit comment.
+
+The site (jmckalex.org and eschatolog.ist `/software/mp-tikz-wasm/`) serves
+0.5.1, staged from 596c278: `make check ARGS=-c` listed 8 changed files (the
+landing page, the five dist files, the guide, the standalone demo) and no
+deletions; both domains serve the new files byte for byte.
+
+Verified for 0.5.1: 329 vitest tests (no skips on this machine), contract 48/48,
+goldens 15/15, 16/16, 11/11, smoke 17/17, check-nosystem 7/7 (run
+`scripts/check-nosystem.sh dist/*.wasm dist/ghostscript/gs.wasm`: `make
+check-nosystem` depends on dist/mplib.mjs and tries to rebuild it after `make
+contract`). A clean extraction of the tarball runs engine `'tex'`, names
+`'pdflatex'` as unknown, gives fontspec's whole message, and its `texLogBytes`
+decodes to `texLog`. The guide's three version strings were edited in place, as
+for 0.5.0: `npm run build:guide` renumbers dvisvgm's fonts and churns the file.
+
+**CI is red on `main`, `next` and the tag, because of the runner, not the
+code.** 596c278 passed on 2026-10-23 (run 39931144497, ubuntu-24.04). By
+2026-11-05 `ubuntu-latest` was ubuntu-26.04, whose GCC 15 compiles C23 by
+default, where `bool` is a keyword: the wasm job's native web2c pass stops in
+the generated `pdftex0.c` ("boolean bool ;": two or more data types in
+declaration specifiers). Runs 42127556768 (tag), 42127530369 (`next`),
+42127530294 (`main`): the native job green, the wasm job red at "native web2c
+pass". Not fixed: pin `runs-on: ubuntu-24.04`, or build the native pass with
+`-std=gnu17`; the owner has not chosen.
+
+Open: **cm-super** is not bundled (the owner chose (a), 2026-10-20): T1 Computer
+Modern needs `\usepackage{lmodern}`. Clew needs default + `opentype` +
+`otf-fonts` + `latex-doc`, since unicode-math's default, `latinmodern-math.otf`,
+is only in `otf-fonts`. LuaLaTeX with EB Garamond at 551 MiB a pass may be too
+much for the iPad. Whether releases should be built from tlnet-final, as CI's
+bundles are, is the owner's call. MetaPost's `diagnostics.ts` has the same
+79-byte wrap and is left alone. The LuaLaTeX formats are not byte-reproducible
+(two builds of the same tree differ; the shipped ones were kept); a file copied
+into build/texmf by hand is invisible to kpathsea until ls-R lists it.
+
+**Before that (session 14, 2026-10-21): v0.5.0 is released**
 (<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.5.0>, annotated tag
 on d44aeeb, which is `main` and `next`; CI green on `latex-doc`, `next`, `main`
 and the tag, every job). It is 0.4.0 plus whole documents for Clew's iPad PDF
@@ -83,8 +151,7 @@ text and fonts; the default pdfLaTeX docs page needs cm-super, and with
 0.2–0.6 s, 128 MiB; LuaLaTeX with Latin Modern 1–1.3 s, 154 MiB; with EB
 Garamond 4.7–5.1 s, **551 MiB**; bibtex/makeindex ~30 ms, 16 MiB.
 
-**After 0.5.0, on `latex-doc` (not released; `next` and `main` stay at
-d44aeeb).** Four fixes Clew-boss asked for and verified on a clean copy; no
+**After 0.5.0 (all in 0.5.1, above).** Four fixes Clew-boss asked for and verified on a clean copy; no
 correct output changes:
 
 - fe8d535 a Package's or Class's error message goes on over its `(name)` lines:
@@ -104,16 +171,6 @@ unchanged; a build/texmf from the new script is identical to 0.5.0's apart from
 the formats' ls-R entries and luaotfload's name database; each fix's test fails
 when the fix is undone. Clew's iPad shows a diagnostic's message only, so the
 help fontspec now gets is not on screen there yet.
-
-Open: **cm-super** is not bundled (the owner chose (a), 2026-10-20): T1 Computer
-Modern needs `\usepackage{lmodern}`. Clew needs default + `opentype` +
-`otf-fonts` + `latex-doc`, since unicode-math's default, `latinmodern-math.otf`,
-is only in `otf-fonts`. LuaLaTeX with EB Garamond at 551 MiB a pass may be too
-much for the iPad. Whether releases should be built from tlnet-final, as CI's
-bundles are, is the owner's call. MetaPost's `diagnostics.ts` has the same
-79-byte wrap and is left alone. The LuaLaTeX formats are not byte-reproducible
-(two builds of the same tree differ; the shipped ones were kept); a file copied
-into build/texmf by hand is invisible to kpathsea until ls-R lists it.
 
 **Before that (session 13, 2026-10-10): v0.4.0 is released**
 (<https://github.com/jmckalex/mp-tikz-wasm/releases/tag/v0.4.0>, tag on
